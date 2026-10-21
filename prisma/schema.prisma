@@ -1,0 +1,309 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  VISITOR
+  SUBSCRIBER
+  CREATOR
+  ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum CreatorStatus {
+  ACTIVE
+  PENDING_VERIFICATION
+  RESTRICTED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+}
+
+enum Visibility {
+  PUBLIC
+  SUBSCRIBER_ONLY
+  PURCHASE_ONLY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PENDING
+}
+
+enum CustomRequestStatus {
+  REQUESTED
+  AWAITING_PAYMENT
+  PAID
+  DELIVERED
+  CANCELLED
+}
+
+enum TransactionType {
+  SUBSCRIPTION
+  CUSTOM_CONTENT
+  TIP
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
+model User {
+  id              String         @id @default(uuid())
+  email           String         @unique
+  password        String
+  name            String
+  username        String         @unique
+  role            Role           @default(SUBSCRIBER)
+  avatar          String?
+  bio             String?
+  isEmailVerified Boolean        @default(true)
+  status          AccountStatus  @default(ACTIVE)
+  ageVerified     Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  creatorProfile  CreatorProfile?
+  subscriptions   Subscription[]
+  follows         Follow[]
+  sentMessages    Message[]      @relation("SentMessages")
+  receivedMessages Message[]     @relation("ReceivedMessages")
+  transactions    Transaction[]
+  purchases       PurchasedContent[]
+  customRequests  CustomContentRequest[]
+  notifications   Notification[]
+  reports         ContentReport[] @relation("Reporter")
+  likes           PostLike[]
+}
+
+model CreatorProfile {
+  id              String         @id @default(uuid())
+  userId          String         @unique
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName     String
+  handle          String         @unique
+  bio             String?
+  bannerImage     String?
+  profileImage    String?
+  category        String         @default("Popular")
+  isVerified      Boolean        @default(false)
+  monthlyPrice    Float          @default(9.99)
+  followerCount   Int            @default(0)
+  subscriberCount Int            @default(0)
+  totalEarnings   Float          @default(0.0)
+  balance         Float          @default(0.0)
+  status          CreatorStatus  @default(ACTIVE)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  posts           Post[]
+  subscriptions   Subscription[]
+  customRequests  CustomContentRequest[]
+  transactions    Transaction[]  @relation("CreatorTransactions")
+  followers       Follow[]
+}
+
+model Post {
+  id           String         @id @default(uuid())
+  creatorId    String
+  creator      CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  title        String?
+  caption      String?
+  mediaUrl     String
+  mediaType    MediaType      @default(IMAGE)
+  thumbnailUrl String?
+  visibility   Visibility     @default(SUBSCRIBER_ONLY)
+  price        Float?         @default(0.0)
+  likeCount    Int            @default(0)
+  isPinned     Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  likes        PostLike[]
+  reports      ContentReport[]
+  purchases    PurchasedContent[]
+}
+
+model PostLike {
+  id        String   @id @default(uuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+}
+
+model Follow {
+  id        String         @id @default(uuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creatorId String
+  creator   CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
+
+  @@unique([userId, creatorId])
+}
+
+model Subscription {
+  id          String             @id @default(uuid())
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creatorId   String
+  creator     CreatorProfile     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  status      SubscriptionStatus @default(ACTIVE)
+  amount      Float
+  startDate   DateTime           @default(now())
+  endDate     DateTime
+  autoRenew   Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  transactions Transaction[]
+}
+
+model Conversation {
+  id            String    @id @default(uuid())
+  user1Id       String
+  user2Id       String
+  lastMessage   String?
+  lastMessageAt DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  messages      Message[]
+  customRequests CustomContentRequest[]
+
+  @@unique([user1Id, user2Id])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId     String
+  receiver       User         @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  content        String
+  mediaUrl       String?
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+}
+
+model CustomContentRequest {
+  id               String              @id @default(uuid())
+  conversationId   String?
+  conversation     Conversation?       @relation(fields: [conversationId], references: [id])
+  customerId       String
+  customer         User                @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  creatorId        String
+  creator          CreatorProfile      @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  title            String
+  description      String
+  price            Float
+  status           CustomRequestStatus @default(REQUESTED)
+  deliveredMediaUrl String?
+  deliveryNote     String?
+  deliveredAt      DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  transaction      Transaction?
+  purchasedContent PurchasedContent?
+}
+
+model PurchasedContent {
+  id              String                @id @default(uuid())
+  userId          String
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId          String?
+  post            Post?                 @relation(fields: [postId], references: [id])
+  customRequestId String?               @unique
+  customRequest   CustomContentRequest? @relation(fields: [customRequestId], references: [id])
+  accessUrl       String
+  price           Float
+  purchasedAt     DateTime              @default(now())
+}
+
+model Transaction {
+  id                   String                @id @default(uuid())
+  transactionReference String                @unique
+  userId               String
+  user                 User                  @relation(fields: [userId], references: [id])
+  creatorId            String?
+  creator              CreatorProfile?       @relation("CreatorTransactions", fields: [creatorId], references: [id])
+  type                 TransactionType
+  subscriptionId       String?
+  subscription         Subscription?         @relation(fields: [subscriptionId], references: [id])
+  customRequestId      String?               @unique
+  customRequest        CustomContentRequest? @relation(fields: [customRequestId], references: [id])
+  grossAmount          Float
+  currency             String                @default("USD")
+  creatorShare         Float
+  platformShare        Float
+  feeAmount            Float                 @default(0.0)
+  status               PaymentStatus         @default(SUCCESS)
+  paymentGateway       String                @default("MIRAGE_PAY")
+  gatewayReference     String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+}
+
+model PlatformSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("GENERAL")
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model ContentReport {
+  id         String       @id @default(uuid())
+  reporterId String
+  reporter   User         @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  postId     String
+  post       Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reason     String
+  details    String?
+  status     ReportStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+  resolvedAt DateTime?
+}
+
