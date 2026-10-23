@@ -113,20 +113,24 @@ export default function PanelSidebar({
         {/* Brand & Toggle Header */}
         <div className="h-20 px-4 flex items-center justify-between border-b border-[#1c1c28]">
           <Link href="/" className="flex items-center gap-3 overflow-hidden group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d4af37] via-[#f5d77f] to-[#aa820a] flex items-center justify-center p-0.5 shadow-gold-sm flex-shrink-0 group-hover:scale-105 transition-transform">
-              <div className="w-full h-full bg-[#0a0a0c] rounded-[10px] flex items-center justify-center">
-                <Crown className="w-5 h-5 text-[#f5d77f]" />
-              </div>
-            </div>
-
-            {!collapsed && (
-              <div className="flex flex-col min-w-0">
-                <span className="text-lg font-serif font-bold text-white tracking-wide truncate group-hover:text-[#f5d77f] transition-colors">
-                  The Mirage
-                </span>
+            {!collapsed ? (
+              <div className="flex flex-col gap-1 min-w-0">
+                <img
+                  src="/assets/the_mirage_logo.png"
+                  alt="The Mirage"
+                  className="h-8 w-auto object-contain group-hover:scale-105 transition-transform"
+                />
                 <span className={`text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border w-fit ${panelBadge.color}`}>
                   {panelBadge.title}
                 </span>
+              </div>
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-[#0e0e14] border border-[#d4af37]/40 flex items-center justify-center p-1 shadow-gold-sm flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden">
+                <img
+                  src="/assets/the_mirage_logo.png"
+                  alt="The Mirage"
+                  className="w-full h-full object-cover"
+                />
               </div>
             )}
           </Link>

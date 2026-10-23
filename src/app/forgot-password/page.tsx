@@ -30,11 +30,13 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen bg-[#08080a] flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-[#101016] border border-[#262634] rounded-3xl p-8 shadow-2xl relative text-center">
-        <div className="w-12 h-12 mx-auto rounded-2xl bg-gradient-to-br from-[#d4af37] via-[#f5d77f] to-[#aa820a] p-0.5 shadow-gold-sm mb-4">
-          <div className="w-full h-full bg-[#0a0a0e] rounded-[14px] flex items-center justify-center">
-            <Crown className="w-6 h-6 text-[#f5d77f]" />
-          </div>
-        </div>
+        <Link href="/" className="inline-block mb-3 group">
+          <img
+            src="/assets/the_mirage_logo.png"
+            alt="The Mirage"
+            className="h-14 w-auto mx-auto object-contain transition-transform group-hover:scale-105"
+          />
+        </Link>
 
         <h2 className="text-2xl font-serif font-bold text-white tracking-wide">
           Reset Password

@@ -88,10 +88,14 @@ export default function SubscribeModal({ creator, onClose, onSuccess }: Subscrib
           </div>
         ) : (
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-5 h-5 text-[#f5d77f]" />
-              <span className="text-xs font-semibold uppercase tracking-widest text-[#d4af37]">
-                The Mirage Premium
+            <div className="flex items-center justify-between mb-3">
+              <img
+                src="/assets/the_mirage_logo.png"
+                alt="The Mirage"
+                className="h-7 w-auto object-contain"
+              />
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-[#d4af37] px-2.5 py-0.5 rounded-full bg-[#181824] border border-[#d4af37]/30">
+                Premium
               </span>
             </div>
 

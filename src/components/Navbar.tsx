@@ -79,20 +79,12 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 bg-[#08080a]/90 backdrop-blur-md border-b border-[#22222a]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d4af37] via-[#f5d77f] to-[#aa820a] flex items-center justify-center p-0.5 shadow-gold-sm group-hover:scale-105 transition-transform">
-            <div className="w-full h-full bg-[#0a0a0c] rounded-[10px] flex items-center justify-center">
-              <Crown className="w-5 h-5 text-[#f5d77f]" />
-            </div>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-2xl font-serif tracking-wider text-white font-bold group-hover:text-[#f5d77f] transition-colors">
-              The Mirage
-            </span>
-            <span className="text-[9px] uppercase tracking-[0.2em] text-[#d4af37]/80 -mt-1 font-medium hidden sm:block">
-              Exclusive Platform
-            </span>
-          </div>
+        <Link href="/" className="flex items-center group">
+          <img
+            src="/assets/the_mirage_logo.png"
+            alt="The Mirage"
+            className="h-10 sm:h-12 w-auto object-contain transition-transform group-hover:scale-105"
+          />
         </Link>
 
         {/* Center Navigation Links */}

@@ -10,17 +10,14 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           {/* Logo & Tagline */}
-          <div className="flex flex-col sm:flex-row items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#d4af37] to-[#8c6708] flex items-center justify-center p-0.5 shadow-gold-sm">
-                <div className="w-full h-full bg-[#0a0a0c] rounded-[6px] flex items-center justify-center">
-                  <Crown className="w-3.5 h-3.5 text-[#f5d77f]" />
-                </div>
-              </div>
-              <span className="text-lg font-serif font-bold text-white tracking-wide">
-                The Mirage
-              </span>
-            </div>
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <Link href="/" className="flex items-center group">
+              <img
+                src="/assets/the_mirage_logo.png"
+                alt="The Mirage"
+                className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105"
+              />
+            </Link>
             <span className="hidden sm:inline text-[#3a3a48]">|</span>
             <span className="text-xs text-[#717182] font-normal">
               Your Freedom. Your Content. Your Community.

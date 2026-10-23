@@ -2,6 +2,7 @@
 
 import React, { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import {
   Send,
   Sparkles,
@@ -167,10 +168,13 @@ function ChatContent() {
         mobileView === 'chat' ? 'hidden md:flex' : 'flex'
       }`}>
         <div className="p-4 border-b border-[#1e1e28] flex items-center justify-between">
-          <h2 className="text-base font-serif font-bold text-white flex items-center gap-2">
-            <Crown className="w-4 h-4 text-[#f5d77f]" />
-            Messages
-          </h2>
+          <Link href="/" className="inline-flex items-center">
+            <img
+              src="/assets/the_mirage_logo.png"
+              alt="The Mirage"
+              className="h-6 w-auto object-contain"
+            />
+          </Link>
           <span className="text-[10px] text-[#808092] bg-[#161622] px-2 py-0.5 rounded-full border border-[#272736]">
             Encrypted 1-on-1
           </span>

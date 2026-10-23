@@ -29,8 +29,17 @@ export default function AgeGateModal() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
       <div className="relative w-full max-w-md p-8 bg-[#0f0f15] border border-[#d4af37]/30 rounded-2xl shadow-2xl shadow-black text-center">
-        {/* Golden Crown / Shield Badge */}
-        <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-[#d4af37] via-[#f5d77f] to-[#aa820a] p-0.5 shadow-gold-sm">
+        {/* Official Brand Logo */}
+        <div className="mb-4">
+          <img
+            src="/assets/the_mirage_logo.png"
+            alt="The Mirage"
+            className="h-11 w-auto mx-auto object-contain"
+          />
+        </div>
+
+        {/* Golden 18+ Badge */}
+        <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-[#d4af37] via-[#f5d77f] to-[#aa820a] p-0.5 shadow-gold-sm">
           <div className="w-full h-full bg-[#0a0a0e] rounded-[14px] flex items-center justify-center">
             <span className="text-xl font-bold font-serif text-[#f5d77f]">18+</span>
           </div>

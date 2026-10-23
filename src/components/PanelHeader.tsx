@@ -31,9 +31,15 @@ export default function PanelHeader({
         </button>
 
         <div>
-          <div className="flex items-center gap-1.5 text-[11px] text-[#717182] font-medium">
-            <span>The Mirage</span>
-            <ChevronRight className="w-3 h-3" />
+          <div className="flex items-center gap-2 text-[11px] text-[#717182] font-medium">
+            <Link href="/" className="inline-flex items-center">
+              <img
+                src="/assets/the_mirage_logo.png"
+                alt="The Mirage"
+                className="h-4 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
+              />
+            </Link>
+            <ChevronRight className="w-3 h-3 text-[#555568]" />
             <span className="text-[#d4af37] font-semibold">
               {role === 'ADMIN' ? 'Administration' : role === 'CREATOR' ? 'Creator Studio' : 'Subscriber Portal'}
             </span>

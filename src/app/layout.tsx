@@ -7,6 +7,10 @@ export const metadata: Metadata = {
   title: 'The Mirage | Real People. Exclusive Content. Your World.',
   description:
     'The Mirage is a premium creator subscription platform connecting verified creators with subscribers. 85/15 creator revenue split, real-time messaging, and exclusive content.',
+  icons: {
+    icon: '/assets/the_mirage_logo.png',
+    apple: '/assets/the_mirage_logo.png',
+  },
 };
 
 export default function RootLayout({
@@ -17,6 +21,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
+        <link rel="icon" href="/assets/the_mirage_logo.png" />
         <link rel="stylesheet" href="/output.css" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
