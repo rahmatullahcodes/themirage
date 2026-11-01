@@ -8,7 +8,7 @@ import { Crown, Lock, Mail, User, Sparkles, ArrowRight, AlertCircle, Heart } fro
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialRole = searchParams.get('role') === 'CREATOR' ? 'CREATOR' : 'SUBSCRIBER';
+  const initialRole = searchParams?.get('role') === 'CREATOR' ? 'CREATOR' : 'SUBSCRIBER';
 
   const [role, setRole] = useState<'SUBSCRIBER' | 'CREATOR'>(initialRole);
   const [name, setName] = useState('');
@@ -20,7 +20,7 @@ function RegisterForm() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (searchParams.get('role') === 'CREATOR') {
+    if (searchParams?.get('role') === 'CREATOR') {
       setRole('CREATOR');
     }
   }, [searchParams]);

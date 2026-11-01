@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "node server.js",
     "build:css": "tailwindcss -i src/app/globals.css -o public/output.css --minify",
-    "build": "npm run build:css && next build",
+    "build": "prisma generate && npm run build:css && next build",
+    "postinstall": "prisma generate",
     "start": "NODE_ENV=production node server.js",
     "test": "node tests/commission.test.js && node tests/auth_and_routes.test.js && node tests/content_purchases.test.js",
     "lint": "next lint",

@@ -35,8 +35,8 @@ interface ChatMessage {
 
 function ChatContent() {
   const searchParams = useSearchParams();
-  const queryCreator = searchParams.get('creator') || 'luna-rae';
-  const autoOpenCustom = searchParams.get('requestCustom') === 'true';
+  const queryCreator = searchParams?.get('creator') || 'luna-rae';
+  const autoOpenCustom = searchParams?.get('requestCustom') === 'true';
 
   const [activeConversation, setActiveConversation] = useState(queryCreator);
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('chat');

@@ -81,52 +81,65 @@ export default function CreatorStudioPage() {
   const [deliveryFileUrl, setDeliveryFileUrl] = useState('');
 
   // Feed posts (including individual paid content)
-  const [feedPosts, setFeedPosts] = useState([
+  interface CreatorFeedPost {
+    id: string;
+    type: 'image' | 'video' | 'IMAGE' | 'VIDEO';
+    title: string;
+    url: string;
+    caption: string;
+    visibility: 'PUBLIC' | 'SUBSCRIBER_ONLY' | 'PURCHASE_ONLY';
+    price: number;
+    status: 'PUBLISHED' | 'DRAFT' | 'ARCHIVED';
+    likes: number;
+    date: string;
+  }
+
+  const [feedPosts, setFeedPosts] = useState<CreatorFeedPost[]>([
     {
       id: 'fp-1',
-      type: 'image' as const,
+      type: 'image',
       title: 'Luxury Villa Sunset Photoshoot (4K Set)',
       url: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=600&q=80',
       caption: 'Ultra high-definition exclusive studio photoshoot in Monaco.',
-      visibility: 'PURCHASE_ONLY' as const,
+      visibility: 'PURCHASE_ONLY',
       price: 15.00,
-      status: 'PUBLISHED' as const,
+      status: 'PUBLISHED',
       likes: 4610,
       date: '1 day ago',
     },
     {
       id: 'fp-2',
-      type: 'video' as const,
+      type: 'video',
       title: 'Paris Runway Fashion Week 4K Cinematic Film',
       url: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=600&q=80',
       caption: 'Full 18-minute backstage runway documentary & commentary.',
-      visibility: 'PURCHASE_ONLY' as const,
+      visibility: 'PURCHASE_ONLY',
       price: 24.99,
-      status: 'PUBLISHED' as const,
+      status: 'PUBLISHED',
       likes: 6120,
       date: '2 days ago',
     },
     {
       id: 'fp-3',
-      type: 'image' as const,
+      type: 'image',
       title: 'Backstage Photoshoot',
       url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80',
       caption: 'Exclusive backstage photoshoot session. Live for subscribers!',
-      visibility: 'SUBSCRIBER_ONLY' as const,
+      visibility: 'SUBSCRIBER_ONLY',
       price: 0,
-      status: 'PUBLISHED' as const,
+      status: 'PUBLISHED',
       likes: 3820,
       date: '3 days ago',
     },
     {
       id: 'fp-4',
-      type: 'image' as const,
+      type: 'image',
       title: 'Paris Golden Hour Preview',
       url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
       caption: 'Free preview for everyone. Feeling grateful for all the love!',
-      visibility: 'PUBLIC' as const,
+      visibility: 'PUBLIC',
       price: 0,
-      status: 'PUBLISHED' as const,
+      status: 'PUBLISHED',
       likes: 1240,
       date: '5 days ago',
     },

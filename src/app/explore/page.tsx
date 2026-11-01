@@ -103,8 +103,8 @@ const CATEGORIES_LIST = [
 
 function ExploreContent() {
   const searchParams = useSearchParams();
-  const initialCategory = searchParams.get('category') || 'All';
-  const initialQuery = searchParams.get('q') || '';
+  const initialCategory = searchParams?.get('category') || 'All';
+  const initialQuery = searchParams?.get('q') || '';
 
   const [activeCategory, setActiveCategory] = useState(
     initialCategory.toLowerCase() === 'all' ? 'All' : initialCategory
@@ -119,7 +119,7 @@ function ExploreContent() {
   } | null>(null);
 
   useEffect(() => {
-    const cat = searchParams.get('category');
+    const cat = searchParams?.get('category');
     if (cat) {
       const match = CATEGORIES_LIST.find((c) => c.toLowerCase() === cat.toLowerCase());
       if (match) setActiveCategory(match);

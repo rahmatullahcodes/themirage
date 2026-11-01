@@ -41,7 +41,7 @@ function CreatorProfileContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const handle = params.handle as string;
+  const handle = (params?.handle as string) || '';
 
   const [activeTab, setActiveTab] = useState<'posts' | 'photos' | 'videos' | 'subscription' | 'paid' | 'about'>('posts');
   const [isFollowing, setIsFollowing] = useState(false);
@@ -51,7 +51,7 @@ function CreatorProfileContent() {
 
   // Check URL parameter for auto opening subscribe modal
   useEffect(() => {
-    if (searchParams.get('subscribe') === 'true') {
+    if (searchParams?.get('subscribe') === 'true') {
       setShowSubscribeModal(true);
     }
   }, [searchParams]);
@@ -235,7 +235,9 @@ function CreatorProfileContent() {
                   {creator.name}
                 </h1>
                 {creator.isVerified && (
-                  <CheckCircle2 className="w-5 h-5 fill-[#d4af37] text-black" title="Verified Creator" />
+                  <span title="Verified Creator">
+                    <CheckCircle2 className="w-5 h-5 fill-[#d4af37] text-black" />
+                  </span>
                 )}
               </div>
               <p className="text-sm text-[#8c8c9e] font-mono">{creator.handle}</p>
