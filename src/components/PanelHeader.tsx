@@ -52,12 +52,18 @@ export default function PanelHeader({
 
       {/* Right: Status Pill & Controls */}
       <div className="flex items-center gap-3">
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111118] border border-[#232332] text-xs">
-          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-          <span className="text-[#a0a0b2] text-[11px] font-medium">
-            Split Rule: <strong className="text-[#f5d77f]">85% Creator / 15% Platform</strong>
-          </span>
-        </div>
+        {role !== 'SUBSCRIBER' && (
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111118] border border-[#232332] text-xs">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+            <span className="text-[#a0a0b2] text-[11px] font-medium">
+              {role === 'ADMIN' ? (
+                <>Commission Rule: <strong className="text-[#f5d77f]">85/15 Active</strong></>
+              ) : (
+                <>Creator Revenue: <strong className="text-[#f5d77f]">85% Active</strong></>
+              )}
+            </span>
+          </div>
+        )}
 
         <Link
           href="/chat"

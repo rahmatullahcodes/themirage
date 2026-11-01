@@ -6,7 +6,7 @@ import AppLayoutWrapper from '@/components/AppLayoutWrapper';
 export const metadata: Metadata = {
   title: 'The Mirage | Real People. Exclusive Content. Your World.',
   description:
-    'The Mirage is a premium creator subscription platform connecting verified creators with subscribers. 85/15 creator revenue split, real-time messaging, and exclusive content.',
+    'The Mirage is a premium creator subscription platform connecting verified creators with subscribers. Real-time messaging, pay-per-view media, and exclusive content.',
   icons: {
     icon: '/assets/the_mirage_logo.png',
     apple: '/assets/the_mirage_logo.png',

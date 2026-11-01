@@ -160,7 +160,7 @@ export default function HomePage() {
               </div>
 
               {/* Platform Statistics Row */}
-              <div className="grid grid-cols-4 gap-4 pt-6 border-t border-[#1c1c28]">
+              <div className="grid grid-cols-3 gap-4 pt-6 border-t border-[#1c1c28]">
                 <div>
                   <div className="text-lg sm:text-xl font-bold font-serif text-white">10K+</div>
                   <div className="text-[10px] text-[#717182] uppercase tracking-wider mt-0.5">Active Creators</div>
@@ -168,10 +168,6 @@ export default function HomePage() {
                 <div>
                   <div className="text-lg sm:text-xl font-bold font-serif text-white">100K+</div>
                   <div className="text-[10px] text-[#717182] uppercase tracking-wider mt-0.5">Happy Subscribers</div>
-                </div>
-                <div>
-                  <div className="text-lg sm:text-xl font-bold font-serif text-[#f5d77f]">85/15</div>
-                  <div className="text-[10px] text-[#717182] uppercase tracking-wider mt-0.5">Creator Earnings</div>
                 </div>
                 <div>
                   <div className="text-lg sm:text-xl font-bold font-serif text-white">100%</div>
@@ -195,19 +191,6 @@ export default function HomePage() {
                 <div className="absolute top-8 right-6 text-right select-none pointer-events-none">
                   <div className="font-serif italic text-base sm:text-lg text-[#f5d77f] drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
                     More Freedom<br />More You ♡
-                  </div>
-                </div>
-
-                {/* Floating Glassmorphism Badge: 85/15 */}
-                <div className="absolute bottom-6 right-6 p-3 rounded-2xl glass-panel-gold flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#d4af37] to-[#8c6708] flex items-center justify-center">
-                    <Crown className="w-4 h-4 text-black" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold font-serif text-white">85/15</div>
-                    <div className="text-[10px] text-[#e0e0ea] leading-tight">
-                      Creators keep 85%<br />You keep 15%
-                    </div>
                   </div>
                 </div>
               </div>
@@ -374,7 +357,7 @@ export default function HomePage() {
       </section>
 
       {/* ========================================================
-          3. WHY JOIN THE MIRAGE PROMO BANNER (85/15)
+          3. WHY JOIN THE MIRAGE PROMO BANNER
       ======================================================== */}
       <section className="py-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-[#121218] via-[#171720] to-[#121218] border border-[#d4af37]/30 p-6 sm:p-8 lg:p-10 shadow-2xl">
@@ -402,7 +385,7 @@ export default function HomePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm text-[#cbd5e1]">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-[#f5d77f] flex-shrink-0" />
-                  <span>Creators keep 85% of their earnings</span>
+                  <span>Higher earning potential for creators</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-[#f5d77f] flex-shrink-0" />
@@ -427,16 +410,17 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Right: Golden 85/15 Box and Join Now CTA */}
+            {/* Right: Higher Earning Potential Box and Join Now CTA */}
             <div className="lg:col-span-3 flex flex-col items-center lg:items-end gap-4">
               <div className="w-full max-w-xs p-4 rounded-2xl bg-gradient-to-br from-[#1a1a24] to-[#121218] border border-[#d4af37]/40 text-center">
-                <div className="flex items-center justify-center gap-2 mb-1">
+                <div className="flex items-center justify-center gap-2 mb-1.5">
                   <Crown className="w-5 h-5 text-[#f5d77f]" />
-                  <span className="text-2xl font-serif font-black text-white">85/15</span>
+                  <span className="text-base sm:text-lg font-serif font-bold text-white tracking-wide">
+                    Higher Earning Potential
+                  </span>
                 </div>
-                <p className="text-[11px] text-[#cbd5e1] leading-tight">
-                  The best revenue split for creators.<br />
-                  <span className="text-[#f5d77f] font-semibold">You keep 85%.</span>
+                <p className="text-[11px] text-[#cbd5e1] leading-relaxed">
+                  Maximize your creator revenue through monthly subscriptions, pay-per-view media, and bespoke private requests.
                 </p>
               </div>
 

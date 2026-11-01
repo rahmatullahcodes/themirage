@@ -418,8 +418,7 @@ function ChatContent() {
                     className="w-full px-3.5 py-2.5 bg-[#181824] border border-[#2b2b3a] rounded-xl text-xs text-white focus:border-[#d4af37]"
                   />
                   <span className="text-[10px] text-[#636375] mt-1 block">
-                    85% goes directly to the creator ($
-                    {((parseFloat(customPrice) || 0) * 0.85).toFixed(2)})
+                    Your request and offered budget will be delivered directly to the creator.
                   </span>
                 </div>
 

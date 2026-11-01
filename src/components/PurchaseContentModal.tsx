@@ -140,14 +140,10 @@ export default function PurchaseContentModal({
             </div>
 
             {/* Price Box */}
-            <div className="p-4 rounded-xl bg-[#181824] border border-[#2b2b3d] space-y-2">
+            <div className="p-4 rounded-xl bg-[#181824] border border-[#2b2b3d]">
               <div className="flex justify-between items-center text-xs text-[#9da3af]">
                 <span>Content Price (One-Time Unlock)</span>
                 <span className="text-lg font-bold text-white">${content.price.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between items-center text-[11px] text-[#717182] pt-2 border-t border-[#232332]">
-                <span>Creator Earnings Split</span>
-                <span className="text-[#f5d77f] font-medium">85% to Creator</span>
               </div>
             </div>
 

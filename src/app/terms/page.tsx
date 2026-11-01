@@ -265,25 +265,9 @@ export default function TermsPage() {
               <p>
                 <strong>8.1</strong> Fans may purchase subscriptions, pay-per-view content, tips, private messages and other paid features offered by Creators on the Platform.
               </p>
-              <div className="p-4 rounded-xl bg-[#181824] border border-[#d4af37]/30 space-y-2">
-                <p className="font-semibold text-white">
-                  <strong>8.2</strong> Unless a different written agreement has been concluded with a particular Creator, the following standard fee structure applies to all transactions:
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                  <div className="p-3 rounded-lg bg-[#0e0e14] border border-[#2b2b3d] text-center">
-                    <div className="text-xs text-[#8c8c9e]">Payment Processing / Gateway Fee</div>
-                    <div className="text-lg font-bold text-white mt-1">15.5%</div>
-                  </div>
-                  <div className="p-3 rounded-lg bg-[#0e0e14] border border-[#2b2b3d] text-center">
-                    <div className="text-xs text-[#8c8c9e]">The Mirage Platform Fee</div>
-                    <div className="text-lg font-bold text-[#d4af37] mt-1">15.0%</div>
-                  </div>
-                  <div className="p-3 rounded-lg bg-[#0e0e14] border border-[#d4af37]/40 text-center">
-                    <div className="text-xs text-[#8c8c9e]">Creator Net Payout Balance</div>
-                    <div className="text-lg font-bold text-[#f5d77f] mt-1">69.5%</div>
-                  </div>
-                </div>
-              </div>
+              <p>
+                <strong>8.2</strong> <span className="text-[#f5d77f]/80 text-[11px] block sm:inline font-mono sm:ml-1">[Subject to Client &amp; Legal Counsel Approval]</span> Unless a different written agreement has been concluded with a particular Creator, platform fees and payment processing costs are deducted from gross transaction amounts in accordance with the applicable platform policies and Creator agreement in effect at the time of each transaction. Applicable payout terms, net earnings calculations, and schedule details are provided directly to Creators within their authenticated account portal.
+              </p>
               <p>
                 <strong>8.3</strong> All prices are displayed in the currency indicated on the Platform at the time of purchase. You are responsible for any applicable taxes, bank charges or currency-conversion fees.
               </p>

@@ -16,7 +16,7 @@ export default function PricingPage() {
             Simple Pricing. <span className="gold-text-gradient">Maximum Freedom.</span>
           </h1>
           <p className="text-sm text-[#94a3af] leading-relaxed">
-            The Mirage empowers creators to own their craft with an industry-leading 85% revenue split, while subscribers enjoy premium exclusive feeds with no hidden fees.
+            The Mirage empowers creators to own their craft with industry-leading earning potential, while subscribers enjoy premium exclusive feeds with no hidden fees.
           </p>
         </div>
 
@@ -68,7 +68,7 @@ export default function PricingPage() {
             </Link>
           </div>
 
-          {/* Creator 85/15 Card */}
+          {/* Creator Card */}
           <div className="p-8 rounded-3xl bg-gradient-to-b from-[#181824] via-[#12121a] to-[#0e0e14] border border-[#d4af37]/50 shadow-gold-glow flex flex-col justify-between space-y-6 relative overflow-hidden">
             <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/40 text-[#f5d77f] text-[10px] font-bold">
               RECOMMENDED
@@ -84,18 +84,18 @@ export default function PricingPage() {
               </p>
 
               <div className="pt-2">
-                <div className="text-3xl font-black font-serif text-[#f5d77f]">
-                  85% Creator Cut
+                <div className="text-2xl sm:text-3xl font-black font-serif text-[#f5d77f]">
+                  Higher Earning Potential
                 </div>
                 <span className="text-xs text-[#8c8c9e] font-sans font-normal block mt-1">
-                  15% Platform Maintenance Fee • No upfront fees
+                  Transparent platform terms • No upfront fees
                 </span>
               </div>
 
               <ul className="text-xs text-[#cbd5e1] space-y-2.5 pt-4 border-t border-[#2a2a3e]">
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-[#f5d77f]" />
-                  Keep 85% of all subscriptions & custom request tips
+                  Monetize subscriptions, pay-per-view media &amp; custom requests
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-[#f5d77f]" />
@@ -107,7 +107,7 @@ export default function PricingPage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-[#f5d77f]" />
-                  Creator studio analytics & verified badge review
+                  Creator studio analytics &amp; verified badge review
                 </li>
               </ul>
             </div>

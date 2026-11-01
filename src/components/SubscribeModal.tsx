@@ -108,13 +108,9 @@ export default function SubscribeModal({ creator, onClose, onSuccess }: Subscrib
 
             {/* Pricing Summary Box */}
             <div className="bg-[#151520] border border-[#272736] rounded-xl p-4 mb-6">
-              <div className="flex justify-between items-center mb-2">
+              <div className="flex justify-between items-center">
                 <span className="text-sm text-[#a3a3b5]">Monthly Subscription</span>
                 <span className="text-base font-bold text-white">${creator.price.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between items-center text-xs text-[#6e6e80] pt-2 border-t border-[#20202e]">
-                <span>Platform Commission Split</span>
-                <span className="text-[#d4af37]">85% to Creator</span>
               </div>
             </div>
 

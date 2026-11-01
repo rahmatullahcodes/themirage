@@ -99,7 +99,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-8 pt-6 border-t border-[#16161f] flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#5c5c6e] gap-4">
-          <p>© 2026 The Mirage. All rights reserved. 85/15 Creator First Platform.</p>
+          <p>© 2026 The Mirage. All rights reserved. Creator First Platform.</p>
           <div className="flex gap-4">
             <Link href="/terms" className="hover:text-white transition-colors">
               Terms & Conditions

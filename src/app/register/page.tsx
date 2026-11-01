@@ -110,7 +110,7 @@ function RegisterForm() {
             }`}
           >
             <Sparkles className="w-4 h-4" />
-            Become a Creator (85%)
+            Become a Creator
           </button>
         </div>
 
@@ -199,7 +199,7 @@ function RegisterForm() {
                 <label className="text-xs font-bold text-[#f5d77f]">
                   Monthly Subscription Price ($ USD)
                 </label>
-                <span className="text-[11px] text-[#9090a0]">You keep 85%</span>
+                <span className="text-[11px] text-[#9090a0]">Set Your Monthly Price</span>
               </div>
               <input
                 type="number"
@@ -211,7 +211,7 @@ function RegisterForm() {
                 className="w-full px-4 py-2 bg-[#1b1b26] border border-[#2d2d3e] rounded-lg text-sm text-white font-bold"
               />
               <p className="text-[10px] text-[#78788a]">
-                Standard platform revenue split: 85% creator earnings, 15% platform commission.
+                Set a competitive monthly subscription price for your fans.
               </p>
             </div>
           )}
