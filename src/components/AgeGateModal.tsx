@@ -12,6 +12,11 @@ export default function AgeGateModal() {
     if (!ageVerified) {
       setIsOpen(true);
     }
+
+    // Allow reopening via event or footer click
+    const handleReopen = () => setIsOpen(true);
+    window.addEventListener('open_age_gate', handleReopen);
+    return () => window.removeEventListener('open_age_gate', handleReopen);
   }, []);
 
   const handleConfirmAge = () => {

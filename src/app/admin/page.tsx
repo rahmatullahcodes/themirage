@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Shield,
@@ -22,6 +22,11 @@ import {
   ArrowRight,
   Filter,
   Check,
+  Grid,
+  Image as ImageIcon,
+  Video,
+  Archive,
+  Sparkles,
 } from 'lucide-react';
 import { calculateCommission } from '@/lib/commission';
 import PanelSidebar from '@/components/PanelSidebar';
@@ -37,9 +42,22 @@ export default function AdminPanelPage() {
   const [platformCommission, setPlatformCommission] = useState(15);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  // Platform metrics
-  const totalGross = 38450.00;
+  // Platform metrics (Segregated revenue breakdown)
+  const subscriptionVolume = 24200.00;
+  const ppvContentVolume = 9750.00;
+  const customRequestsVolume = 4500.00;
+  const totalGross = subscriptionVolume + ppvContentVolume + customRequestsVolume; // $38,450.00
   const metrics = calculateCommission(totalGross, creatorCommission);
+
+  // Catalog state
+  const [catalogItems, setCatalogItems] = useState<any[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogStatusFilter, setCatalogStatusFilter] = useState('ALL');
+  const [catalogTypeFilter, setCatalogTypeFilter] = useState('ALL');
+
+  // Transactions state & filters
+  const [txSearch, setTxSearch] = useState('');
+  const [txTypeFilter, setTxTypeFilter] = useState('ALL');
 
   // Demo users
   const [users, setUsers] = useState([
@@ -63,9 +81,32 @@ export default function AdminPanelPage() {
     { id: 'rep-2', reporter: 'System Gate', reason: 'Age verification declaration check', status: 'RESOLVED', post: 'Feed Post #41', date: 'Oct 19, 2026' },
   ]);
 
-  // Demo transactions
-  const [txSearch, setTxSearch] = useState('');
+  // Demo transactions with PPV individual content items
   const [transactions, setTransactions] = useState([
+    {
+      id: 'tx-1005',
+      ref: 'MIRAGE_PPV_7721',
+      user: 'alexmercer',
+      creator: 'Luna Rae',
+      type: 'INDIVIDUAL_CONTENT',
+      amount: 15.00,
+      creatorShare: 12.75,
+      platformShare: 2.25,
+      status: 'SUCCESS',
+      date: 'Oct 25, 2026, 04:20 PM',
+    },
+    {
+      id: 'tx-1006',
+      ref: 'MIRAGE_PPV_5542',
+      user: 'marcus_w',
+      creator: 'Luna Rae',
+      type: 'INDIVIDUAL_CONTENT',
+      amount: 25.00,
+      creatorShare: 21.25,
+      platformShare: 3.75,
+      status: 'SUCCESS',
+      date: 'Oct 26, 2026, 08:30 PM',
+    },
     {
       id: 'tx-1001',
       ref: 'MIRAGE_SUB_9941',
@@ -84,9 +125,9 @@ export default function AdminPanelPage() {
       user: 'alexmercer',
       creator: 'Luna Rae',
       type: 'CUSTOM_CONTENT',
-      amount: 35.00,
-      creatorShare: 29.75,
-      platformShare: 5.25,
+      amount: 45.00,
+      creatorShare: 38.25,
+      platformShare: 6.75,
       status: 'SUCCESS',
       date: 'Oct 21, 2026, 11:46 AM',
     },
@@ -115,6 +156,43 @@ export default function AdminPanelPage() {
       date: 'Oct 19, 2026, 09:30 AM',
     },
   ]);
+
+  useEffect(() => {
+    fetchCatalog();
+  }, [catalogStatusFilter, catalogTypeFilter]);
+
+  const fetchCatalog = async () => {
+    setCatalogLoading(true);
+    try {
+      const res = await fetch(`/api/admin/catalog?status=${catalogStatusFilter}&mediaType=${catalogTypeFilter}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.catalog)) {
+        setCatalogItems(data.catalog);
+      }
+    } catch (e) {
+      console.error('Failed to fetch catalog:', e);
+    } finally {
+      setCatalogLoading(false);
+    }
+  };
+
+  const handleUpdatePostStatus = async (postId: string, newStatus: string) => {
+    try {
+      const res = await fetch('/api/admin/catalog', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId, status: newStatus }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCatalogItems(prev =>
+          prev.map(item => (item.id === postId ? { ...item, status: newStatus } : item))
+        );
+      }
+    } catch (e) {
+      console.error('Failed to change status:', e);
+    }
+  };
 
   const handleToggleVerification = (creatorId: string) => {
     setCreators(prev =>
@@ -147,11 +225,14 @@ export default function AdminPanelPage() {
     setTimeout(() => setSavedSuccess(false), 2000);
   };
 
-  const filteredTx = transactions.filter(t =>
-    t.ref.toLowerCase().includes(txSearch.toLowerCase()) ||
-    t.user.toLowerCase().includes(txSearch.toLowerCase()) ||
-    t.creator.toLowerCase().includes(txSearch.toLowerCase())
-  );
+  const filteredTx = transactions.filter(t => {
+    const matchesSearch =
+      t.ref.toLowerCase().includes(txSearch.toLowerCase()) ||
+      t.user.toLowerCase().includes(txSearch.toLowerCase()) ||
+      t.creator.toLowerCase().includes(txSearch.toLowerCase());
+    const matchesType = txTypeFilter === 'ALL' || t.type === txTypeFilter;
+    return matchesSearch && matchesType;
+  });
 
   const getTabTitle = () => {
     switch (activeTab) {
@@ -159,6 +240,8 @@ export default function AdminPanelPage() {
         return 'Administration Dashboard';
       case 'creators':
         return 'Creator Management & Verification';
+      case 'catalog':
+        return 'Content Catalog & PPV Media Moderation';
       case 'users':
         return 'User Accounts & Access Permissions';
       case 'transactions':
@@ -201,46 +284,46 @@ export default function AdminPanelPage() {
         />
 
         <main className="flex-1 p-4 sm:p-8 space-y-8 max-w-7xl mx-auto w-full">
-          {/* 4 Financial & User KPI Overview Cards */}
+          {/* Segregated Financial & Platform KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="p-5 rounded-2xl bg-[#101016] border border-[#20202c]">
               <div className="flex justify-between text-xs text-[#7e7e90] mb-2">
-                <span>Gross Platform Volume</span>
+                <span>Total Gross Volume</span>
                 <DollarSign className="w-4 h-4 text-[#d4af37]" />
               </div>
               <div className="text-2xl font-serif font-bold text-white">${totalGross.toFixed(2)}</div>
-              <div className="text-[10px] text-green-400 mt-1">+18.4% this month</div>
+              <div className="text-[10px] text-green-400 mt-1">Platform 15%: ${(totalGross * 0.15).toFixed(2)}</div>
             </div>
 
             <div className="p-5 rounded-2xl bg-[#101016] border border-[#20202c]">
               <div className="flex justify-between text-xs text-[#7e7e90] mb-2">
-                <span>Creator Payouts ({creatorCommission}%)</span>
+                <span>Subscriptions Volume</span>
                 <Crown className="w-4 h-4 text-[#f5d77f]" />
               </div>
               <div className="text-2xl font-serif font-bold text-[#f5d77f]">
-                ${metrics.creatorShare.toFixed(2)}
+                ${subscriptionVolume.toFixed(2)}
               </div>
-              <div className="text-[10px] text-[#555566] mt-1">Directly allocated to creators</div>
+              <div className="text-[10px] text-[#8e8e9e] mt-1">Creator 85%: ${(subscriptionVolume * 0.85).toFixed(2)}</div>
             </div>
 
             <div className="p-5 rounded-2xl bg-[#101016] border border-[#20202c]">
               <div className="flex justify-between text-xs text-[#7e7e90] mb-2">
-                <span>Platform Net Revenue ({platformCommission}%)</span>
-                <TrendingUp className="w-4 h-4 text-green-400" />
+                <span>Individual Content (PPV)</span>
+                <Sparkles className="w-4 h-4 text-purple-400" />
               </div>
               <div className="text-2xl font-serif font-bold text-white">
-                ${metrics.platformShare.toFixed(2)}
+                ${ppvContentVolume.toFixed(2)}
               </div>
-              <div className="text-[10px] text-[#555566] mt-1">15% platform maintenance fee</div>
+              <div className="text-[10px] text-purple-400 mt-1">Direct single media sales</div>
             </div>
 
             <div className="p-5 rounded-2xl bg-[#101016] border border-[#20202c]">
               <div className="flex justify-between text-xs text-[#7e7e90] mb-2">
-                <span>Total Active Users</span>
-                <Users className="w-4 h-4 text-[#d4af37]" />
+                <span>Creator Net Payouts (85%)</span>
+                <TrendingUp className="w-4 h-4 text-green-400" />
               </div>
-              <div className="text-2xl font-serif font-bold text-white">{users.length * 128}</div>
-              <div className="text-[10px] text-[#555566] mt-1">Verified subscribers & creators</div>
+              <div className="text-2xl font-serif font-bold text-green-400">${metrics.creatorShare.toFixed(2)}</div>
+              <div className="text-[10px] text-[#555566] mt-1">Audited real-time split</div>
             </div>
           </div>
 
@@ -255,24 +338,31 @@ export default function AdminPanelPage() {
                 <div className="space-y-3 text-xs">
                   <div className="p-3 rounded-xl bg-[#161622] flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
+                      <Sparkles className="w-4 h-4 text-[#f5d77f]" />
+                      <span>Individual PPV Sale: alexmercer purchased "Private Sunset Mirage #1" ($15.00)</span>
+                    </div>
+                    <span className="text-[10px] text-[#6e6e80]">2m ago</span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-[#161622] flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-green-400" />
                       <span>New Subscription: alexmercer subscribed to Luna Rae ($9.99/mo)</span>
                     </div>
-                    <span className="text-[10px] text-[#6e6e80]">5m ago</span>
+                    <span className="text-[10px] text-[#6e6e80]">12m ago</span>
                   </div>
                   <div className="p-3 rounded-xl bg-[#161622] flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <Crown className="w-4 h-4 text-[#f5d77f]" />
-                      <span>Custom Content Delivered: Luna Rae delivered order to alexmercer ($35.00)</span>
+                      <span>Custom Content Delivered: Luna Rae delivered order to alexmercer ($45.00)</span>
                     </div>
-                    <span className="text-[10px] text-[#6e6e80]">15m ago</span>
+                    <span className="text-[10px] text-[#6e6e80]">1h ago</span>
                   </div>
                   <div className="p-3 rounded-xl bg-[#161622] flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <Shield className="w-4 h-4 text-blue-400" />
-                      <span>Creator Verification Granted: Mia Carter approved for verified checkmark</span>
+                      <span>Creator Verification Granted: Luna Rae approved for verified badge</span>
                     </div>
-                    <span className="text-[10px] text-[#6e6e80]">1h ago</span>
+                    <span className="text-[10px] text-[#6e6e80]">2h ago</span>
                   </div>
                 </div>
               </div>
@@ -283,7 +373,7 @@ export default function AdminPanelPage() {
                   Financial Health & 85/15 Integrity
                 </h3>
                 <p className="text-xs text-[#8c8c9e] leading-relaxed">
-                  The platform operates with automated idempotency checks and zero unauthorized payouts. The 85/15 creator revenue split is audited in real-time across all payment gateways.
+                  The platform operates with automated idempotency checks and zero unauthorized payouts. The 85/15 creator revenue split is audited in real-time across both subscriptions and individual pay-per-view media sales.
                 </p>
                 <div className="grid grid-cols-2 gap-3 pt-2">
                   <div className="p-3.5 rounded-xl bg-[#161622] text-center">
@@ -357,6 +447,162 @@ export default function AdminPanelPage() {
             </div>
           )}
 
+          {/* Tab: Content Catalog & PPV Media Moderation */}
+          {activeTab === 'catalog' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 className="text-base font-serif font-bold text-white flex items-center gap-2">
+                    <Grid className="w-4 h-4 text-[#d4af37]" />
+                    Creator Content Catalog ({catalogItems.length})
+                  </h3>
+                  <p className="text-xs text-[#8c8c9e]">
+                    Inspect all creator posts, photos, 4K videos, PPV pricing, and moderate publication states.
+                  </p>
+                </div>
+
+                {/* Filters */}
+                <div className="flex items-center gap-2 bg-[#12121a] p-1.5 rounded-xl border border-[#222230] text-xs">
+                  <select
+                    value={catalogStatusFilter}
+                    onChange={(e) => setCatalogStatusFilter(e.target.value)}
+                    className="bg-[#181824] border border-[#282838] rounded-lg px-2.5 py-1 text-white text-xs"
+                  >
+                    <option value="ALL">All Statuses</option>
+                    <option value="PUBLISHED">Published</option>
+                    <option value="DRAFT">Draft</option>
+                    <option value="ARCHIVED">Archived</option>
+                  </select>
+
+                  <select
+                    value={catalogTypeFilter}
+                    onChange={(e) => setCatalogTypeFilter(e.target.value)}
+                    className="bg-[#181824] border border-[#282838] rounded-lg px-2.5 py-1 text-white text-xs"
+                  >
+                    <option value="ALL">All Types</option>
+                    <option value="IMAGE">Photos</option>
+                    <option value="VIDEO">Videos</option>
+                  </select>
+                </div>
+              </div>
+
+              {catalogLoading ? (
+                <div className="p-12 text-center text-xs text-[#8e8e9e] bg-[#111117] rounded-2xl border border-[#222230]">
+                  Loading content catalog...
+                </div>
+              ) : (
+                <div className="bg-[#111117] border border-[#232330] rounded-2xl overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#161622] text-[#8e8e9e] border-b border-[#232330]">
+                      <tr>
+                        <th className="py-3 px-4">Media</th>
+                        <th className="py-3 px-4">Title & Details</th>
+                        <th className="py-3 px-4">Creator</th>
+                        <th className="py-3 px-4">Type</th>
+                        <th className="py-3 px-4">Visibility</th>
+                        <th className="py-3 px-4">Price</th>
+                        <th className="py-3 px-4">Sales</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4">Moderation Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#1e1e28] text-white">
+                      {catalogItems.map((post) => (
+                        <tr key={post.id} className="hover:bg-[#161622]/40">
+                          <td className="py-3 px-4">
+                            <div className="w-14 h-10 rounded-lg overflow-hidden bg-black/60 relative border border-[#2b2b3a]">
+                              <img
+                                src={post.thumbnailUrl || post.mediaUrl}
+                                alt={post.title}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 max-w-xs">
+                            <div className="font-bold text-white truncate">{post.title}</div>
+                            <div className="text-[10px] text-[#717182] truncate">{post.caption}</div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-medium text-white">{post.creatorName}</div>
+                            <div className="text-[10px] text-[#d4af37]">@{post.creatorHandle}</div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="px-2 py-0.5 rounded-full bg-[#181826] text-[10px] font-semibold text-[#cbd5e1] border border-[#2b2b3a] inline-flex items-center gap-1">
+                              {post.mediaType === 'VIDEO' ? (
+                                <Video className="w-3 h-3 text-[#d4af37]" />
+                              ) : (
+                                <ImageIcon className="w-3 h-3 text-[#d4af37]" />
+                              )}
+                              {post.mediaType}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              post.visibility === 'PURCHASE_ONLY'
+                                ? 'bg-[#d4af37]/20 text-[#f5d77f] border border-[#d4af37]/40'
+                                : post.visibility === 'SUBSCRIBER_ONLY'
+                                ? 'bg-purple-950/60 text-purple-300 border border-purple-500/30'
+                                : 'bg-green-950/60 text-green-300 border border-green-500/30'
+                            }`}>
+                              {post.visibility === 'PURCHASE_ONLY' ? 'PAID PPV' : post.visibility}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 font-bold text-white">
+                            {post.price > 0 ? `$${post.price.toFixed(2)}` : 'Included'}
+                          </td>
+                          <td className="py-3.5 px-4 font-semibold text-green-400">
+                            {post.salesCount || 0}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              post.status === 'PUBLISHED'
+                                ? 'bg-green-950/60 text-green-400 border border-green-500/30'
+                                : post.status === 'DRAFT'
+                                ? 'bg-yellow-950/60 text-yellow-400 border border-yellow-500/30'
+                                : 'bg-red-950/60 text-red-400 border border-red-500/30'
+                            }`}>
+                              {post.status}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-1.5">
+                              {post.status !== 'PUBLISHED' && (
+                                <button
+                                  onClick={() => handleUpdatePostStatus(post.id, 'PUBLISHED')}
+                                  className="px-2 py-1 rounded bg-[#181824] hover:bg-[#202030] text-[10px] text-green-400 border border-green-500/30 font-semibold"
+                                >
+                                  Publish
+                                </button>
+                              )}
+                              {post.status !== 'ARCHIVED' && (
+                                <button
+                                  onClick={() => handleUpdatePostStatus(post.id, 'ARCHIVED')}
+                                  className="px-2 py-1 rounded bg-[#201c18] hover:bg-[#2c241c] text-[10px] text-yellow-400 border border-yellow-500/30 font-semibold"
+                                >
+                                  Archive
+                                </button>
+                              )}
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Takedown post "${post.title}"?`)) {
+                                    handleUpdatePostStatus(post.id, 'ARCHIVED');
+                                  }
+                                }}
+                                className="px-2 py-1 rounded bg-[#251515] hover:bg-[#321818] text-[10px] text-red-400 border border-red-500/30 font-semibold"
+                              >
+                                Takedown
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Tab 3: User Management */}
           {activeTab === 'users' && (
             <div className="space-y-4">
@@ -419,15 +665,29 @@ export default function AdminPanelPage() {
                   <p className="text-xs text-[#8c8c9e]">Inspect real-time 85/15 commission cuts and issue administrative refunds.</p>
                 </div>
 
-                <div className="relative w-full sm:w-64">
-                  <Search className="w-3.5 h-3.5 text-[#666677] absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={txSearch}
-                    onChange={(e) => setTxSearch(e.target.value)}
-                    placeholder="Search reference, user..."
-                    className="w-full pl-8 pr-3 py-1.5 bg-[#161622] border border-[#282838] rounded-xl text-xs text-white"
-                  />
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  {/* Transaction Type Filter */}
+                  <select
+                    value={txTypeFilter}
+                    onChange={(e) => setTxTypeFilter(e.target.value)}
+                    className="bg-[#161622] border border-[#282838] rounded-xl px-3 py-1.5 text-xs text-white"
+                  >
+                    <option value="ALL">All Types</option>
+                    <option value="INDIVIDUAL_CONTENT">Individual Content (PPV)</option>
+                    <option value="SUBSCRIPTION">Subscriptions</option>
+                    <option value="CUSTOM_CONTENT">Custom Content</option>
+                  </select>
+
+                  <div className="relative w-full sm:w-64">
+                    <Search className="w-3.5 h-3.5 text-[#666677] absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={txSearch}
+                      onChange={(e) => setTxSearch(e.target.value)}
+                      placeholder="Search reference, user..."
+                      className="w-full pl-8 pr-3 py-1.5 bg-[#161622] border border-[#282838] rounded-xl text-xs text-white"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -453,7 +713,13 @@ export default function AdminPanelPage() {
                         <td className="py-3.5 px-4 font-medium">{tx.user}</td>
                         <td className="py-3.5 px-4 text-[#f5d77f] font-semibold">{tx.creator}</td>
                         <td className="py-3.5 px-4">
-                          <span className="px-2 py-0.5 rounded-full bg-[#181826] text-[10px] text-[#cbd5e1] border border-[#2b2b3a]">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                            tx.type === 'INDIVIDUAL_CONTENT'
+                              ? 'bg-[#d4af37]/15 text-[#f5d77f] border-[#d4af37]/30'
+                              : tx.type === 'CUSTOM_CONTENT'
+                              ? 'bg-purple-950/40 text-purple-300 border-purple-500/30'
+                              : 'bg-blue-950/40 text-blue-300 border-blue-500/30'
+                          }`}>
                             {tx.type}
                           </span>
                         </td>
@@ -548,62 +814,73 @@ export default function AdminPanelPage() {
             <div className="max-w-xl mx-auto p-6 sm:p-8 rounded-3xl bg-[#111118] border border-[#d4af37]/40 space-y-6">
               <h3 className="text-lg font-serif font-bold text-white flex items-center gap-2">
                 <Sliders className="w-5 h-5 text-[#f5d77f]" />
-                Platform Revenue Split Configuration
+                Platform Commission Rules (Requirement 2 & 17)
               </h3>
-              <p className="text-xs text-[#8c8c9e]">
-                Configure the revenue split dynamically. The agreed standard is <span className="text-[#f5d77f] font-bold">85% to Creator</span> and <span className="text-white font-bold">15% to Platform</span>.
+              <p className="text-xs text-[#8c8c9e] leading-relaxed">
+                Configure the platform revenue distribution dynamically. Default is established at{' '}
+                <span className="text-[#f5d77f] font-semibold">85% Creator / 15% Platform</span>. This applies across subscriptions, custom content, and individual paid images and videos.
               </p>
-
-              {savedSuccess && (
-                <div className="p-3 rounded-xl bg-green-950/60 border border-green-500/40 text-green-300 text-xs flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Revenue split configuration updated across all backend calculation engines!</span>
-                </div>
-              )}
 
               <form onSubmit={handleSaveSettings} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-[#a0a0b2] mb-1">
-                    Creator Share Percentage (%)
+                  <label className="text-xs font-semibold text-[#8e8e9e] block mb-1.5">
+                    Creator Commission Percentage (%)
                   </label>
                   <input
                     type="number"
                     min="50"
-                    max="100"
+                    max="95"
                     value={creatorCommission}
                     onChange={(e) => {
-                      const val = parseFloat(e.target.value) || 0;
+                      const val = Number(e.target.value);
                       setCreatorCommission(val);
                       setPlatformCommission(100 - val);
                     }}
-                    className="w-full px-4 py-2.5 bg-[#181824] border border-[#2d2d3e] rounded-xl text-sm text-white font-bold"
+                    className="w-full px-4 py-2.5 bg-[#161622] border border-[#29293a] rounded-xl text-white font-bold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[#a0a0b2] mb-1">
-                    Platform Fee Percentage (%)
+                  <label className="text-xs font-semibold text-[#8e8e9e] block mb-1.5">
+                    Platform Retained Percentage (%)
                   </label>
                   <input
                     type="number"
                     disabled
                     value={platformCommission}
-                    className="w-full px-4 py-2.5 bg-[#14141e] border border-[#22222e] rounded-xl text-sm text-[#7e7e90] font-bold"
+                    className="w-full px-4 py-2.5 bg-[#161622]/50 border border-[#29293a] rounded-xl text-[#777788] font-bold cursor-not-allowed"
                   />
                 </div>
 
-                <div className="p-4 rounded-xl bg-[#151520] border border-[#262638] text-xs space-y-1">
-                  <div className="text-white font-semibold">Simulated Sample ($100.00 Transaction):</div>
-                  <div className="text-[#f5d77f]">Creator Payout: ${(100 * creatorCommission / 100).toFixed(2)}</div>
-                  <div className="text-[#94a3b8]">Platform Cut: ${(100 * platformCommission / 100).toFixed(2)}</div>
+                <div className="p-4 rounded-xl bg-[#161622] border border-[#2b2b3a] space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-[#808092]">Example $100.00 Gross Sale</span>
+                    <span className="text-white font-mono font-bold">$100.00</span>
+                  </div>
+                  <div className="flex justify-between text-[#f5d77f]">
+                    <span>Creator Net Payout ({creatorCommission}%)</span>
+                    <span className="font-mono font-bold">${creatorCommission.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-green-400">
+                    <span>Platform Retained ({platformCommission}%)</span>
+                    <span className="font-mono font-bold">${platformCommission.toFixed(2)}</span>
+                  </div>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-xl gold-button text-xs font-bold shadow-gold-sm"
+                  className="w-full py-3 rounded-xl gold-button text-xs font-bold shadow-gold-sm flex items-center justify-center gap-2"
                 >
-                  Save Commission Policy
+                  <Check className="w-4 h-4" />
+                  Save Commission Changes
                 </button>
+
+                {savedSuccess && (
+                  <div className="p-3 rounded-xl bg-green-950/60 border border-green-500/40 text-green-400 text-xs text-center flex items-center justify-center gap-2">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Commission configuration successfully saved & broadcast!
+                  </div>
+                )}
               </form>
             </div>
           )}

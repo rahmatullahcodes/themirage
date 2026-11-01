@@ -53,9 +53,16 @@ enum CustomRequestStatus {
   CANCELLED
 }
 
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 enum TransactionType {
   SUBSCRIPTION
   CUSTOM_CONTENT
+  INDIVIDUAL_CONTENT
   TIP
 }
 
@@ -137,6 +144,7 @@ model Post {
   mediaType    MediaType      @default(IMAGE)
   thumbnailUrl String?
   visibility   Visibility     @default(SUBSCRIBER_ONLY)
+  status       PostStatus     @default(PUBLISHED)
   price        Float?         @default(0.0)
   likeCount    Int            @default(0)
   isPinned     Boolean        @default(false)
@@ -146,6 +154,7 @@ model Post {
   likes        PostLike[]
   reports      ContentReport[]
   purchases    PurchasedContent[]
+  transactions Transaction[]
 }
 
 model PostLike {
@@ -263,6 +272,8 @@ model Transaction {
   subscription         Subscription?         @relation(fields: [subscriptionId], references: [id])
   customRequestId      String?               @unique
   customRequest        CustomContentRequest? @relation(fields: [customRequestId], references: [id])
+  postId               String?
+  post                 Post?                 @relation(fields: [postId], references: [id])
   grossAmount          Float
   currency             String                @default("USD")
   creatorShare         Float

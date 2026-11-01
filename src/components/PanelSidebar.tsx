@@ -61,6 +61,7 @@ export default function PanelSidebar({
   const adminNav: NavItem[] = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'creators', label: 'Creators & Verification', icon: Crown, badge: '4', badgeColor: 'bg-[#d4af37]/20 text-[#f5d77f]' },
+    { id: 'catalog', label: 'Content Catalog', icon: Grid, badge: 'PPV', badgeColor: 'bg-[#d4af37]/20 text-[#f5d77f]' },
     { id: 'users', label: 'User Accounts', icon: Users, badge: 'Active', badgeColor: 'bg-green-950/60 text-green-400' },
     { id: 'transactions', label: 'Transactions & Split', icon: CreditCard, badge: '85/15', badgeColor: 'bg-[#181826] text-[#cbd5e1]' },
     { id: 'moderation', label: 'Content Moderation', icon: AlertTriangle, badge: '2', badgeColor: 'bg-yellow-950/60 text-yellow-400' },

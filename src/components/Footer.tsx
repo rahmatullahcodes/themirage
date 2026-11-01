@@ -82,10 +82,19 @@ export default function Footer() {
               </svg>
             </a>
 
-            {/* 18+ badge exactly like mockup */}
-            <div className="w-6 h-6 rounded-full border border-[#888899] flex items-center justify-center text-[10px] font-bold text-white tracking-tighter">
+            {/* 18+ badge clickable to test/reopen age gate */}
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new Event('open_age_gate'));
+                }
+              }}
+              title="Click to view 18+ Age Verification Declaration"
+              className="w-6 h-6 rounded-full border border-[#888899] hover:border-[#d4af37] hover:text-[#d4af37] flex items-center justify-center text-[10px] font-bold text-white tracking-tighter transition-colors cursor-pointer"
+            >
               18+
-            </div>
+            </button>
           </div>
         </div>
 

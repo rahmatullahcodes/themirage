@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { calculateCommission } from '@/lib/commission';
+import { purchaseIndividualContent } from '@/lib/contentStore';
 
 // In-memory processed webhook event store to guarantee idempotency (Section 11 requirement)
 const processedEvents = new Set<string>();
@@ -24,14 +25,24 @@ export async function POST(req: Request) {
 
     switch (eventType) {
       case 'payment_intent.succeeded': {
-        const { amount, creatorId, userId, type } = data;
+        const { amount, creatorId, userId, type, postId } = data || {};
         const commission = calculateCommission(amount || 9.99, 85);
-        console.log(`[Webhook] Payment succeeded for ${userId}: $${amount}. Creator: $${commission.creatorShare}, Platform: $${commission.platformShare}`);
+
+        if (type === 'INDIVIDUAL_CONTENT' && postId && userId) {
+          // Idempotent grant of individual content entitlement
+          purchaseIndividualContent({
+            userId,
+            postId,
+          });
+          console.log(`[Webhook] Unlocked PPV content ${postId} for user ${userId}. Net: $${commission.creatorShare}`);
+        } else {
+          console.log(`[Webhook] Payment succeeded for ${userId}: $${amount}. Creator: $${commission.creatorShare}, Platform: $${commission.platformShare}`);
+        }
         break;
       }
 
       case 'customer.subscription.deleted': {
-        const { subscriptionId } = data;
+        const { subscriptionId } = data || {};
         console.log(`[Webhook] Subscription cancelled: ${subscriptionId}`);
         break;
       }
