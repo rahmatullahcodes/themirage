@@ -16,7 +16,9 @@ export interface PostItem {
   mediaUrl: string; // Original high-res or video URL - protected!
   thumbnailUrl: string; // Preview/thumbnail image (blurred/watermarked for PPV)
   previewUrl?: string; // Short preview if video
+  videoDuration?: string; // E.g. "0:45", "1:15"
   visibility: Visibility;
+  isPublicPreview?: boolean; // Allowed max 3 photos and max 2 videos per creator
   status: PostStatus;
   price: number;
   likeCount: number;
@@ -62,8 +64,117 @@ export interface TransactionRecord {
   createdAt: string;
 }
 
-// Initial seed posts with individual paid images & videos
-let posts: PostItem[] = [
+// Initial seed posts with individual paid images & videos and creator profile previews
+const SEED_POSTS: PostItem[] = [
+  // Luna Rae (c1, luna-rae): Exactly 3 Photo Previews
+  {
+    id: 'post-luna-prev-img-1',
+    creatorId: 'c1',
+    creatorHandle: 'luna-rae',
+    creatorName: 'Luna Rae',
+    creatorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    title: 'Santorini Sunset Editorial',
+    caption: 'Golden hour shot over Oia cliffs. One of my favorite looks from the summer campaign.',
+    mediaType: 'IMAGE',
+    mediaUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1600&q=90',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
+    visibility: 'PUBLIC',
+    isPublicPreview: true,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 1420,
+    salesCount: 0,
+    createdAt: '2026-10-28T12:00:00Z',
+    updatedAt: '2026-10-28T12:00:00Z',
+  },
+  {
+    id: 'post-luna-prev-img-2',
+    creatorId: 'c1',
+    creatorHandle: 'luna-rae',
+    creatorName: 'Luna Rae',
+    creatorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    title: 'Parisian Morning Bloom',
+    caption: 'Early morning coffee on the private balcony overlooking the city.',
+    mediaType: 'IMAGE',
+    mediaUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1600&q=90',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80',
+    visibility: 'PUBLIC',
+    isPublicPreview: true,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 980,
+    salesCount: 0,
+    createdAt: '2026-10-27T10:30:00Z',
+    updatedAt: '2026-10-27T10:30:00Z',
+  },
+  {
+    id: 'post-luna-prev-img-3',
+    creatorId: 'c1',
+    creatorHandle: 'luna-rae',
+    creatorName: 'Luna Rae',
+    creatorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    title: 'Milan Haute Couture Session',
+    caption: 'Studio lighting test before Milan Fashion Week runway show.',
+    mediaType: 'IMAGE',
+    mediaUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1600&q=90',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80',
+    visibility: 'PUBLIC',
+    isPublicPreview: true,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 1650,
+    salesCount: 0,
+    createdAt: '2026-10-26T16:45:00Z',
+    updatedAt: '2026-10-26T16:45:00Z',
+  },
+
+  // Luna Rae: Exactly 2 Video Previews
+  {
+    id: 'post-luna-prev-vid-1',
+    creatorId: 'c1',
+    creatorHandle: 'luna-rae',
+    creatorName: 'Luna Rae',
+    creatorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    title: 'Paris Runway Fashion Week Teaser',
+    caption: 'Exclusive backstage sneak peek into the 2026 autumn runway collection.',
+    mediaType: 'VIDEO',
+    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=800&q=80',
+    previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    videoDuration: '0:45',
+    visibility: 'PUBLIC',
+    isPublicPreview: true,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 2310,
+    salesCount: 0,
+    createdAt: '2026-10-29T14:10:00Z',
+    updatedAt: '2026-10-29T14:10:00Z',
+  },
+  {
+    id: 'post-luna-prev-vid-2',
+    creatorId: 'c1',
+    creatorHandle: 'luna-rae',
+    creatorName: 'Luna Rae',
+    creatorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    title: 'Sunset Studio BTS Clip',
+    caption: 'Behind the lens of our private coastal editorial shoot.',
+    mediaType: 'VIDEO',
+    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80',
+    previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    videoDuration: '1:15',
+    visibility: 'PUBLIC',
+    isPublicPreview: true,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 3120,
+    salesCount: 0,
+    createdAt: '2026-10-28T09:30:00Z',
+    updatedAt: '2026-10-28T09:30:00Z',
+  },
+
+  // Luna Rae: Paid PPV & Subscriber content (LOCKED to non-authorized visitors)
   {
     id: 'post-ppv-1',
     creatorId: 'c1',
@@ -76,6 +187,7 @@ let posts: PostItem[] = [
     mediaUrl: 'https://images.unsplash.com/photo-1516483638261-f4dbaf036963?auto=format&fit=crop&w=1600&q=95',
     thumbnailUrl: 'https://images.unsplash.com/photo-1516483638261-f4dbaf036963?auto=format&fit=crop&w=600&q=70',
     visibility: 'PURCHASE_ONLY',
+    isPublicPreview: false,
     status: 'PUBLISHED',
     price: 15.00,
     likeCount: 142,
@@ -95,7 +207,9 @@ let posts: PostItem[] = [
     mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
     thumbnailUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=70',
     previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    videoDuration: '15:20',
     visibility: 'PURCHASE_ONLY',
+    isPublicPreview: false,
     status: 'PUBLISHED',
     price: 25.00,
     likeCount: 89,
@@ -115,6 +229,7 @@ let posts: PostItem[] = [
     mediaUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=85',
     thumbnailUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=70',
     visibility: 'SUBSCRIBER_ONLY',
+    isPublicPreview: false,
     status: 'PUBLISHED',
     price: 0,
     likeCount: 215,
@@ -123,23 +238,131 @@ let posts: PostItem[] = [
     updatedAt: '2026-10-20T10:00:00Z',
   },
   {
-    id: 'post-pub-1',
+    id: 'post-sub-2',
     creatorId: 'c1',
     creatorHandle: 'luna-rae',
     creatorName: 'Luna Rae',
     creatorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-    title: 'Golden Hour Greetings',
-    caption: 'Welcome to my official Mirage channel! New drop tomorrow.',
+    title: 'Subscribers Only: Private Workout Session',
+    caption: 'Morning routine & exclusive workout vlog with commentary.',
+    mediaType: 'VIDEO',
+    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=600&q=70',
+    videoDuration: '10:05',
+    visibility: 'SUBSCRIBER_ONLY',
+    isPublicPreview: false,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 184,
+    salesCount: 0,
+    createdAt: '2026-10-22T08:00:00Z',
+    updatedAt: '2026-10-22T08:00:00Z',
+  },
+
+  // Sophie Lee (c2, sophie-lee): Previews & Content
+  {
+    id: 'post-sophie-prev-img-1',
+    creatorId: 'c2',
+    creatorHandle: 'sophie-lee',
+    creatorName: 'Sophie Lee',
+    creatorAvatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+    title: 'Neon Nights Tokyo Teaser',
+    caption: 'Midnight neon vibes in Shibuya. Shot on 35mm film.',
+    mediaType: 'IMAGE',
+    mediaUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=85',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=600&q=70',
+    visibility: 'PUBLIC',
+    isPublicPreview: true,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 520,
+    salesCount: 0,
+    createdAt: '2026-10-27T14:00:00Z',
+    updatedAt: '2026-10-27T14:00:00Z',
+  },
+  {
+    id: 'post-sophie-prev-img-2',
+    creatorId: 'c2',
+    creatorHandle: 'sophie-lee',
+    creatorName: 'Sophie Lee',
+    creatorAvatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+    title: 'Kyoto Bamboo Haven',
+    caption: 'Serene morning peaceful capture in Arashiyama.',
     mediaType: 'IMAGE',
     mediaUrl: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=1200&q=85',
     thumbnailUrl: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=70',
     visibility: 'PUBLIC',
+    isPublicPreview: true,
     status: 'PUBLISHED',
     price: 0,
-    likeCount: 420,
+    likeCount: 680,
     salesCount: 0,
-    createdAt: '2026-10-18T09:00:00Z',
-    updatedAt: '2026-10-18T09:00:00Z',
+    createdAt: '2026-10-26T11:00:00Z',
+    updatedAt: '2026-10-26T11:00:00Z',
+  },
+  {
+    id: 'post-sophie-prev-img-3',
+    creatorId: 'c2',
+    creatorHandle: 'sophie-lee',
+    creatorName: 'Sophie Lee',
+    creatorAvatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+    title: 'Rooftop Horizon',
+    caption: 'Tokyo skyscape during dusk. Free public preview.',
+    mediaType: 'IMAGE',
+    mediaUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=85',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=70',
+    visibility: 'PUBLIC',
+    isPublicPreview: true,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 430,
+    salesCount: 0,
+    createdAt: '2026-10-25T15:00:00Z',
+    updatedAt: '2026-10-25T15:00:00Z',
+  },
+  {
+    id: 'post-sophie-prev-vid-1',
+    creatorId: 'c2',
+    creatorHandle: 'sophie-lee',
+    creatorName: 'Sophie Lee',
+    creatorAvatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+    title: 'Tokyo Street Lights Reel',
+    caption: '30-second teaser reel of Tokyo evening street lifestyle.',
+    mediaType: 'VIDEO',
+    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=600&q=70',
+    previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    videoDuration: '0:30',
+    visibility: 'PUBLIC',
+    isPublicPreview: true,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 890,
+    salesCount: 0,
+    createdAt: '2026-10-27T18:00:00Z',
+    updatedAt: '2026-10-27T18:00:00Z',
+  },
+  {
+    id: 'post-sophie-prev-vid-2',
+    creatorId: 'c2',
+    creatorHandle: 'sophie-lee',
+    creatorName: 'Sophie Lee',
+    creatorAvatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+    title: 'Behind the Lens in Shibuya',
+    caption: 'Filming aesthetic clips on Shibuya crossing.',
+    mediaType: 'VIDEO',
+    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=70',
+    previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    videoDuration: '1:00',
+    visibility: 'PUBLIC',
+    isPublicPreview: true,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 740,
+    salesCount: 0,
+    createdAt: '2026-10-26T20:00:00Z',
+    updatedAt: '2026-10-26T20:00:00Z',
   },
   {
     id: 'post-ppv-3',
@@ -153,7 +376,9 @@ let posts: PostItem[] = [
     mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
     thumbnailUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=600&q=70',
     previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    videoDuration: '8:00',
     visibility: 'PURCHASE_ONLY',
+    isPublicPreview: false,
     status: 'PUBLISHED',
     price: 20.00,
     likeCount: 95,
@@ -162,6 +387,8 @@ let posts: PostItem[] = [
     updatedAt: '2026-10-25T11:00:00Z',
   },
 ];
+
+let posts: PostItem[] = JSON.parse(JSON.stringify(SEED_POSTS));
 
 // Initial user purchases
 let purchases: PurchaseRecord[] = [
@@ -273,8 +500,8 @@ export function checkMediaAuthorization(
     return { authorized: true, post };
   }
 
-  // Public posts are available to anyone
-  if (post.visibility === 'PUBLIC') {
+  // Public posts and public previews are available to anyone without subscription or login
+  if (post.isPublicPreview || post.visibility === 'PUBLIC') {
     return { authorized: true, post };
   }
 
@@ -300,20 +527,26 @@ export function checkMediaAuthorization(
   return { authorized: false, error: 'Access denied' };
 }
 
-// Feed retrieval: Enforce strict URL protection for non-buyers
+// Feed retrieval: Enforce strict URL protection for non-buyers while delivering public previews
 export function getFeedForUser(creatorHandle?: string, userId?: string | null): PostItem[] {
   let list = posts.filter(p => p.status === 'PUBLISHED');
 
   if (creatorHandle) {
-    list = list.filter(p => p.creatorHandle.toLowerCase() === creatorHandle.toLowerCase());
+    const cleanHandle = creatorHandle.replace(/^@/, '').toLowerCase();
+    list = list.filter(p => p.creatorHandle.toLowerCase() === cleanHandle);
   }
 
   return list.map(post => {
+    // Public previews and public content are always fully accessible
+    if (post.isPublicPreview || post.visibility === 'PUBLIC') {
+      return post;
+    }
+
     const isOwner = userId === post.creatorId;
     const isSubscribed = isUserSubscribedToCreator(userId, post.creatorId);
     const hasPurchased = hasUserPurchasedPost(userId, post.id);
 
-    // If locked, NEVER return original full-resolution mediaUrl!
+    // If locked PPV, NEVER return original full-resolution mediaUrl!
     if (post.visibility === 'PURCHASE_ONLY' && !isOwner && !hasPurchased) {
       return {
         ...post,
@@ -432,6 +665,54 @@ export function getUserPurchasesLibrary(userId: string): PurchaseRecord[] {
   return purchases.filter(p => p.userId === userId);
 }
 
+// Helper: Get public preview photos (up to 3) and video clips (up to 2) for creator profile
+export function getCreatorPublicPreviews(creatorHandle: string): {
+  photos: PostItem[];
+  videos: PostItem[];
+  totalPhotos: number;
+  totalVideos: number;
+} {
+  const cleanHandle = creatorHandle.replace(/^@/, '').toLowerCase();
+  const creatorPosts = posts.filter(
+    p => p.creatorHandle.toLowerCase() === cleanHandle && p.status === 'PUBLISHED' && p.isPublicPreview === true
+  );
+
+  const photos = creatorPosts.filter(p => p.mediaType === 'IMAGE').slice(0, 3);
+  const videos = creatorPosts.filter(p => p.mediaType === 'VIDEO').slice(0, 2);
+
+  return {
+    photos,
+    videos,
+    totalPhotos: photos.length,
+    totalVideos: videos.length,
+  };
+}
+
+// Helper: Get current public preview counts for creator (enforces max 3 photos, max 2 videos)
+export function getCreatorPreviewCounts(creatorId: string): {
+  photos: number;
+  videos: number;
+  maxPhotos: number;
+  maxVideos: number;
+  canAddPhoto: boolean;
+  canAddVideo: boolean;
+} {
+  const creatorPosts = posts.filter(
+    p => p.creatorId === creatorId && p.status === 'PUBLISHED' && p.isPublicPreview === true
+  );
+  const photoCount = creatorPosts.filter(p => p.mediaType === 'IMAGE').length;
+  const videoCount = creatorPosts.filter(p => p.mediaType === 'VIDEO').length;
+
+  return {
+    photos: photoCount,
+    videos: videoCount,
+    maxPhotos: 3,
+    maxVideos: 2,
+    canAddPhoto: photoCount < 3,
+    canAddVideo: videoCount < 2,
+  };
+}
+
 // Creator upload new post
 export function createCreatorPost(data: {
   creatorId: string;
@@ -444,10 +725,26 @@ export function createCreatorPost(data: {
   mediaUrl: string;
   thumbnailUrl?: string;
   previewUrl?: string;
+  videoDuration?: string;
   visibility: Visibility;
   status?: PostStatus;
   price?: number;
+  isPublicPreview?: boolean;
 }): PostItem {
+  const isPreview = !!data.isPublicPreview;
+
+  if (isPreview) {
+    const counts = getCreatorPreviewCounts(data.creatorId);
+    if (data.mediaType === 'IMAGE' && !counts.canAddPhoto) {
+      throw new Error('Maximum of 3 public preview photos allowed per creator. Please unmark an existing preview photo first.');
+    }
+    if (data.mediaType === 'VIDEO' && !counts.canAddVideo) {
+      throw new Error('Maximum of 2 public preview videos allowed per creator. Please unmark an existing preview video first.');
+    }
+  }
+
+  const visibility = isPreview ? 'PUBLIC' : data.visibility;
+
   const newPost: PostItem = {
     id: `post-${Date.now()}`,
     creatorId: data.creatorId,
@@ -459,10 +756,12 @@ export function createCreatorPost(data: {
     mediaType: data.mediaType,
     mediaUrl: data.mediaUrl,
     thumbnailUrl: data.thumbnailUrl || data.mediaUrl,
-    previewUrl: data.previewUrl,
-    visibility: data.visibility,
+    previewUrl: data.previewUrl || (data.mediaType === 'VIDEO' ? data.mediaUrl : undefined),
+    videoDuration: data.videoDuration || (data.mediaType === 'VIDEO' ? '1:00' : undefined),
+    visibility,
+    isPublicPreview: isPreview,
     status: data.status || 'PUBLISHED',
-    price: data.visibility === 'PURCHASE_ONLY' ? Number(data.price || 0) : 0,
+    price: (!isPreview && visibility === 'PURCHASE_ONLY') ? Number(data.price || 0) : 0,
     likeCount: 0,
     salesCount: 0,
     createdAt: new Date().toISOString(),
@@ -473,11 +772,11 @@ export function createCreatorPost(data: {
   return newPost;
 }
 
-// Update existing post (price, status, title, caption)
+// Update existing post (price, status, title, caption, isPublicPreview)
 export function updatePostDetails(
   postId: string,
   creatorId: string,
-  updates: Partial<Pick<PostItem, 'price' | 'status' | 'title' | 'caption' | 'thumbnailUrl'>>
+  updates: Partial<Pick<PostItem, 'price' | 'status' | 'title' | 'caption' | 'thumbnailUrl' | 'isPublicPreview'>>
 ): { success: boolean; post?: PostItem; error?: string } {
   const post = posts.find(p => p.id === postId);
   if (!post) {
@@ -486,6 +785,22 @@ export function updatePostDetails(
 
   if (post.creatorId !== creatorId) {
     return { success: false, error: 'Unauthorized to edit this post' };
+  }
+
+  if (updates.isPublicPreview !== undefined && updates.isPublicPreview !== post.isPublicPreview) {
+    if (updates.isPublicPreview) {
+      const counts = getCreatorPreviewCounts(creatorId);
+      if (post.mediaType === 'IMAGE' && !counts.canAddPhoto) {
+        return { success: false, error: 'Maximum of 3 public preview photos allowed per creator. Please unmark an existing preview photo first.' };
+      }
+      if (post.mediaType === 'VIDEO' && !counts.canAddVideo) {
+        return { success: false, error: 'Maximum of 2 public preview videos allowed per creator. Please unmark an existing preview video first.' };
+      }
+      post.isPublicPreview = true;
+      post.visibility = 'PUBLIC';
+    } else {
+      post.isPublicPreview = false;
+    }
   }
 
   if (updates.price !== undefined) {
@@ -608,6 +923,7 @@ export function getAdminTransactions(filters?: { type?: string; search?: string 
 
 // Reset store (used in automated testing)
 export function resetStoreForTesting() {
+  posts = JSON.parse(JSON.stringify(SEED_POSTS));
   purchases = [
     {
       id: 'pur-seed-1',

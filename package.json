@@ -8,7 +8,7 @@
     "build": "prisma generate && npm run build:css && next build",
     "postinstall": "prisma generate",
     "start": "NODE_ENV=production node server.js",
-    "test": "node tests/commission.test.js && node tests/auth_and_routes.test.js && node tests/content_purchases.test.js",
+    "test": "node tests/commission.test.js && node tests/auth_and_routes.test.js && node tests/content_purchases.test.js && node tests/creator_previews.test.js",
     "lint": "next lint",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

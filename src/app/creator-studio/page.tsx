@@ -41,6 +41,7 @@ export default function CreatorStudioPage() {
   const [postTitle, setPostTitle] = useState('');
   const [postCaption, setPostCaption] = useState('');
   const [postVisibility, setPostVisibility] = useState<'PUBLIC' | 'SUBSCRIBER_ONLY' | 'PURCHASE_ONLY'>('PURCHASE_ONLY');
+  const [isPublicPreview, setIsPublicPreview] = useState(false);
   const [postStatus, setPostStatus] = useState<'PUBLISHED' | 'DRAFT'>('PUBLISHED');
   const [postPrice, setPostPrice] = useState('15.00');
   const [mediaUrl, setMediaUrl] = useState('');
@@ -80,7 +81,7 @@ export default function CreatorStudioPage() {
   const [deliveringOrderId, setDeliveringOrderId] = useState<string | null>(null);
   const [deliveryFileUrl, setDeliveryFileUrl] = useState('');
 
-  // Feed posts (including individual paid content)
+  // Feed posts (including individual paid content and public previews)
   interface CreatorFeedPost {
     id: string;
     type: 'image' | 'video' | 'IMAGE' | 'VIDEO';
@@ -88,6 +89,7 @@ export default function CreatorStudioPage() {
     url: string;
     caption: string;
     visibility: 'PUBLIC' | 'SUBSCRIBER_ONLY' | 'PURCHASE_ONLY';
+    isPublicPreview?: boolean;
     price: number;
     status: 'PUBLISHED' | 'DRAFT' | 'ARCHIVED';
     likes: number;
@@ -96,12 +98,78 @@ export default function CreatorStudioPage() {
 
   const [feedPosts, setFeedPosts] = useState<CreatorFeedPost[]>([
     {
+      id: 'fp-prev-1',
+      type: 'image',
+      title: 'Santorini Sunset Editorial',
+      url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+      caption: 'Golden hour shot over Oia cliffs. One of my favorite looks from the summer campaign.',
+      visibility: 'PUBLIC',
+      isPublicPreview: true,
+      price: 0,
+      status: 'PUBLISHED',
+      likes: 1420,
+      date: '2 days ago',
+    },
+    {
+      id: 'fp-prev-2',
+      type: 'image',
+      title: 'Parisian Morning Bloom',
+      url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80',
+      caption: 'Early morning coffee on the private balcony overlooking the city.',
+      visibility: 'PUBLIC',
+      isPublicPreview: true,
+      price: 0,
+      status: 'PUBLISHED',
+      likes: 980,
+      date: '3 days ago',
+    },
+    {
+      id: 'fp-prev-3',
+      type: 'image',
+      title: 'Milan Haute Couture Session',
+      url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
+      caption: 'Studio lighting test before Milan Fashion Week runway show.',
+      visibility: 'PUBLIC',
+      isPublicPreview: true,
+      price: 0,
+      status: 'PUBLISHED',
+      likes: 1650,
+      date: '4 days ago',
+    },
+    {
+      id: 'fp-prev-vid-1',
+      type: 'video',
+      title: 'Paris Runway Fashion Week Teaser',
+      url: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=600&q=80',
+      caption: 'Exclusive backstage sneak peek into the 2026 autumn runway collection.',
+      visibility: 'PUBLIC',
+      isPublicPreview: true,
+      price: 0,
+      status: 'PUBLISHED',
+      likes: 2310,
+      date: '1 day ago',
+    },
+    {
+      id: 'fp-prev-vid-2',
+      type: 'video',
+      title: 'Sunset Studio BTS Clip',
+      url: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=600&q=80',
+      caption: 'Behind the lens of our private coastal editorial shoot.',
+      visibility: 'PUBLIC',
+      isPublicPreview: true,
+      price: 0,
+      status: 'PUBLISHED',
+      likes: 3120,
+      date: '3 days ago',
+    },
+    {
       id: 'fp-1',
       type: 'image',
       title: 'Luxury Villa Sunset Photoshoot (4K Set)',
       url: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=600&q=80',
       caption: 'Ultra high-definition exclusive studio photoshoot in Monaco.',
       visibility: 'PURCHASE_ONLY',
+      isPublicPreview: false,
       price: 15.00,
       status: 'PUBLISHED',
       likes: 4610,
@@ -114,6 +182,7 @@ export default function CreatorStudioPage() {
       url: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=600&q=80',
       caption: 'Full 18-minute backstage runway documentary & commentary.',
       visibility: 'PURCHASE_ONLY',
+      isPublicPreview: false,
       price: 24.99,
       status: 'PUBLISHED',
       likes: 6120,
@@ -126,22 +195,11 @@ export default function CreatorStudioPage() {
       url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80',
       caption: 'Exclusive backstage photoshoot session. Live for subscribers!',
       visibility: 'SUBSCRIBER_ONLY',
+      isPublicPreview: false,
       price: 0,
       status: 'PUBLISHED',
       likes: 3820,
       date: '3 days ago',
-    },
-    {
-      id: 'fp-4',
-      type: 'image',
-      title: 'Paris Golden Hour Preview',
-      url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
-      caption: 'Free preview for everyone. Feeling grateful for all the love!',
-      visibility: 'PUBLIC',
-      price: 0,
-      status: 'PUBLISHED',
-      likes: 1240,
-      date: '5 days ago',
     },
   ]);
 
@@ -209,6 +267,14 @@ export default function CreatorStudioPage() {
     { id: 's4', name: 'Liam Vance', handle: '@liamv', status: 'ACTIVE', joined: 'Oct 18, 2026', totalSpent: '$9.99' },
   ];
 
+  // Calculate current public profile preview counts (max 3 photos, max 2 videos)
+  const previewPhotosCount = feedPosts.filter(
+    p => (p.type === 'image' || p.type === 'IMAGE') && p.isPublicPreview && p.status === 'PUBLISHED'
+  ).length;
+  const previewVideosCount = feedPosts.filter(
+    p => (p.type === 'video' || p.type === 'VIDEO') && p.isPublicPreview && p.status === 'PUBLISHED'
+  ).length;
+
   const handleDeliverOrder = (orderId: string) => {
     if (!deliveryFileUrl) {
       alert('Please enter or select a private delivery media URL');
@@ -237,15 +303,28 @@ export default function CreatorStudioPage() {
       return;
     }
 
-    const price = postVisibility === 'PURCHASE_ONLY' ? parseFloat(postPrice) || 9.99 : 0;
+    // Preview Limits Validation (max 3 photos, max 2 videos)
+    if (isPublicPreview) {
+      if (mediaType === 'IMAGE' && previewPhotosCount >= 3) {
+        setUploadError('Limit reached: Maximum 3 public preview photos allowed per creator. Please unmark an existing preview photo first.');
+        return;
+      }
+      if (mediaType === 'VIDEO' && previewVideosCount >= 2) {
+        setUploadError('Limit reached: Maximum 2 public preview videos allowed per creator. Please unmark an existing preview video first.');
+        return;
+      }
+    }
 
-    const newPost = {
+    const price = (!isPublicPreview && postVisibility === 'PURCHASE_ONLY') ? parseFloat(postPrice) || 9.99 : 0;
+
+    const newPost: CreatorFeedPost = {
       id: `fp-${Date.now()}`,
       type: mediaType,
       title: postTitle || (mediaType === 'VIDEO' ? 'Exclusive Video' : 'Exclusive Photo Set'),
       url: mediaUrl,
       caption: postCaption || 'Exclusive new update',
-      visibility: postVisibility,
+      visibility: isPublicPreview ? 'PUBLIC' : postVisibility,
+      isPublicPreview: Boolean(isPublicPreview),
       price,
       status: postStatus,
       likes: 0,
@@ -259,10 +338,39 @@ export default function CreatorStudioPage() {
       setPostCaption('');
       setMediaUrl('');
       setThumbnailUrl('');
+      setIsPublicPreview(false);
       setRightsConfirmed(false);
       setUploadSuccess(false);
       setActiveTab('feed');
     }, 1200);
+  };
+
+  const handleTogglePreview = (postId: string) => {
+    const target = feedPosts.find(p => p.id === postId);
+    if (!target) return;
+
+    if (target.isPublicPreview) {
+      setFeedPosts(prev =>
+        prev.map(p =>
+          p.id === postId ? { ...p, isPublicPreview: false } : p
+        )
+      );
+    } else {
+      const isVid = target.type === 'video' || target.type === 'VIDEO';
+      if (!isVid && previewPhotosCount >= 3) {
+        alert('Limit reached: You already have 3 public preview photos. Unmark an existing photo preview first.');
+        return;
+      }
+      if (isVid && previewVideosCount >= 2) {
+        alert('Limit reached: You already have 2 public preview videos. Unmark an existing video preview first.');
+        return;
+      }
+      setFeedPosts(prev =>
+        prev.map(p =>
+          p.id === postId ? { ...p, isPublicPreview: true, visibility: 'PUBLIC' } : p
+        )
+      );
+    }
   };
 
   const handleUpdatePrice = (postId: string) => {
@@ -661,6 +769,35 @@ export default function CreatorStudioPage() {
                   </select>
                 </div>
 
+                {/* Public Profile Preview Selector (Section 7 Requirement) */}
+                <div className="p-4 rounded-2xl bg-[#151520] border border-[#2d2d40] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-white flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-[#f5d77f]" />
+                      <span>Public Profile Preview</span>
+                    </label>
+                    <span className="text-[11px] font-mono text-[#f5d77f] bg-black/40 px-2.5 py-0.5 rounded-full border border-[#d4af37]/30">
+                      Photos: {previewPhotosCount}/3 • Videos: {previewVideosCount}/2
+                    </span>
+                  </div>
+
+                  <div className="flex items-start gap-2.5 pt-1">
+                    <input
+                      type="checkbox"
+                      id="publicPreview"
+                      checked={isPublicPreview}
+                      onChange={(e) => setIsPublicPreview(e.target.checked)}
+                      className="mt-1 accent-[#d4af37] w-4 h-4"
+                    />
+                    <label htmlFor="publicPreview" className="text-xs text-[#cbd5e1] leading-relaxed cursor-pointer">
+                      <strong className="text-white">Mark as Public Profile Preview</strong>
+                      <span className="block text-[11px] text-[#8e8e9e] mt-0.5">
+                        Feature this media in your public profile preview grid for visitors to view before subscribing (max 3 photos & 2 videos per creator).
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
                 {/* 18+ Rights Declaration Checkbox */}
                 <div className="flex items-start gap-2 pt-2 text-xs text-[#9090a2]">
                   <input
@@ -795,6 +932,13 @@ export default function CreatorStudioPage() {
                       <img src={post.url} alt={post.title} className="w-24 h-24 rounded-xl object-cover flex-shrink-0 bg-black" />
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                          {post.isPublicPreview && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#292212] text-[#f5d77f] border border-[#d4af37]/60 flex items-center gap-1">
+                              <Sparkles className="w-3 h-3 text-[#f5d77f]" />
+                              Public Profile Preview
+                            </span>
+                          )}
+
                           {post.visibility === 'PURCHASE_ONLY' ? (
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1e1a12] text-[#f5d77f] border border-[#d4af37]/40">
                               ${post.price.toFixed(2)} Pay-Per-View
@@ -869,6 +1013,18 @@ export default function CreatorStudioPage() {
                               className="text-[11px] text-[#9fa3af] hover:text-white transition-colors"
                             >
                               {post.status === 'PUBLISHED' ? 'Set as Draft' : 'Publish'}
+                            </button>
+                            <button
+                              onClick={() => handleTogglePreview(post.id)}
+                              className={`text-[11px] font-semibold flex items-center gap-1 transition-colors ${
+                                post.isPublicPreview
+                                  ? 'text-[#f5d77f] hover:text-white'
+                                  : 'text-[#8e8e9e] hover:text-[#d4af37]'
+                              }`}
+                              title={post.isPublicPreview ? 'Remove from public profile preview' : 'Feature as public profile preview'}
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              {post.isPublicPreview ? 'Preview Active' : 'Make Preview'}
                             </button>
                           </div>
                           <span className="text-[10px] text-[#555566]">{post.date}</span>

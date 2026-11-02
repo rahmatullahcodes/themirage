@@ -89,18 +89,21 @@ export default function FeaturedCreatorCard({
             <span className="text-[#848496] text-xs font-normal"> / month</span>
           </div>
 
-          <button
-            onClick={() => {
-              if (onSubscribeClick) {
-                onSubscribeClick({ id, name, handle, price });
-              } else {
-                window.location.href = `/creator/${handle}?subscribe=true`;
-              }
-            }}
-            className="w-full py-2.5 rounded-xl gold-button text-xs font-bold tracking-wide shadow-gold-sm flex items-center justify-center gap-1"
-          >
-            Subscribe
-          </button>
+          {onSubscribeClick ? (
+            <button
+              onClick={() => onSubscribeClick({ id, name, handle, price })}
+              className="w-full py-2.5 rounded-xl gold-button text-xs font-bold tracking-wide shadow-gold-sm flex items-center justify-center gap-1"
+            >
+              Explore Profile
+            </button>
+          ) : (
+            <Link
+              href={`/creator/${handle}`}
+              className="w-full py-2.5 rounded-xl gold-button text-xs font-bold tracking-wide shadow-gold-sm flex items-center justify-center gap-1 text-center"
+            >
+              Explore Profile
+            </Link>
+          )}
         </div>
       </div>
     </div>

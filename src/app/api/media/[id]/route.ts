@@ -3,12 +3,16 @@ import { checkMediaAuthorization } from '@/lib/contentStore';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const postId = params.id;
-    const url = new URL(req.url);
-    const userId = url.searchParams.get('userId') || 'usr-1';
+    const postId = context?.params?.id;
+    if (!postId) {
+      return NextResponse.json({ error: 'Post ID is required' }, { status: 400 });
+    }
+
+    const searchParams = req.nextUrl?.searchParams || (req.url.startsWith('http') ? new URL(req.url).searchParams : new URL(req.url, 'http://localhost:3000').searchParams);
+    const userId = searchParams.get('userId') || 'usr-1';
 
     const authResult = checkMediaAuthorization(userId, postId);
 

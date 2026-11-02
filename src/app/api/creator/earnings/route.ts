@@ -3,8 +3,8 @@ import { getCreatorSegregatedEarnings } from '@/lib/contentStore';
 
 export async function GET(req: NextRequest) {
   try {
-    const url = new URL(req.url);
-    const creatorId = url.searchParams.get('creatorId') || 'c1';
+    const searchParams = req.nextUrl?.searchParams || (req.url.startsWith('http') ? new URL(req.url).searchParams : new URL(req.url, 'http://localhost:3000').searchParams);
+    const creatorId = searchParams.get('creatorId') || 'c1';
 
     const earnings = getCreatorSegregatedEarnings(creatorId);
 

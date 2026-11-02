@@ -297,7 +297,6 @@ export default function HomePage() {
                 <FeaturedCreatorCard
                   key={creator.id}
                   {...creator}
-                  onSubscribeClick={(c) => setSelectedCreator(c)}
                 />
               ))}
             </div>

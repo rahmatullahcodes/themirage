@@ -3,8 +3,8 @@ import { getUserPurchasesLibrary } from '@/lib/contentStore';
 
 export async function GET(req: NextRequest) {
   try {
-    const url = new URL(req.url);
-    const userId = url.searchParams.get('userId') || 'usr-1';
+    const searchParams = req.nextUrl?.searchParams || (req.url.startsWith('http') ? new URL(req.url).searchParams : new URL(req.url, 'http://localhost:3000').searchParams);
+    const userId = searchParams.get('userId') || 'usr-1';
 
     const userPurchases = getUserPurchasesLibrary(userId);
 

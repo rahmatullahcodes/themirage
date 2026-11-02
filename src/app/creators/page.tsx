@@ -108,7 +108,6 @@ export default function CreatorsDirectoryPage() {
             <FeaturedCreatorCard
               key={creator.id}
               {...creator}
-              onSubscribeClick={(c) => setSelectedCreator(c)}
             />
           ))}
         </div>

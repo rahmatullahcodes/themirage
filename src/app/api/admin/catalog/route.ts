@@ -3,9 +3,9 @@ import { getAdminCatalogList, setPostStatusAdmin, PostStatus } from '@/lib/conte
 
 export async function GET(req: NextRequest) {
   try {
-    const url = new URL(req.url);
-    const status = url.searchParams.get('status') || undefined;
-    const mediaType = url.searchParams.get('mediaType') || undefined;
+    const searchParams = req.nextUrl?.searchParams || (req.url.startsWith('http') ? new URL(req.url).searchParams : new URL(req.url, 'http://localhost:3000').searchParams);
+    const status = searchParams.get('status') || undefined;
+    const mediaType = searchParams.get('mediaType') || undefined;
 
     const catalog = getAdminCatalogList({ status, mediaType });
 

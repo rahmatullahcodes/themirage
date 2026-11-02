@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getFeedForUser,
+  getCreatorPublicPreviews,
+  getCreatorPreviewCounts,
   createCreatorPost,
   updatePostDetails,
   MediaType,
@@ -10,9 +12,26 @@ import {
 
 export async function GET(req: NextRequest) {
   try {
-    const url = new URL(req.url);
-    const handle = url.searchParams.get('handle') || undefined;
-    const userId = url.searchParams.get('userId') || null;
+    const searchParams = req.nextUrl?.searchParams || (req.url.startsWith('http') ? new URL(req.url).searchParams : new URL(req.url, 'http://localhost:3000').searchParams);
+    const handle = searchParams.get('handle') || undefined;
+    const userId = searchParams.get('userId') || null;
+    const previewsOnly = searchParams.get('previews') === 'true';
+
+    // If previews parameter requested, return the creator's 3 photo previews & 2 video previews
+    if (previewsOnly && handle) {
+      const previews = getCreatorPublicPreviews(handle);
+      return NextResponse.json({
+        success: true,
+        handle,
+        previews,
+        counts: {
+          photos: previews.photos.length,
+          videos: previews.videos.length,
+          maxPhotos: 3,
+          maxVideos: 2,
+        },
+      });
+    }
 
     const posts = getFeedForUser(handle, userId);
 
@@ -42,9 +61,11 @@ export async function POST(req: NextRequest) {
       mediaUrl,
       thumbnailUrl,
       previewUrl,
+      videoDuration,
       visibility = 'PURCHASE_ONLY',
       status = 'PUBLISHED',
       price = 0,
+      isPublicPreview = false,
     } = body;
 
     if (!title || !mediaUrl) {
@@ -54,26 +75,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const newPost = createCreatorPost({
-      creatorId,
-      creatorHandle,
-      creatorName,
-      title,
-      caption,
-      mediaType: mediaType as MediaType,
-      mediaUrl,
-      thumbnailUrl: thumbnailUrl || mediaUrl,
-      previewUrl,
-      visibility: visibility as Visibility,
-      status: status as PostStatus,
-      price: Number(price),
-    });
+    try {
+      const newPost = createCreatorPost({
+        creatorId,
+        creatorHandle,
+        creatorName,
+        title,
+        caption,
+        mediaType: mediaType as MediaType,
+        mediaUrl,
+        thumbnailUrl: thumbnailUrl || mediaUrl,
+        previewUrl,
+        videoDuration,
+        visibility: visibility as Visibility,
+        status: status as PostStatus,
+        price: Number(price),
+        isPublicPreview: Boolean(isPublicPreview),
+      });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Post created successfully',
-      post: newPost,
-    });
+      return NextResponse.json({
+        success: true,
+        message: 'Post created successfully',
+        post: newPost,
+      });
+    } catch (err: any) {
+      return NextResponse.json(
+        { success: false, message: err?.message || 'Failed to create post' },
+        { status: 400 }
+      );
+    }
   } catch (error: any) {
     return NextResponse.json(
       { success: false, message: error?.message || 'Failed to create post' },

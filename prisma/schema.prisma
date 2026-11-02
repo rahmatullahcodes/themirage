@@ -145,6 +145,7 @@ model Post {
   thumbnailUrl String?
   visibility   Visibility     @default(SUBSCRIBER_ONLY)
   status       PostStatus     @default(PUBLISHED)
+  isPublicPreview Boolean     @default(false)
   price        Float?         @default(0.0)
   likeCount    Int            @default(0)
   isPinned     Boolean        @default(false)
