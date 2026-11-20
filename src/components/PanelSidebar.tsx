@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Crown,
   LayoutDashboard,
@@ -57,6 +58,8 @@ export default function PanelSidebar({
   userName = 'User',
   userHandle = '@user',
 }: PanelSidebarProps) {
+  const router = useRouter();
+
   // Navigation menus based on user role
   const adminNav: NavItem[] = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -138,6 +141,7 @@ export default function PanelSidebar({
 
           {/* Desktop Toggle Bar Button */}
           <button
+            type="button"
             onClick={onToggleCollapse}
             className="hidden lg:flex p-1.5 rounded-lg bg-[#14141e] hover:bg-[#1a1a26] text-[#8e8e9e] hover:text-white border border-[#272738] transition-colors"
             title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
@@ -172,6 +176,7 @@ export default function PanelSidebar({
             return (
               <button
                 key={item.id}
+                type="button"
                 onClick={() => {
                   onSelectTab(item.id);
                   onCloseMobile();
@@ -225,10 +230,11 @@ export default function PanelSidebar({
           </Link>
 
           <button
+            type="button"
             onClick={() => {
               localStorage.removeItem('mirage_token');
               localStorage.removeItem('mirage_user');
-              window.location.href = '/login';
+              router.push('/login');
             }}
             className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-red-400 hover:bg-red-950/30 transition-colors"
             title="Sign Out"
@@ -241,4 +247,3 @@ export default function PanelSidebar({
     </>
   );
 }
-

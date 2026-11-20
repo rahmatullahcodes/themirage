@@ -64,13 +64,14 @@ export default function Navbar() {
     localStorage.removeItem('mirage_token');
     localStorage.removeItem('mirage_user');
     setUser(null);
+    setMobileMenuOpen(false);
     router.push('/');
-    window.location.reload();
   };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
+      setMobileMenuOpen(false);
       router.push(`/explore?q=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
@@ -127,6 +128,7 @@ export default function Navbar() {
               {/* Notification Bell */}
               <div className="relative">
                 <button
+                  type="button"
                   onClick={() => setShowNotifications(!showNotifications)}
                   className="p-2.5 rounded-full bg-[#14141a] border border-[#2a2a36] text-[#94a3b8] hover:text-[#f5d77f] hover:border-[#d4af37]/40 transition-colors relative"
                   title="Notifications"
@@ -199,6 +201,7 @@ export default function Navbar() {
               </Link>
 
               <button
+                type="button"
                 onClick={handleLogout}
                 className="p-2 text-xs text-[#94a3b8] hover:text-red-400 transition-colors"
                 title="Logout"
@@ -227,8 +230,10 @@ export default function Navbar() {
         {/* Mobile Hamburger Button */}
         <div className="flex lg:hidden items-center">
           <button
+            type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 text-[#94a3b8] hover:text-white"
+            aria-label="Toggle mobile menu"
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -294,6 +299,7 @@ export default function Navbar() {
                   My Dashboard
                 </Link>
                 <button
+                  type="button"
                   onClick={handleLogout}
                   className="px-4 py-2 text-center text-sm font-semibold rounded-lg text-red-400 bg-[#251515]"
                 >

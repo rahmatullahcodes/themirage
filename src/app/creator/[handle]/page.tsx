@@ -75,7 +75,115 @@ const CREATOR_DATA: Record<string, any> = {
     followersCount: '128K',
     postsCount: 48,
     likesCount: '340K',
+    category: 'Popular',
+    photoPreviews: [
+      {
+        id: 'post-luna-prev-img-1',
+        title: 'Santorini Sunset Editorial',
+        caption: 'Golden hour shot over Oia cliffs. One of my favorite looks from the summer campaign.',
+        mediaUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1600&q=90',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
+        likes: 1420,
+      },
+      {
+        id: 'post-luna-prev-img-2',
+        title: 'Parisian Morning Bloom',
+        caption: 'Early morning coffee on the private balcony overlooking the city.',
+        mediaUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1600&q=90',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80',
+        likes: 980,
+      },
+      {
+        id: 'post-luna-prev-img-3',
+        title: 'Milan Haute Couture Session',
+        caption: 'Studio lighting test before Milan Fashion Week runway show.',
+        mediaUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1600&q=90',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80',
+        likes: 1650,
+      },
+    ],
+    videoPreviews: [
+      {
+        id: 'post-luna-prev-vid-1',
+        title: 'Paris Runway Fashion Week Teaser',
+        caption: 'Exclusive backstage sneak peek into the 2026 autumn runway collection.',
+        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=800&q=80',
+        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        videoDuration: '0:45',
+        likes: 2310,
+      },
+      {
+        id: 'post-luna-prev-vid-2',
+        title: 'Sunset Studio BTS Clip',
+        caption: 'Behind the lens of our private coastal editorial shoot.',
+        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80',
+        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+        videoDuration: '1:15',
+        likes: 3120,
+      },
+    ],
+  },
+  'mia-carter': {
+    name: 'Mia Carter',
+    handle: '@mia-carter',
+    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80',
+    banner: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1400&q=80',
+    bio: 'Lifestyle creator, wellness guide, and everyday glamour enthusiast. Join my private community for daily looks, personal vlogs, and 1-on-1 chats.',
+    monthlyPrice: 7.99,
+    followersCount: '95K',
+    postsCount: 42,
+    likesCount: '290K',
     category: 'Lifestyle',
+    photoPreviews: [
+      {
+        id: 'post-mia-prev-img-1',
+        title: 'Golden Sunset Terrace',
+        caption: 'Unwinding after an all-day editorial session in Malibu.',
+        mediaUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1600&q=90',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80',
+        likes: 1240,
+      },
+      {
+        id: 'post-mia-prev-img-2',
+        title: 'Summer Glow Portrait',
+        caption: 'Natural lighting and warm reflections in my studio.',
+        mediaUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1600&q=90',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
+        likes: 1105,
+      },
+      {
+        id: 'post-mia-prev-img-3',
+        title: 'Evening Elegance in Black & Gold',
+        caption: 'Sneak preview from our private luxury gallery release.',
+        mediaUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1600&q=90',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80',
+        likes: 1480,
+      },
+    ],
+    videoPreviews: [
+      {
+        id: 'post-mia-prev-vid-1',
+        title: 'Malibu Sunset Studio Vlog',
+        caption: 'Sneak peek into my daily creative routine and studio setup.',
+        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80',
+        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        videoDuration: '0:50',
+        likes: 2190,
+      },
+      {
+        id: 'post-mia-prev-vid-2',
+        title: 'Behind the Scenes — Glamour Look',
+        caption: 'Full backstage lighting test and camera prep.',
+        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80',
+        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+        videoDuration: '1:10',
+        likes: 2850,
+      },
+    ],
   },
   'sophie-lee': {
     name: 'Sophie Lee',
@@ -83,11 +191,179 @@ const CREATOR_DATA: Record<string, any> = {
     avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
     banner: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1400&q=80',
     bio: 'Tokyo-based editorial model and visual creator. Neon aesthetics, travel cinematography, and private subscriber logs.',
-    monthlyPrice: 12.99,
-    followersCount: '95K',
+    monthlyPrice: 9.99,
+    followersCount: '180K',
     postsCount: 36,
     likesCount: '210K',
+    category: 'Cosplay',
+    photoPreviews: [
+      {
+        id: 'post-sophie-prev-img-1',
+        title: 'Shibuya Neon Nightfall',
+        caption: 'Rain reflections and cyberpunk vibes in central Tokyo.',
+        mediaUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1600&q=90',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80',
+        likes: 1980,
+      },
+      {
+        id: 'post-sophie-prev-img-2',
+        title: 'Akihabara Fantasy Costume',
+        caption: 'Handcrafted cosplay costume reveal for my members.',
+        mediaUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1600&q=90',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
+        likes: 1540,
+      },
+      {
+        id: 'post-sophie-prev-img-3',
+        title: 'Kyoto Temple Garden Walk',
+        caption: 'Traditional kimono look amidst autumn blossoms.',
+        mediaUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1600&q=90',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80',
+        likes: 1720,
+      },
+    ],
+    videoPreviews: [
+      {
+        id: 'post-sophie-prev-vid-1',
+        title: 'Tokyo Neon Nights Teaser',
+        caption: 'Late night wander through Shinjuku alleys and arcade halls.',
+        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80',
+        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        videoDuration: '0:40',
+        likes: 2450,
+      },
+      {
+        id: 'post-sophie-prev-vid-2',
+        title: 'Cosplay Crafting & Fitting',
+        caption: 'Sewing and styling the newest fantasy character look.',
+        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80',
+        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+        videoDuration: '1:05',
+        likes: 2900,
+      },
+    ],
+  },
+  'zara-khan': {
+    name: 'Zara Khan',
+    handle: '@zara-khan',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=80',
+    banner: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1400&q=80',
+    bio: 'International luxury travel vlogger and photographer. Exploring hidden gems and private escapes across the globe.',
+    monthlyPrice: 12.99,
+    followersCount: '210K',
+    postsCount: 54,
+    likesCount: '480K',
     category: 'Travel',
+    photoPreviews: [
+      {
+        id: 'post-zara-prev-img-1',
+        title: 'Dubai Desert Horizon',
+        caption: 'Golden dunes and sunset reflections on private safari.',
+        mediaUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1600&q=90',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=800&q=80',
+        likes: 2100,
+      },
+      {
+        id: 'post-zara-prev-img-2',
+        title: 'Maldives Overwater Bungalow',
+        caption: 'Morning swim in crystal turquoise waters.',
+        mediaUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=90',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80',
+        likes: 2650,
+      },
+      {
+        id: 'post-zara-prev-img-3',
+        title: 'Amalfi Coast Viewpoint',
+        caption: 'Classic Italian coastal colors and cliffside terrace.',
+        mediaUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1600&q=90',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
+        likes: 1890,
+      },
+    ],
+    videoPreviews: [
+      {
+        id: 'post-zara-prev-vid-1',
+        title: 'Maldives Drone Cinema Teaser',
+        caption: 'Aerial views of private coral islands and sunset lagoons.',
+        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80',
+        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        videoDuration: '0:55',
+        likes: 3410,
+      },
+      {
+        id: 'post-zara-prev-vid-2',
+        title: 'Dubai High-Rise Penthouse Tour',
+        caption: 'Exclusive tour of our VIP suite overlooking the marina.',
+        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=800&q=80',
+        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+        videoDuration: '1:20',
+        likes: 3950,
+      },
+    ],
+  },
+  'emily-rose': {
+    name: 'Emily Rose',
+    handle: '@emily-rose',
+    avatar: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=600&q=80',
+    banner: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=1400&q=80',
+    bio: 'Fitness coach, athlete and daily motivation mentor. High intensity routines, nutrition guides, and personal training tips.',
+    monthlyPrice: 8.99,
+    followersCount: '98K',
+    postsCount: 40,
+    likesCount: '275K',
+    category: 'Fitness',
+    photoPreviews: [
+      {
+        id: 'post-emily-prev-img-1',
+        title: 'Sunrise Beach HIIT Session',
+        caption: 'Pushing boundaries with morning endurance sprints on the sand.',
+        mediaUrl: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=1600&q=90',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=800&q=80',
+        likes: 1420,
+      },
+      {
+        id: 'post-emily-prev-img-2',
+        title: 'Studio Strength Form & Conditioning',
+        caption: 'Focusing on core posture, breathing, and maximum control.',
+        mediaUrl: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=1600&q=90',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=800&q=80',
+        likes: 1290,
+      },
+      {
+        id: 'post-emily-prev-img-3',
+        title: 'Post-Workout Recovery & Hydration',
+        caption: 'My favorite clean smoothie recipe and cooldown stretches.',
+        mediaUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1600&q=90',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80',
+        likes: 1560,
+      },
+    ],
+    videoPreviews: [
+      {
+        id: 'post-emily-prev-vid-1',
+        title: '10-Minute Morning Warmup Routine',
+        caption: 'Follow-along mobility and activation flow before daily training.',
+        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=800&q=80',
+        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        videoDuration: '0:45',
+        likes: 2150,
+      },
+      {
+        id: 'post-emily-prev-vid-2',
+        title: 'Core & Glutes Blast Preview',
+        caption: 'Quick highlights of my subscriber-only 45-min masterclass.',
+        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=800&q=80',
+        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+        videoDuration: '1:00',
+        likes: 2840,
+      },
+    ],
   },
 };
 
@@ -96,7 +372,8 @@ function CreatorProfileContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const rawHandle = (params?.handle as string) || 'luna-rae';
-  const cleanHandle = rawHandle.replace(/^@/, '').toLowerCase();
+  const decodedHandle = decodeURIComponent(rawHandle);
+  const cleanHandle = decodedHandle.replace(/^@/, '').toLowerCase();
 
   const [activeTab, setActiveTab] = useState<'posts' | 'photos' | 'videos' | 'subscription' | 'paid' | 'about'>('posts');
   const [isFollowing, setIsFollowing] = useState(false);
@@ -120,6 +397,8 @@ function CreatorProfileContent() {
     postsCount: 42,
     likesCount: '280K',
     category: 'Popular',
+    photoPreviews: CREATOR_DATA['luna-rae'].photoPreviews,
+    videoPreviews: CREATOR_DATA['luna-rae'].videoPreviews,
   };
 
   const creator = {
@@ -129,56 +408,24 @@ function CreatorProfileContent() {
   };
 
   // Up to 3 Photo Previews state
-  const [photoPreviews, setPhotoPreviews] = useState<PreviewPhotoItem[]>([
-    {
-      id: 'post-luna-prev-img-1',
-      title: 'Santorini Sunset Editorial',
-      caption: 'Golden hour shot over Oia cliffs. One of my favorite looks from the summer campaign.',
-      mediaUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1600&q=90',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
-      likes: 1420,
-    },
-    {
-      id: 'post-luna-prev-img-2',
-      title: 'Parisian Morning Bloom',
-      caption: 'Early morning coffee on the private balcony overlooking the city.',
-      mediaUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1600&q=90',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80',
-      likes: 980,
-    },
-    {
-      id: 'post-luna-prev-img-3',
-      title: 'Milan Haute Couture Session',
-      caption: 'Studio lighting test before Milan Fashion Week runway show.',
-      mediaUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1600&q=90',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80',
-      likes: 1650,
-    },
-  ]);
+  const [photoPreviews, setPhotoPreviews] = useState<PreviewPhotoItem[]>(
+    baseCreator.photoPreviews || CREATOR_DATA['luna-rae'].photoPreviews
+  );
 
   // Up to 2 Video Previews state
-  const [videoPreviews, setVideoPreviews] = useState<PreviewVideoItem[]>([
-    {
-      id: 'post-luna-prev-vid-1',
-      title: 'Paris Runway Fashion Week Teaser',
-      caption: 'Exclusive backstage sneak peek into the 2026 autumn runway collection.',
-      mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=800&q=80',
-      previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-      videoDuration: '0:45',
-      likes: 2310,
-    },
-    {
-      id: 'post-luna-prev-vid-2',
-      title: 'Sunset Studio BTS Clip',
-      caption: 'Behind the lens of our private coastal editorial shoot.',
-      mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80',
-      previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-      videoDuration: '1:15',
-      likes: 3120,
-    },
-  ]);
+  const [videoPreviews, setVideoPreviews] = useState<PreviewVideoItem[]>(
+    baseCreator.videoPreviews || CREATOR_DATA['luna-rae'].videoPreviews
+  );
+
+  // Synchronize state if cleanHandle changes
+  useEffect(() => {
+    if (baseCreator.photoPreviews) {
+      setPhotoPreviews(baseCreator.photoPreviews);
+    }
+    if (baseCreator.videoPreviews) {
+      setVideoPreviews(baseCreator.videoPreviews);
+    }
+  }, [cleanHandle]);
 
   // Main Posts feed (PPV, Subscribers, and Full Feed)
   const [posts, setPosts] = useState<PostItem[]>([
@@ -293,6 +540,20 @@ function CreatorProfileContent() {
     loadBackendData();
   }, [cleanHandle]);
 
+  // Escape key global listener to close any open modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveLightboxPhoto(null);
+        setActiveVideoPreview(null);
+        setSelectedPurchasePost(null);
+        setShowSubscribeModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Check URL parameter for auto opening subscribe modal if requested
   useEffect(() => {
     if (searchParams?.get('subscribe') === 'true') {
@@ -335,17 +596,20 @@ function CreatorProfileContent() {
 
   return (
     <div className="min-h-screen bg-[#08080a] text-white pb-20 selection:bg-[#d4af37]/30 selection:text-white">
-      {/* Monthly Subscription Modal */}
-      <SubscribeModal
-        creator={{
-          id: creator.id,
-          name: creator.name,
-          handle: creator.handle,
-          price: creator.monthlyPrice,
-        }}
-        onClose={() => setShowSubscribeModal(false)}
-        onSuccess={handleSubscribeSuccess}
-      />
+      {/* Monthly Subscription Modal - ONLY rendered when showSubscribeModal is true */}
+      {showSubscribeModal && (
+        <SubscribeModal
+          creator={{
+            id: creator.id,
+            name: creator.name,
+            handle: creator.handle,
+            price: creator.monthlyPrice,
+          }}
+          isOpen={showSubscribeModal}
+          onClose={() => setShowSubscribeModal(false)}
+          onSuccess={handleSubscribeSuccess}
+        />
+      )}
 
       {/* Individual Content Purchase Modal */}
       {selectedPurchasePost && (
@@ -359,6 +623,7 @@ function CreatorProfileContent() {
             mediaType: selectedPurchasePost.type === 'video' ? 'VIDEO' : 'IMAGE',
             thumbnailUrl: selectedPurchasePost.thumbnailUrl || selectedPurchasePost.mediaUrl,
           }}
+          isOpen={!!selectedPurchasePost}
           onClose={() => setSelectedPurchasePost(null)}
           onSuccess={handlePurchaseSuccess}
         />
@@ -397,7 +662,12 @@ function CreatorProfileContent() {
             </div>
 
             <button
-              onClick={() => setActiveLightboxPhoto(null)}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setActiveLightboxPhoto(null);
+              }}
               className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
               aria-label="Close Lightbox"
             >
@@ -426,11 +696,13 @@ function CreatorProfileContent() {
               {activeLightboxPhoto.caption}
             </p>
             <button
-              onClick={() => {
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
                 setActiveLightboxPhoto(null);
                 setShowSubscribeModal(true);
               }}
-              className="px-5 py-2 rounded-full gold-button text-xs font-bold shadow-gold-sm flex-shrink-0"
+              className="px-5 py-2 rounded-full gold-button text-xs font-bold shadow-gold-sm flex-shrink-0 cursor-pointer"
             >
               Subscribe for Full Access (${creator.monthlyPrice.toFixed(2)}/mo)
             </button>
@@ -471,7 +743,12 @@ function CreatorProfileContent() {
             </div>
 
             <button
-              onClick={() => setActiveVideoPreview(null)}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setActiveVideoPreview(null);
+              }}
               className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
               aria-label="Close Video Player"
             >
@@ -502,11 +779,13 @@ function CreatorProfileContent() {
               {activeVideoPreview.caption}
             </p>
             <button
-              onClick={() => {
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
                 setActiveVideoPreview(null);
                 setShowSubscribeModal(true);
               }}
-              className="px-5 py-2 rounded-full gold-button text-xs font-bold shadow-gold-sm flex-shrink-0"
+              className="px-5 py-2 rounded-full gold-button text-xs font-bold shadow-gold-sm flex-shrink-0 cursor-pointer"
             >
               Subscribe for Full Access (${creator.monthlyPrice.toFixed(2)}/mo)
             </button>
@@ -579,6 +858,7 @@ function CreatorProfileContent() {
 
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <button
+                type="button"
                 onClick={() => setIsFollowing(!isFollowing)}
                 className={`flex-1 sm:flex-none px-6 py-2.5 rounded-full text-xs font-semibold border transition-all ${
                   isFollowing
@@ -589,6 +869,7 @@ function CreatorProfileContent() {
                 {isFollowing ? 'Following' : 'Follow'}
               </button>
               <button
+                type="button"
                 onClick={() => setShowSubscribeModal(true)}
                 className="flex-1 sm:flex-none px-7 py-2.5 rounded-full gold-button text-xs font-bold shadow-gold-sm"
               >
@@ -757,8 +1038,9 @@ function CreatorProfileContent() {
 
             <div className="flex flex-col items-center gap-2 w-full md:w-auto flex-shrink-0">
               <button
+                type="button"
                 onClick={() => setShowSubscribeModal(true)}
-                className="w-full sm:w-auto px-9 py-3.5 rounded-full gold-button text-xs sm:text-sm font-bold shadow-gold-md hover:scale-105 transition-all text-center tracking-wide"
+                className="w-full sm:w-auto px-9 py-3.5 rounded-full gold-button text-xs sm:text-sm font-bold shadow-gold-md hover:scale-105 transition-all text-center tracking-wide cursor-pointer"
               >
                 Subscribe Now — ${creator.monthlyPrice.toFixed(2)}/mo
               </button>
@@ -776,6 +1058,7 @@ function CreatorProfileContent() {
             {/* Feed Navigation Tabs */}
             <div className="flex overflow-x-auto border-b border-[#1c1c28] gap-4 sm:gap-6 pb-px scrollbar-none">
               <button
+                type="button"
                 onClick={() => setActiveTab('posts')}
                 className={`pb-3 text-xs sm:text-sm font-semibold flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all ${
                   activeTab === 'posts'
@@ -788,6 +1071,7 @@ function CreatorProfileContent() {
               </button>
 
               <button
+                type="button"
                 onClick={() => setActiveTab('paid')}
                 className={`pb-3 text-xs sm:text-sm font-semibold flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all ${
                   activeTab === 'paid'
@@ -800,6 +1084,7 @@ function CreatorProfileContent() {
               </button>
 
               <button
+                type="button"
                 onClick={() => setActiveTab('subscription')}
                 className={`pb-3 text-xs sm:text-sm font-semibold flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all ${
                   activeTab === 'subscription'
@@ -812,6 +1097,7 @@ function CreatorProfileContent() {
               </button>
 
               <button
+                type="button"
                 onClick={() => setActiveTab('photos')}
                 className={`pb-3 text-xs sm:text-sm font-semibold flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all ${
                   activeTab === 'photos'
@@ -824,6 +1110,7 @@ function CreatorProfileContent() {
               </button>
 
               <button
+                type="button"
                 onClick={() => setActiveTab('videos')}
                 className={`pb-3 text-xs sm:text-sm font-semibold flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all ${
                   activeTab === 'videos'
@@ -836,6 +1123,7 @@ function CreatorProfileContent() {
               </button>
 
               <button
+                type="button"
                 onClick={() => setActiveTab('about')}
                 className={`pb-3 text-xs sm:text-sm font-semibold flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all ${
                   activeTab === 'about'
@@ -927,7 +1215,7 @@ function CreatorProfileContent() {
                         </div>
                       )}
 
-                      {/* Locked Paywall Overlay (Section 5 Requirement) */}
+                      {/* Locked Paywall Overlay */}
                       {post.isLocked && (
                         <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center gap-3">
                           <div className="w-12 h-12 rounded-full bg-[#1b1b24] border border-[#d4af37]/40 flex items-center justify-center text-[#f5d77f] shadow-gold-sm">
@@ -948,8 +1236,9 @@ function CreatorProfileContent() {
                                 </p>
                               </div>
                               <button
+                                type="button"
                                 onClick={() => setSelectedPurchasePost(post)}
-                                className="px-6 py-2.5 rounded-full gold-button text-xs font-bold shadow-gold-sm flex items-center gap-2 hover:scale-105 transition-transform"
+                                className="px-6 py-2.5 rounded-full gold-button text-xs font-bold shadow-gold-sm flex items-center gap-2 hover:scale-105 transition-transform cursor-pointer"
                               >
                                 <CreditCard className="w-4 h-4" />
                                 Unlock for ${post.price.toFixed(2)}
@@ -966,8 +1255,9 @@ function CreatorProfileContent() {
                                 </p>
                               </div>
                               <button
+                                type="button"
                                 onClick={() => setShowSubscribeModal(true)}
-                                className="px-6 py-2.5 rounded-full gold-button text-xs font-bold shadow-gold-sm"
+                                className="px-6 py-2.5 rounded-full gold-button text-xs font-bold shadow-gold-sm cursor-pointer"
                               >
                                 Subscribe for ${creator.monthlyPrice.toFixed(2)}/mo
                               </button>
@@ -986,6 +1276,7 @@ function CreatorProfileContent() {
 
                       <div className="flex items-center justify-between pt-3 border-t border-[#1c1c28] text-xs text-[#717182]">
                         <button
+                          type="button"
                           onClick={() => {
                             setPosts(prev =>
                               prev.map(p =>
@@ -1038,8 +1329,9 @@ function CreatorProfileContent() {
                 </li>
               </ul>
               <button
+                type="button"
                 onClick={() => setShowSubscribeModal(true)}
-                className="w-full py-3 rounded-xl gold-button text-xs font-bold shadow-gold-sm"
+                className="w-full py-3 rounded-xl gold-button text-xs font-bold shadow-gold-sm cursor-pointer"
               >
                 {isSubscribed ? 'Manage Subscription' : `Subscribe for $${creator.monthlyPrice.toFixed(2)}`}
               </button>

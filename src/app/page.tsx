@@ -109,10 +109,13 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#08080a] text-white">
       {/* Subscribe Checkout Modal */}
-      <SubscribeModal
-        creator={selectedCreator}
-        onClose={() => setSelectedCreator(null)}
-      />
+      {selectedCreator && (
+        <SubscribeModal
+          creator={selectedCreator}
+          isOpen={!!selectedCreator}
+          onClose={() => setSelectedCreator(null)}
+        />
+      )}
 
       {/* ========================================================
           1. HERO SECTION (Exactly Matching Screenshot)

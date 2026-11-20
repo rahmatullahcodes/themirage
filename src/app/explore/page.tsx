@@ -137,10 +137,13 @@ function ExploreContent() {
 
   return (
     <div className="min-h-screen bg-[#08080a] text-white py-10">
-      <SubscribeModal
-        creator={selectedCreator}
-        onClose={() => setSelectedCreator(null)}
-      />
+      {selectedCreator && (
+        <SubscribeModal
+          creator={selectedCreator}
+          isOpen={!!selectedCreator}
+          onClose={() => setSelectedCreator(null)}
+        />
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div>

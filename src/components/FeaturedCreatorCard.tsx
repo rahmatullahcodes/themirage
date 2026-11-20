@@ -28,11 +28,13 @@ export default function FeaturedCreatorCard({
   onSubscribeClick,
 }: CreatorCardProps) {
   const [liked, setLiked] = useState(false);
+  const safeHandle = handle.replace(/^@/, '');
+  const profileUrl = `/creator/${safeHandle}`;
 
   return (
     <div className="group relative flex flex-col bg-[#111116] border border-[#22222c] hover:border-[#d4af37]/50 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-card-dark hover:-translate-y-1">
       {/* Top Media Portrait Container */}
-      <Link href={`/creator/${handle}`} className="relative block aspect-[4/5] w-full overflow-hidden bg-[#161620]">
+      <Link href={profileUrl} className="relative block aspect-[4/5] w-full overflow-hidden bg-[#161620]">
         <img
           src={image}
           alt={name}
@@ -44,6 +46,7 @@ export default function FeaturedCreatorCard({
 
         {/* Floating Heart Button */}
         <button
+          type="button"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -65,10 +68,10 @@ export default function FeaturedCreatorCard({
         </span>
       </Link>
 
-      {/* Info & Subscribe Action */}
+      {/* Info & Action Area */}
       <div className="p-4 flex flex-col flex-1 justify-between gap-3">
         <div>
-          <Link href={`/creator/${handle}`} className="flex items-center gap-1.5 group/name">
+          <Link href={profileUrl} className="flex items-center gap-1.5 group/name">
             <h4 className="font-serif font-bold text-white text-base tracking-wide group-hover/name:text-[#f5d77f] transition-colors truncate">
               {name}
             </h4>
@@ -91,14 +94,18 @@ export default function FeaturedCreatorCard({
 
           {onSubscribeClick ? (
             <button
-              onClick={() => onSubscribeClick({ id, name, handle, price })}
-              className="w-full py-2.5 rounded-xl gold-button text-xs font-bold tracking-wide shadow-gold-sm flex items-center justify-center gap-1"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSubscribeClick({ id, name, handle: safeHandle, price });
+              }}
+              className="w-full py-2.5 rounded-xl gold-button text-xs font-bold tracking-wide shadow-gold-sm flex items-center justify-center gap-1 cursor-pointer"
             >
               Explore Profile
             </button>
           ) : (
             <Link
-              href={`/creator/${handle}`}
+              href={profileUrl}
               className="w-full py-2.5 rounded-xl gold-button text-xs font-bold tracking-wide shadow-gold-sm flex items-center justify-center gap-1 text-center"
             >
               Explore Profile
@@ -109,4 +116,3 @@ export default function FeaturedCreatorCard({
     </div>
   );
 }
-

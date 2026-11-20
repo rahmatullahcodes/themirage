@@ -14,7 +14,14 @@ const nextConfig = {
       }
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/creators/:handle',
+        destination: '/creator/:handle',
+      },
+    ];
+  },
 };
 
 export default nextConfig;
-

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Lock,
   Sparkles,
@@ -12,6 +13,7 @@ import {
   Image as ImageIcon,
   Video,
   ShieldCheck,
+  LogIn,
 } from 'lucide-react';
 
 interface PurchaseContentModalProps {
@@ -24,32 +26,54 @@ interface PurchaseContentModalProps {
     mediaType: 'IMAGE' | 'VIDEO' | 'AUDIO';
     thumbnailUrl: string;
   } | null;
+  isOpen?: boolean;
   onClose: () => void;
   onSuccess: (purchasedItem: any) => void;
 }
 
 export default function PurchaseContentModal({
   content,
+  isOpen = true,
   onClose,
   onSuccess,
 }: PurchaseContentModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isAuthError, setIsAuthError] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  if (!content) return null;
+  // Close when pressing Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  if (!isOpen || !content) return null;
 
   const handlePurchase = async () => {
     setLoading(true);
     setError('');
+    setIsAuthError(false);
 
     try {
       const token = localStorage.getItem('mirage_token');
+      if (!token) {
+        setIsAuthError(true);
+        setError('Please log in or create an account to unlock this content.');
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch('/api/content/purchase', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ postId: content.id }),
       });
@@ -72,13 +96,32 @@ export default function PurchaseContentModal({
     }
   };
 
+  const safeHandle = content.creatorHandle.replace(/^@/, '');
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md bg-[#101016] border border-[#d4af37]/40 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black text-left">
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        className="relative w-full max-w-md bg-[#101016] border border-[#d4af37]/40 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black text-left animate-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Close Button */}
         <button
-          onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-full bg-[#181822] text-[#8e8e9e] hover:text-white transition-colors"
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onClose();
+          }}
+          className="absolute top-5 right-5 p-2 rounded-full bg-[#181822] text-[#8e8e9e] hover:text-white hover:bg-[#252536] transition-colors"
           aria-label="Close"
         >
           <X className="w-4 h-4" />
@@ -148,18 +191,38 @@ export default function PurchaseContentModal({
             </div>
 
             {error && (
-              <div className="p-3 rounded-xl bg-red-950/40 border border-red-500/40 text-red-300 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{error}</span>
+              <div className="p-3 rounded-xl bg-red-950/40 border border-red-500/40 text-red-300 text-xs flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+                {isAuthError && (
+                  <div className="flex gap-2 pt-1">
+                    <Link
+                      href={`/login?redirect=/creator/${encodeURIComponent(safeHandle)}`}
+                      className="flex-1 py-2 px-3 rounded-lg gold-button text-xs font-bold text-center flex items-center justify-center gap-1.5"
+                    >
+                      <LogIn className="w-3.5 h-3.5" />
+                      Log In
+                    </Link>
+                    <Link
+                      href="/register"
+                      className="flex-1 py-2 px-3 rounded-lg bg-[#181824] border border-[#303042] hover:border-[#d4af37] text-white text-xs font-semibold text-center"
+                    >
+                      Sign Up
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
 
             {/* Actions */}
             <div className="space-y-3">
               <button
+                type="button"
                 onClick={handlePurchase}
                 disabled={loading}
-                className="w-full py-3.5 rounded-xl gold-button text-xs font-bold shadow-gold-sm flex items-center justify-center gap-2"
+                className="w-full py-3.5 rounded-xl gold-button text-xs font-bold shadow-gold-sm flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {loading ? (
                   <span className="animate-pulse">Processing Payment...</span>
@@ -169,6 +232,19 @@ export default function PurchaseContentModal({
                     Unlock Now for ${content.price.toFixed(2)}
                   </>
                 )}
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onClose();
+                }}
+                disabled={loading}
+                className="w-full py-2.5 rounded-xl bg-transparent hover:bg-[#181822] text-[#9090a0] hover:text-white text-xs font-medium transition-colors text-center"
+              >
+                Cancel
               </button>
 
               <div className="flex items-center justify-center gap-2 text-[10px] text-[#6e6e80]">
@@ -182,4 +258,3 @@ export default function PurchaseContentModal({
     </div>
   );
 }
-

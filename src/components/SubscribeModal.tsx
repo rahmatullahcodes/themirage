@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X, CheckCircle, Shield, CreditCard, Sparkles, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { X, CheckCircle, Shield, CreditCard, Sparkles, AlertCircle, LogIn } from 'lucide-react';
 
 interface SubscribeModalProps {
   creator: {
@@ -10,25 +11,46 @@ interface SubscribeModalProps {
     handle: string;
     price: number;
   } | null;
+  isOpen?: boolean;
   onClose: () => void;
   onSuccess?: () => void;
 }
 
-export default function SubscribeModal({ creator, onClose, onSuccess }: SubscribeModalProps) {
+export default function SubscribeModal({
+  creator,
+  isOpen = true,
+  onClose,
+  onSuccess,
+}: SubscribeModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isAuthError, setIsAuthError] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  if (!creator) return null;
+  // Close when pressing Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  if (!isOpen || !creator) return null;
 
   const handleCheckout = async () => {
     setLoading(true);
     setError('');
+    setIsAuthError(false);
 
     try {
       const token = localStorage.getItem('mirage_token');
       if (!token) {
-        window.location.href = `/login?redirect=/creator/${creator.handle}`;
+        setIsAuthError(true);
+        setError('Please log in or create an account to subscribe.');
+        setLoading(false);
         return;
       }
 
@@ -65,13 +87,33 @@ export default function SubscribeModal({ creator, onClose, onSuccess }: Subscrib
     }
   };
 
+  const safeHandle = creator.handle.replace(/^@/, '');
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
-      <div className="relative w-full max-w-md bg-[#0f0f16] border border-[#d4af37]/40 rounded-2xl p-6 shadow-2xl text-left">
-        {/* Close Button */}
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        className="relative w-full max-w-md bg-[#0f0f16] border border-[#d4af37]/40 rounded-2xl p-6 shadow-2xl text-left animate-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close (X) Button */}
         <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-full text-[#888899] hover:text-white bg-[#191924]"
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onClose();
+          }}
+          className="absolute top-4 right-4 p-1.5 rounded-full text-[#888899] hover:text-white bg-[#191924] hover:bg-[#252536] transition-colors"
+          aria-label="Close modal"
         >
           <X className="w-4 h-4" />
         </button>
@@ -115,9 +157,28 @@ export default function SubscribeModal({ creator, onClose, onSuccess }: Subscrib
             </div>
 
             {error && (
-              <div className="mb-4 p-3 rounded-lg bg-red-950/40 border border-red-500/40 text-red-300 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{error}</span>
+              <div className="mb-4 p-3 rounded-lg bg-red-950/40 border border-red-500/40 text-red-300 text-xs flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+                {isAuthError && (
+                  <div className="flex gap-2 pt-1">
+                    <Link
+                      href={`/login?redirect=/creator/${encodeURIComponent(safeHandle)}`}
+                      className="flex-1 py-2 px-3 rounded-lg gold-button text-xs font-bold text-center flex items-center justify-center gap-1.5"
+                    >
+                      <LogIn className="w-3.5 h-3.5" />
+                      Log In
+                    </Link>
+                    <Link
+                      href="/register"
+                      className="flex-1 py-2 px-3 rounded-lg bg-[#181824] border border-[#303042] hover:border-[#d4af37] text-white text-xs font-semibold text-center"
+                    >
+                      Sign Up
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
 
@@ -130,6 +191,7 @@ export default function SubscribeModal({ creator, onClose, onSuccess }: Subscrib
             {/* Action Buttons */}
             <div className="flex flex-col gap-2">
               <button
+                type="button"
                 onClick={handleCheckout}
                 disabled={loading}
                 className="w-full py-3 rounded-xl gold-button text-sm font-bold shadow-gold-sm flex items-center justify-center gap-2 disabled:opacity-50"
@@ -138,9 +200,14 @@ export default function SubscribeModal({ creator, onClose, onSuccess }: Subscrib
                 {loading ? 'Processing...' : `Confirm & Pay $${creator.price.toFixed(2)} / month`}
               </button>
               <button
-                onClick={onClose}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onClose();
+                }}
                 disabled={loading}
-                className="w-full py-2.5 rounded-xl bg-transparent hover:bg-[#181822] text-[#9090a0] text-xs font-medium"
+                className="w-full py-2.5 rounded-xl bg-transparent hover:bg-[#181822] text-[#9090a0] hover:text-white text-xs font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -151,4 +218,3 @@ export default function SubscribeModal({ creator, onClose, onSuccess }: Subscrib
     </div>
   );
 }
-
