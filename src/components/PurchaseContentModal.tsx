@@ -69,13 +69,28 @@ export default function PurchaseContentModal({
         return;
       }
 
+      let currentUserId = 'usr-1';
+      let currentUserName = 'Alex Mercer';
+      try {
+        const storedUser = localStorage.getItem('mirage_user');
+        if (storedUser) {
+          const u = JSON.parse(storedUser);
+          if (u.id) currentUserId = u.id;
+          if (u.name) currentUserName = u.name;
+        }
+      } catch (e) {}
+
       const res = await fetch('/api/content/purchase', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ postId: content.id }),
+        body: JSON.stringify({
+          postId: content.id,
+          userId: currentUserId,
+          userName: currentUserName,
+        }),
       });
 
       const data = await res.json();

@@ -267,6 +267,39 @@ export default function CreatorStudioPage() {
     { id: 's4', name: 'Liam Vance', handle: '@liamv', status: 'ACTIVE', joined: 'Oct 18, 2026', totalSpent: '$9.99' },
   ];
 
+  // Synchronize creator studio posts from backend API
+  useEffect(() => {
+    async function loadStudioData() {
+      try {
+        const res = await fetch('/api/content/posts?handle=luna-rae');
+        if (res.ok) {
+          const json = await res.json();
+          if (json?.posts && Array.isArray(json.posts)) {
+            const mapped: CreatorFeedPost[] = json.posts.map((p: any) => ({
+              id: p.id,
+              type: p.mediaType,
+              title: p.title,
+              url: p.thumbnailUrl || p.mediaUrl,
+              caption: p.caption,
+              visibility: p.visibility,
+              isPublicPreview: Boolean(p.isPublicPreview),
+              price: p.price || 0,
+              status: p.status || 'PUBLISHED',
+              likes: p.likeCount || 100,
+              date: 'Recently',
+            }));
+            if (mapped.length > 0) {
+              setFeedPosts(mapped);
+            }
+          }
+        }
+      } catch (e) {
+        // Fallback to initial state
+      }
+    }
+    loadStudioData();
+  }, []);
+
   // Calculate current public profile preview counts (max 3 photos, max 2 videos)
   const previewPhotosCount = feedPosts.filter(
     p => (p.type === 'image' || p.type === 'IMAGE') && p.isPublicPreview && p.status === 'PUBLISHED'
@@ -290,7 +323,7 @@ export default function CreatorStudioPage() {
     alert('Custom content successfully delivered to customer vault!');
   };
 
-  const handleCreatePost = (e: React.FormEvent) => {
+  const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploadError('');
 
@@ -332,6 +365,31 @@ export default function CreatorStudioPage() {
     };
 
     setFeedPosts(prev => [newPost, ...prev]);
+
+    // Persist to backend contentStore
+    try {
+      await fetch('/api/content/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          creatorId: 'c1',
+          creatorHandle: 'luna-rae',
+          creatorName: 'Luna Rae',
+          title: newPost.title,
+          caption: newPost.caption,
+          mediaType,
+          mediaUrl,
+          thumbnailUrl: thumbnailUrl || mediaUrl,
+          visibility: newPost.visibility,
+          isPublicPreview: newPost.isPublicPreview,
+          status: postStatus,
+          price,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to sync new post to backend:', err);
+    }
+
     setUploadSuccess(true);
     setTimeout(() => {
       setPostTitle('');
@@ -355,6 +413,15 @@ export default function CreatorStudioPage() {
           p.id === postId ? { ...p, isPublicPreview: false } : p
         )
       );
+      fetch('/api/content/posts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          postId,
+          creatorId: 'c1',
+          updates: { isPublicPreview: false },
+        }),
+      }).catch(err => console.error('Error toggling preview:', err));
     } else {
       const isVid = target.type === 'video' || target.type === 'VIDEO';
       if (!isVid && previewPhotosCount >= 3) {
@@ -370,6 +437,15 @@ export default function CreatorStudioPage() {
           p.id === postId ? { ...p, isPublicPreview: true, visibility: 'PUBLIC' } : p
         )
       );
+      fetch('/api/content/posts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          postId,
+          creatorId: 'c1',
+          updates: { isPublicPreview: true, visibility: 'PUBLIC' },
+        }),
+      }).catch(err => console.error('Error toggling preview:', err));
     }
   };
 
@@ -384,20 +460,43 @@ export default function CreatorStudioPage() {
         post.id === postId ? { ...post, price: p } : post
       )
     );
+    fetch('/api/content/posts', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        postId,
+        creatorId: 'c1',
+        updates: { price: p },
+      }),
+    }).catch(err => console.error('Error updating price:', err));
+
     setEditingPostId(null);
     setEditPriceInput('');
   };
 
   const handleToggleStatus = (postId: string) => {
+    const target = feedPosts.find(p => p.id === postId);
+    if (!target) return;
+    const nextStatus = target.status === 'PUBLISHED' ? ('DRAFT' as const) : ('PUBLISHED' as const);
+
     setFeedPosts(prev =>
       prev.map(post => {
         if (post.id === postId) {
-          const nextStatus = post.status === 'PUBLISHED' ? ('DRAFT' as const) : ('PUBLISHED' as const);
           return { ...post, status: nextStatus };
         }
         return post;
       })
     );
+
+    fetch('/api/content/posts', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        postId,
+        creatorId: 'c1',
+        updates: { status: nextStatus },
+      }),
+    }).catch(err => console.error('Error updating status:', err));
   };
 
   const getTabTitle = () => {
