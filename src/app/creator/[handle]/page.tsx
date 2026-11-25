@@ -371,7 +371,8 @@ function CreatorProfileContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const rawHandle = (params?.handle as string) || 'luna-rae';
+  const rawParam = params?.handle;
+  const rawHandle = (Array.isArray(rawParam) ? rawParam[0] : (rawParam as string)) || 'luna-rae';
   const decodedHandle = decodeURIComponent(rawHandle);
   const cleanHandle = decodedHandle.replace(/^@/, '').toLowerCase();
 

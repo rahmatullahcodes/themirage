@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -16,6 +16,7 @@ import {
   Crown,
   ChevronLeft,
   ArrowLeft,
+  X,
 } from 'lucide-react';
 
 interface ChatMessage {
@@ -40,6 +41,42 @@ function ChatContent() {
 
   const [activeConversation, setActiveConversation] = useState(queryCreator);
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('chat');
+
+  const CONVERSATION_CREATORS: Record<string, { name: string; avatar: string; handle: string }> = {
+    'luna-rae': {
+      name: 'Luna Rae',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+      handle: '@luna-rae',
+    },
+    'mia-carter': {
+      name: 'Mia Carter',
+      avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80',
+      handle: '@mia-carter',
+    },
+    'sophie-lee': {
+      name: 'Sophie Lee',
+      avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80',
+      handle: '@sophie-lee',
+    },
+    'zara-khan': {
+      name: 'Zara Khan',
+      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80',
+      handle: '@zara-khan',
+    },
+    'emily-rose': {
+      name: 'Emily Rose',
+      avatar: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=200&q=80',
+      handle: '@emily-rose',
+    },
+  };
+
+  const activeCreator = CONVERSATION_CREATORS[activeConversation] || {
+    name: activeConversation.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+    handle: `@${activeConversation}`,
+  };
+
+  const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -101,6 +138,17 @@ function ChatContent() {
     }, 1500);
   };
 
+  // Global Escape key listener to dismiss modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowCustomModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const handlePayOffer = (offerId: string) => {
     setMessages(prev =>
       prev.map(msg => {
@@ -117,7 +165,8 @@ function ChatContent() {
       })
     );
 
-    alert('Payment verified! The creator has been notified to produce and upload your personalized content.');
+    setPaymentNotice('Payment verified! The creator has been notified to produce and upload your personalized content.');
+    setTimeout(() => setPaymentNotice(null), 5000);
 
     setTimeout(() => {
       setMessages(prev =>
@@ -252,13 +301,13 @@ function ChatContent() {
             </button>
 
             <img
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"
-              alt="Luna Rae"
+              src={activeCreator.avatar}
+              alt={activeCreator.name}
               className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border border-[#d4af37]/40"
             />
             <div>
               <div className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
-                Luna Rae
+                {activeCreator.name}
                 <CheckCircle2 className="w-3.5 h-3.5 fill-[#d4af37] text-black" />
               </div>
               <span className="text-[10px] text-green-400">Online & Verified</span>
@@ -360,6 +409,22 @@ function ChatContent() {
           ))}
         </div>
 
+        {paymentNotice && (
+          <div className="mx-4 sm:mx-6 mt-3 p-3 rounded-xl bg-green-950/60 border border-green-500/40 text-xs text-green-300 flex items-center justify-between shadow-lg">
+            <span className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+              {paymentNotice}
+            </span>
+            <button
+              onClick={() => setPaymentNotice(null)}
+              className="text-green-400 hover:text-white p-1"
+              aria-label="Dismiss notice"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         <form
           onSubmit={handleSendMessage}
           className="p-3 sm:p-4 bg-[#0e0e14] border-t border-[#1c1c28] flex items-center gap-2 sm:gap-3"
@@ -368,7 +433,7 @@ function ChatContent() {
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="Type your message to Luna Rae..."
+            placeholder={`Type your message to ${activeCreator.name}...`}
             className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-[#151520] border border-[#29293a] rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-[#d4af37]"
           />
           <button
@@ -380,9 +445,23 @@ function ChatContent() {
         </form>
 
         {showCustomModal && (
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
-            <div className="bg-[#12121a] border border-[#d4af37]/40 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
-              <h3 className="text-base font-serif font-bold text-white flex items-center gap-2">
+          <div
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowCustomModal(false);
+            }}
+            className="absolute inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50"
+          >
+            <div className="bg-[#12121a] border border-[#d4af37]/40 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 relative">
+              <button
+                type="button"
+                onClick={() => setShowCustomModal(false)}
+                className="absolute top-4 right-4 p-1.5 rounded-lg text-[#88889a] hover:text-white hover:bg-[#1a1a26] transition-colors"
+                aria-label="Close modal"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <h3 className="text-base font-serif font-bold text-white flex items-center gap-2 pr-6">
                 <Sparkles className="w-4 h-4 text-[#f5d77f]" />
                 Request Personalised Custom Content
               </h3>

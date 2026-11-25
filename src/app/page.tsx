@@ -246,7 +246,10 @@ export default function HomePage() {
               </div>
 
               {/* Watch Previews Video Thumbnail Card */}
-              <div className="relative rounded-2xl overflow-hidden border border-[#242434] aspect-[16/10] group cursor-pointer shadow-lg">
+              <Link
+                href="/creator/luna-rae"
+                className="relative block rounded-2xl overflow-hidden border border-[#242434] aspect-[16/10] group cursor-pointer shadow-lg"
+              >
                 <img
                   src={PREVIEW_VIDEO_IMG}
                   alt="Watch Previews"
@@ -269,7 +272,7 @@ export default function HomePage() {
                   <span className="w-5 h-1 bg-[#d4af37] rounded-full"></span>
                   <span className="w-1.5 h-1 bg-white/40 rounded-full"></span>
                 </div>
-              </div>
+              </Link>
             </div>
           </div>
         </div>

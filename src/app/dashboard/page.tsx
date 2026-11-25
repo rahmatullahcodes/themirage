@@ -73,6 +73,17 @@ export default function UserDashboard() {
     fetchPurchases(currentUser.id);
   }, []);
 
+  // Global Escape key listener to close media viewer modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveMediaModal(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const fetchPurchases = async (userId: string) => {
     setVaultLoading(true);
     try {
@@ -573,8 +584,16 @@ export default function UserDashboard() {
 
       {/* In-App Media Viewer Modal */}
       {activeMediaModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-          <div className="relative w-full max-w-4xl bg-[#0e0e14] border border-[#d4af37]/50 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setActiveMediaModal(null);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-4xl bg-[#0e0e14] border border-[#d4af37]/50 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] cursor-default"
+          >
             {/* Modal Header */}
             <div className="p-4 sm:p-5 border-b border-[#1c1c28] flex items-center justify-between bg-[#12121a]">
               <div>
