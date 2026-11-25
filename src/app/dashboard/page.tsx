@@ -114,8 +114,8 @@ export default function UserDashboard() {
     }
   };
 
-  // Demo active subscriptions
-  const subscriptions = [
+  // Active subscriptions (loaded from localStorage with default seeds)
+  const [subscriptions, setSubscriptions] = useState([
     {
       id: 'sub-1',
       creatorName: 'Luna Rae',
@@ -134,13 +134,43 @@ export default function UserDashboard() {
       status: 'ACTIVE',
       nextBilling: 'November 18, 2026',
     },
-  ];
+  ]);
 
-  // Demo followed creators
-  const followed = [
+  // Followed creators (loaded from localStorage with default seeds)
+  const [followed, setFollowed] = useState([
     { id: 'f1', name: 'Mia Carter', handle: 'mia-carter', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80', price: 7.99 },
     { id: 'f2', name: 'Zara Khan', handle: 'zara-khan', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80', price: 12.99 },
-  ];
+  ]);
+
+  useEffect(() => {
+    try {
+      const storedSubs = localStorage.getItem('mirage_subscriptions');
+      if (storedSubs) {
+        const parsed = JSON.parse(storedSubs);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSubscriptions(parsed);
+        }
+      }
+    } catch (e) {}
+
+    try {
+      const storedFollowed = localStorage.getItem('mirage_followed_creators');
+      if (storedFollowed) {
+        const parsed = JSON.parse(storedFollowed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setFollowed(parsed);
+        }
+      }
+    } catch (e) {}
+  }, []);
+
+  const handleUnfollow = (creatorHandle: string) => {
+    const updated = followed.filter(c => c.handle !== creatorHandle);
+    setFollowed(updated);
+    try {
+      localStorage.setItem('mirage_followed_creators', JSON.stringify(updated));
+    } catch (e) {}
+  };
 
   // Transaction history with PPV Individual content
   const transactions = [
@@ -494,12 +524,21 @@ export default function UserDashboard() {
                         <div className="text-[11px] text-[#717182]">${c.price.toFixed(2)} / mo</div>
                       </div>
                     </div>
-                    <Link
-                      href={`/creator/${c.handle}`}
-                      className="px-3 py-1.5 rounded-lg gold-button text-xs font-bold shadow-gold-sm"
-                    >
-                      Subscribe
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleUnfollow(c.handle)}
+                        className="px-3 py-1.5 rounded-lg bg-[#191924] hover:bg-[#222232] text-xs text-[#8c8c9e] hover:text-red-400 transition-colors"
+                      >
+                        Unfollow
+                      </button>
+                      <Link
+                        href={`/creator/${c.handle}`}
+                        className="px-3 py-1.5 rounded-lg gold-button text-xs font-bold shadow-gold-sm"
+                      >
+                        Subscribe
+                      </Link>
+                    </div>
                   </div>
                 ))}
               </div>

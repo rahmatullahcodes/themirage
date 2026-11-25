@@ -418,6 +418,56 @@ function CreatorProfileContent() {
     baseCreator.videoPreviews || CREATOR_DATA['luna-rae'].videoPreviews
   );
 
+  // Check if current user is following or subscribed to this creator
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mirage_followed_creators');
+      if (stored) {
+        const list: any[] = JSON.parse(stored);
+        const match = list.some(c => c.handle.replace(/^@/, '').toLowerCase() === cleanHandle);
+        setIsFollowing(match);
+      }
+    } catch (e) {}
+
+    try {
+      const storedSubs = localStorage.getItem('mirage_subscriptions');
+      if (storedSubs) {
+        const list: any[] = JSON.parse(storedSubs);
+        const matchSub = list.some(s => s.creatorHandle.replace(/^@/, '').toLowerCase() === cleanHandle && s.status === 'ACTIVE');
+        if (matchSub) setIsSubscribed(true);
+      }
+    } catch (e) {}
+  }, [cleanHandle]);
+
+  const handleToggleFollow = () => {
+    try {
+      const stored = localStorage.getItem('mirage_followed_creators');
+      let list: any[] = stored ? JSON.parse(stored) : [
+        { id: 'f1', name: 'Mia Carter', handle: 'mia-carter', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80', price: 7.99 },
+        { id: 'f2', name: 'Zara Khan', handle: 'zara-khan', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80', price: 12.99 },
+      ];
+      const nextState = !isFollowing;
+      setIsFollowing(nextState);
+
+      if (nextState) {
+        if (!list.some(c => c.handle.replace(/^@/, '').toLowerCase() === cleanHandle)) {
+          list.push({
+            id: `f-${cleanHandle}`,
+            name: creator.name,
+            handle: cleanHandle,
+            avatar: creator.avatar,
+            price: creator.monthlyPrice,
+          });
+        }
+      } else {
+        list = list.filter(c => c.handle.replace(/^@/, '').toLowerCase() !== cleanHandle);
+      }
+      localStorage.setItem('mirage_followed_creators', JSON.stringify(list));
+    } catch (e) {
+      setIsFollowing(!isFollowing);
+    }
+  };
+
   // Synchronize state if cleanHandle changes
   useEffect(() => {
     if (baseCreator.photoPreviews) {
@@ -564,6 +614,42 @@ function CreatorProfileContent() {
 
   const handleSubscribeSuccess = () => {
     setIsSubscribed(true);
+    try {
+      const storedSubs = localStorage.getItem('mirage_subscriptions');
+      let subsList: any[] = storedSubs ? JSON.parse(storedSubs) : [
+        {
+          id: 'sub-1',
+          creatorName: 'Luna Rae',
+          creatorHandle: 'luna-rae',
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+          price: 9.99,
+          status: 'ACTIVE',
+          nextBilling: 'November 21, 2026',
+        },
+        {
+          id: 'sub-2',
+          creatorName: 'Sophie Lee',
+          creatorHandle: 'sophie-lee',
+          avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+          price: 9.99,
+          status: 'ACTIVE',
+          nextBilling: 'November 18, 2026',
+        },
+      ];
+      if (!subsList.some(s => s.creatorHandle.replace(/^@/, '').toLowerCase() === cleanHandle)) {
+        subsList.push({
+          id: `sub-${Date.now()}`,
+          creatorName: creator.name,
+          creatorHandle: cleanHandle,
+          avatar: creator.avatar,
+          price: creator.monthlyPrice,
+          status: 'ACTIVE',
+          nextBilling: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+        });
+        localStorage.setItem('mirage_subscriptions', JSON.stringify(subsList));
+      }
+    } catch (e) {}
+
     setPosts(prev =>
       prev.map(p => {
         if (p.visibility === 'SUBSCRIBER_ONLY') {
@@ -860,7 +946,7 @@ function CreatorProfileContent() {
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <button
                 type="button"
-                onClick={() => setIsFollowing(!isFollowing)}
+                onClick={handleToggleFollow}
                 className={`flex-1 sm:flex-none px-6 py-2.5 rounded-full text-xs font-semibold border transition-all ${
                   isFollowing
                     ? 'bg-[#181822] text-[#f5d77f] border-[#d4af37]/40'
