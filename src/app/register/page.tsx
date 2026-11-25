@@ -51,6 +51,7 @@ function RegisterForm() {
 
       localStorage.setItem('mirage_token', data.token);
       localStorage.setItem('mirage_user', JSON.stringify(data.user));
+      window.dispatchEvent(new Event('mirage_auth_changed'));
 
       if (data.user.role === 'CREATOR') {
         router.push('/creator-studio');

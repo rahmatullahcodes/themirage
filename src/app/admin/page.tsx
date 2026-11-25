@@ -36,6 +36,25 @@ export default function AdminPanelPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [adminUser, setAdminUser] = useState({
+    name: 'Super Admin',
+    handle: 'admin@themirage.vip',
+  });
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mirage_user');
+      if (stored) {
+        const u = JSON.parse(stored);
+        if (u.name) {
+          setAdminUser({
+            name: u.name,
+            handle: u.email || `@${u.username || 'admin'}`,
+          });
+        }
+      }
+    } catch (e) {}
+  }, []);
 
   // Configurable commission state (Requirement 2 & 14 & 17)
   const [creatorCommission, setCreatorCommission] = useState(85);
@@ -266,8 +285,8 @@ export default function AdminPanelPage() {
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         mobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
-        userName="Super Admin"
-        userHandle="admin@themirage.vip"
+        userName={adminUser.name}
+        userHandle={adminUser.handle}
       />
 
       {/* Main Content Area */}

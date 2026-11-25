@@ -724,6 +724,109 @@ const SEED_POSTS: PostItem[] = [
     createdAt: '2026-10-27T08:30:00Z',
     updatedAt: '2026-10-27T08:30:00Z',
   },
+  {
+    id: 'post-mia-sub-1',
+    creatorId: 'c3',
+    creatorHandle: 'mia-carter',
+    creatorName: 'Mia Carter',
+    creatorAvatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80',
+    title: 'Subscribers Only: Malibu Morning Vlog',
+    caption: 'Exclusive morning routine & Q&A video for my subscribers.',
+    mediaType: 'VIDEO',
+    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=70',
+    videoDuration: '09:30',
+    visibility: 'SUBSCRIBER_ONLY',
+    isPublicPreview: false,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 192,
+    salesCount: 0,
+    createdAt: '2026-10-24T12:00:00Z',
+    updatedAt: '2026-10-24T12:00:00Z',
+  },
+  {
+    id: 'post-zara-ppv-1',
+    creatorId: 'c4',
+    creatorHandle: 'zara-khan',
+    creatorName: 'Zara Khan',
+    creatorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
+    title: 'Maldives Private Lagoon 4K Film',
+    caption: 'Full 14-minute private island cinema escape in 4K UHD.',
+    mediaType: 'VIDEO',
+    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=70',
+    videoDuration: '14:10',
+    visibility: 'PURCHASE_ONLY',
+    isPublicPreview: false,
+    status: 'PUBLISHED',
+    price: 19.99,
+    likeCount: 310,
+    salesCount: 22,
+    createdAt: '2026-10-25T15:00:00Z',
+    updatedAt: '2026-10-25T15:00:00Z',
+  },
+  {
+    id: 'post-zara-sub-1',
+    creatorId: 'c4',
+    creatorHandle: 'zara-khan',
+    creatorName: 'Zara Khan',
+    creatorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
+    title: 'Subscribers Only: Dubai Penthouse Evening',
+    caption: 'Private twilight views & travel diary for active subscribers.',
+    mediaType: 'IMAGE',
+    mediaUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1600&q=95',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=70',
+    visibility: 'SUBSCRIBER_ONLY',
+    isPublicPreview: false,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 245,
+    salesCount: 0,
+    createdAt: '2026-10-23T19:00:00Z',
+    updatedAt: '2026-10-23T19:00:00Z',
+  },
+  {
+    id: 'post-emily-ppv-1',
+    creatorId: 'c5',
+    creatorHandle: 'emily-rose',
+    creatorName: 'Emily Rose',
+    creatorAvatar: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=400&q=80',
+    title: 'Full 45-Min Core & Sculpt Masterclass',
+    caption: 'Complete guided high-intensity athletic conditioning session.',
+    mediaType: 'VIDEO',
+    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=600&q=70',
+    videoDuration: '45:00',
+    visibility: 'PURCHASE_ONLY',
+    isPublicPreview: false,
+    status: 'PUBLISHED',
+    price: 14.99,
+    likeCount: 274,
+    salesCount: 31,
+    createdAt: '2026-10-25T09:00:00Z',
+    updatedAt: '2026-10-25T09:00:00Z',
+  },
+  {
+    id: 'post-emily-sub-1',
+    creatorId: 'c5',
+    creatorHandle: 'emily-rose',
+    creatorName: 'Emily Rose',
+    creatorAvatar: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=400&q=80',
+    title: 'Subscribers Only: Weekly Nutrition & Form Check',
+    caption: 'My complete weekly meal plan & backstage fitness portrait set.',
+    mediaType: 'IMAGE',
+    mediaUrl: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=1600&q=95',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=600&q=70',
+    visibility: 'SUBSCRIBER_ONLY',
+    isPublicPreview: false,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 205,
+    salesCount: 0,
+    createdAt: '2026-10-24T07:30:00Z',
+    updatedAt: '2026-10-24T07:30:00Z',
+  },
 ];
 
 let posts: PostItem[] = JSON.parse(JSON.stringify(SEED_POSTS));
@@ -811,10 +914,39 @@ let transactions: TransactionRecord[] = [
   },
 ];
 
+const HANDLE_TO_CREATOR_ID: Record<string, string> = {
+  'luna-rae': 'c1',
+  'sophie-lee': 'c2',
+  'mia-carter': 'c3',
+  'zara-khan': 'c4',
+  'emily-rose': 'c5',
+};
+
+export function resolveCreatorId(creatorIdOrHandle: string): string {
+  const cleaned = creatorIdOrHandle.replace(/^creator-/, '').replace(/^@/, '').toLowerCase();
+  return HANDLE_TO_CREATOR_ID[cleaned] || creatorIdOrHandle;
+}
+
+export function subscribeUserToCreator(userId: string, creatorIdOrHandle: string): void {
+  if (!userId || !creatorIdOrHandle) return;
+  const resolvedId = resolveCreatorId(creatorIdOrHandle);
+  if (!userSubscriptions[userId]) {
+    userSubscriptions[userId] = new Set<string>();
+  }
+  userSubscriptions[userId].add(resolvedId);
+}
+
 // Helper: check if user is active subscriber
 export function isUserSubscribedToCreator(userId: string | null | undefined, creatorId: string): boolean {
   if (!userId) return false;
-  return !!userSubscriptions[userId]?.has(creatorId);
+  return !!userSubscriptions[userId]?.has(resolveCreatorId(creatorId));
+}
+
+// Creator Studio full list (includes DRAFT/ARCHIVED posts for owner)
+export function getCreatorStudioPosts(creatorHandle?: string): PostItem[] {
+  if (!creatorHandle) return [...posts];
+  const cleanHandle = creatorHandle.replace(/^@/, '').toLowerCase();
+  return posts.filter(p => p.creatorHandle.toLowerCase() === cleanHandle);
 }
 
 // Helper: check if user has purchased a specific post

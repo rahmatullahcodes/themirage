@@ -35,6 +35,25 @@ export default function CreatorStudioPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [creatorUser, setCreatorUser] = useState({
+    name: 'Luna Rae',
+    username: 'luna-rae',
+  });
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mirage_user');
+      if (stored) {
+        const u = JSON.parse(stored);
+        if (u.name) {
+          setCreatorUser({
+            name: u.name,
+            username: u.username || u.name.toLowerCase().replace(/\s+/g, '-'),
+          });
+        }
+      }
+    } catch (e) {}
+  }, []);
 
   // Upload Form State (Section 2 & 3 Requirements)
   const [mediaType, setMediaType] = useState<'IMAGE' | 'VIDEO'>('IMAGE');
@@ -531,8 +550,8 @@ export default function CreatorStudioPage() {
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         mobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
-        userName="Luna Rae"
-        userHandle="@luna-rae"
+        userName={creatorUser.name}
+        userHandle={`@${creatorUser.username}`}
       />
 
       {/* Main Content Area */}

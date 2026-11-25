@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   Search,
   Crown,
@@ -20,6 +20,7 @@ import {
 
 export default function Navbar() {
   const router = useRouter();
+  const pathname = usePathname() || '/';
   const [user, setUser] = useState<{ id: string; username: string; role: string; name: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -72,19 +73,32 @@ export default function Navbar() {
   ];
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('mirage_user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
+    const syncUser = () => {
+      const storedUser = localStorage.getItem('mirage_user');
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch {
+          setUser(null);
+        }
+      } else {
         setUser(null);
       }
-    }
-  }, []);
+    };
+
+    syncUser();
+    window.addEventListener('mirage_auth_changed', syncUser);
+    window.addEventListener('storage', syncUser);
+    return () => {
+      window.removeEventListener('mirage_auth_changed', syncUser);
+      window.removeEventListener('storage', syncUser);
+    };
+  }, [pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem('mirage_token');
     localStorage.removeItem('mirage_user');
+    window.dispatchEvent(new Event('mirage_auth_changed'));
     setUser(null);
     setMobileMenuOpen(false);
     router.push('/');
@@ -97,6 +111,11 @@ export default function Navbar() {
       router.push(`/explore?q=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
+
+  const navLinkClass = (path: string) =>
+    `text-sm font-medium transition-colors ${
+      pathname === path ? 'text-[#f5d77f] font-semibold' : 'text-[#94a3b8] hover:text-[#d4af37]'
+    }`;
 
   return (
     <header className="sticky top-0 z-50 bg-[#08080a]/90 backdrop-blur-md border-b border-[#22222a]">
@@ -112,19 +131,19 @@ export default function Navbar() {
 
         {/* Center Navigation Links */}
         <nav className="hidden lg:flex items-center gap-8">
-          <Link href="/" className="text-sm font-medium text-white hover:text-[#d4af37] transition-colors">
+          <Link href="/" className={navLinkClass('/')}>
             Home
           </Link>
-          <Link href="/explore" className="text-sm font-medium text-[#94a3b8] hover:text-[#d4af37] transition-colors">
+          <Link href="/explore" className={navLinkClass('/explore')}>
             Explore
           </Link>
-          <Link href="/creators" className="text-sm font-medium text-[#94a3b8] hover:text-[#d4af37] transition-colors">
+          <Link href="/creators" className={navLinkClass('/creators')}>
             Creators
           </Link>
-          <Link href="/pricing" className="text-sm font-medium text-[#94a3b8] hover:text-[#d4af37] transition-colors">
+          <Link href="/pricing" className={navLinkClass('/pricing')}>
             Pricing
           </Link>
-          <Link href="/about" className="text-sm font-medium text-[#94a3b8] hover:text-[#d4af37] transition-colors">
+          <Link href="/about" className={navLinkClass('/about')}>
             About
           </Link>
         </nav>

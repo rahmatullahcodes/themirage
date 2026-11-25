@@ -36,7 +36,8 @@ interface ChatMessage {
 
 function ChatContent() {
   const searchParams = useSearchParams();
-  const queryCreator = searchParams?.get('creator') || 'luna-rae';
+  const rawQueryCreator = searchParams?.get('creator') || 'luna-rae';
+  const queryCreator = rawQueryCreator.replace(/^@/, '').toLowerCase();
   const autoOpenCustom = searchParams?.get('requestCustom') === 'true';
 
   const [activeConversation, setActiveConversation] = useState(queryCreator);
@@ -78,33 +79,69 @@ function ChatContent() {
 
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'm1',
-      sender: 'creator',
-      text: 'Hey! Thanks for joining my Mirage channel! Let me know if you want any custom clips or have questions ✨',
-      time: '11:42 AM',
-    },
-    {
-      id: 'm2',
-      sender: 'user',
-      text: 'Hi Luna! Loving your posts. Can I get a personalized birthday video greeting?',
-      time: '11:45 AM',
-    },
-    {
-      id: 'm3',
-      sender: 'creator',
-      text: 'Absolutely! I can film a 2-minute personalized video greeting for you today with a personal message.',
-      time: '11:46 AM',
-      isCustomOffer: true,
-      offerDetails: {
-        id: 'off-101',
-        title: '2-Minute Personalized VIP Video Greeting',
-        price: 35.00,
-        status: 'PENDING_PAYMENT',
+  const [messagesByCreator, setMessagesByCreator] = useState<Record<string, ChatMessage[]>>({
+    'luna-rae': [
+      {
+        id: 'm1',
+        sender: 'creator',
+        text: 'Hey! Thanks for joining my Mirage channel! Let me know if you want any custom clips or have questions ✨',
+        time: '11:42 AM',
       },
+      {
+        id: 'm2',
+        sender: 'user',
+        text: 'Hi Luna! Loving your posts. Can I get a personalized birthday video greeting?',
+        time: '11:45 AM',
+      },
+      {
+        id: 'm3',
+        sender: 'creator',
+        text: 'Absolutely! I can film a 2-minute personalized video greeting for you today with a personal message.',
+        time: '11:46 AM',
+        isCustomOffer: true,
+        offerDetails: {
+          id: 'off-101',
+          title: '2-Minute Personalized VIP Video Greeting',
+          price: 35.00,
+          status: 'PENDING_PAYMENT',
+        },
+      },
+    ],
+    'mia-carter': [
+      {
+        id: 'mia-m1',
+        sender: 'creator',
+        text: 'Welcome to my private chat! Thank you for supporting my Malibu shoots — new lifestyle video coming Friday ✨',
+        time: 'Yesterday',
+      },
+    ],
+  });
+
+  const messages = messagesByCreator[activeConversation] || [
+    {
+      id: `init-${activeConversation}`,
+      sender: 'creator',
+      text: `Hey! Welcome to my private Mirage chat. Feel free to message me or send a custom request ✨`,
+      time: 'Now',
     },
-  ]);
+  ];
+
+  const updateCurrentMessages = (updater: (prev: ChatMessage[]) => ChatMessage[]) => {
+    setMessagesByCreator((prevMap) => {
+      const currentList = prevMap[activeConversation] || [
+        {
+          id: `init-${activeConversation}`,
+          sender: 'creator',
+          text: `Hey! Welcome to my private Mirage chat. Feel free to message me or send a custom request ✨`,
+          time: 'Now',
+        },
+      ];
+      return {
+        ...prevMap,
+        [activeConversation]: updater(currentList),
+      };
+    });
+  };
 
   const [inputText, setInputText] = useState('');
   const [showCustomModal, setShowCustomModal] = useState(autoOpenCustom);
@@ -115,6 +152,7 @@ function ChatContent() {
     e.preventDefault();
     if (!inputText.trim()) return;
 
+    const targetConv = activeConversation;
     const newMsg: ChatMessage = {
       id: `m-${Date.now()}`,
       sender: 'user',
@@ -122,19 +160,22 @@ function ChatContent() {
       time: 'Just now',
     };
 
-    setMessages(prev => [...prev, newMsg]);
+    updateCurrentMessages(prev => [...prev, newMsg]);
     setInputText('');
 
     setTimeout(() => {
-      setMessages(prev => [
-        ...prev,
-        {
-          id: `m-reply-${Date.now()}`,
-          sender: 'creator',
-          text: 'Got it! Working on that for you right away 🖤',
-          time: 'Just now',
-        },
-      ]);
+      setMessagesByCreator((prevMap) => ({
+        ...prevMap,
+        [targetConv]: [
+          ...(prevMap[targetConv] || []),
+          {
+            id: `m-reply-${Date.now()}`,
+            sender: 'creator',
+            text: 'Got it! Working on that for you right away 🖤',
+            time: 'Just now',
+          },
+        ],
+      }));
     }, 1500);
   };
 
@@ -150,7 +191,8 @@ function ChatContent() {
   }, []);
 
   const handlePayOffer = (offerId: string) => {
-    setMessages(prev =>
+    const targetConv = activeConversation;
+    updateCurrentMessages(prev =>
       prev.map(msg => {
         if (msg.offerDetails && msg.offerDetails.id === offerId) {
           return {
@@ -169,8 +211,9 @@ function ChatContent() {
     setTimeout(() => setPaymentNotice(null), 5000);
 
     setTimeout(() => {
-      setMessages(prev =>
-        prev.map(msg => {
+      setMessagesByCreator((prevMap) => ({
+        ...prevMap,
+        [targetConv]: (prevMap[targetConv] || []).map(msg => {
           if (msg.offerDetails && msg.offerDetails.id === offerId) {
             return {
               ...msg,
@@ -183,8 +226,8 @@ function ChatContent() {
             };
           }
           return msg;
-        })
-      );
+        }),
+      }));
     }, 3000);
   };
 
@@ -206,13 +249,13 @@ function ChatContent() {
       },
     };
 
-    setMessages(prev => [...prev, newOfferMsg]);
+    updateCurrentMessages(prev => [...prev, newOfferMsg]);
     setShowCustomModal(false);
     setCustomTitle('');
   };
 
   return (
-    <div className="h-[calc(100vh-80px)] bg-[#08080a] text-white flex overflow-hidden">
+    <div className="h-screen bg-[#08080a] text-white flex overflow-hidden">
       <div className={`w-full md:w-80 bg-[#0d0d12] border-r border-[#1e1e28] flex flex-col ${
         mobileView === 'chat' ? 'hidden md:flex' : 'flex'
       }`}>

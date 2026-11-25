@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { calculateCommission } from '@/lib/commission';
 import { getUserFromAuthHeader } from '@/lib/auth';
+import { subscribeUserToCreator } from '@/lib/contentStore';
 
 export async function POST(req: Request) {
   try {
@@ -17,6 +18,9 @@ export async function POST(req: Request) {
     if (!creatorId || !amount) {
       return NextResponse.json({ error: 'creatorId and amount are required' }, { status: 400 });
     }
+
+    // Record active subscription entitlement in contentStore so subscriber-only media unlocks on backend
+    subscribeUserToCreator(user.userId, String(creatorId));
 
     // Calculate commission using unified engine (85% Creator / 15% Platform)
     const commission = calculateCommission(parseFloat(amount), 85);

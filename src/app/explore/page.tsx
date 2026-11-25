@@ -124,7 +124,18 @@ function ExploreContent() {
       const match = CATEGORIES_LIST.find((c) => c.toLowerCase() === cat.toLowerCase());
       if (match) setActiveCategory(match);
     }
+    const q = searchParams?.get('q');
+    if (q !== null) {
+      setSearchQuery(q);
+    }
   }, [searchParams]);
+
+  const parseFollowers = (str: string) => {
+    const num = parseFloat(str.replace(/[^0-9.]/g, '')) || 0;
+    if (str.toUpperCase().includes('M')) return num * 1000000;
+    if (str.toUpperCase().includes('K')) return num * 1000;
+    return num;
+  };
 
   const filteredCreators = ALL_CREATORS.filter((c) => {
     const matchesCategory =
@@ -133,6 +144,11 @@ function ExploreContent() {
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.handle.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
+  }).sort((a, b) => {
+    if (sortBy === 'price-low') return a.price - b.price;
+    if (sortBy === 'price-high') return b.price - a.price;
+    if (sortBy === 'newest') return b.id.localeCompare(a.id);
+    return parseFollowers(b.followers) - parseFollowers(a.followers);
   });
 
   return (

@@ -96,7 +96,7 @@ export default function PurchaseContentModal({
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to complete content purchase');
+        throw new Error(data.error || data.message || 'Failed to complete content purchase');
       }
 
       setIsSuccess(true);

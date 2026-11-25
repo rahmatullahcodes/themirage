@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getFeedForUser,
+  getCreatorStudioPosts,
   getCreatorPublicPreviews,
   getCreatorPreviewCounts,
   createCreatorPost,
@@ -16,6 +17,7 @@ export async function GET(req: NextRequest) {
     const handle = searchParams.get('handle') || undefined;
     const userId = searchParams.get('userId') || null;
     const previewsOnly = searchParams.get('previews') === 'true';
+    const isStudio = searchParams.get('studio') === 'true';
 
     // If previews parameter requested, return the creator's 3 photo previews & 2 video previews
     if (previewsOnly && handle) {
@@ -33,7 +35,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const posts = getFeedForUser(handle, userId);
+    const posts = isStudio ? getCreatorStudioPosts(handle) : getFeedForUser(handle, userId);
 
     return NextResponse.json({
       success: true,
