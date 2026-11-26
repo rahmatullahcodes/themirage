@@ -10,7 +10,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           {/* Logo & Tagline */}
-          <div className="flex flex-col sm:flex-row items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 text-center sm:text-left">
             <Link href="/" className="flex items-center group">
               <img
                 src="/assets/the_mirage_logo.png"
@@ -25,7 +25,7 @@ export default function Footer() {
           </div>
 
           {/* Navigation Links */}
-          <div className="flex flex-wrap items-center justify-center gap-6 text-xs font-medium text-[#9da3af]">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs font-medium text-[#9da3af]">
             <Link href="/" className="hover:text-[#d4af37] transition-colors">
               Home
             </Link>
@@ -98,9 +98,9 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-[#16161f] flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#5c5c6e] gap-4">
+        <div className="mt-8 pt-6 border-t border-[#16161f] flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#5c5c6e] gap-4 text-center sm:text-left">
           <p>© 2026 The Mirage. All rights reserved. Creator First Platform.</p>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-4">
             <Link href="/terms" className="hover:text-white transition-colors">
               Terms & Conditions
             </Link>

@@ -35,7 +35,7 @@ export default function TermsPage() {
     <div className="min-h-screen bg-[#08080a] text-white py-12 selection:bg-[#d4af37]/30 selection:text-white">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         {/* Top Navigation Back */}
-        <div className="flex items-center justify-between border-b border-[#1c1c28] pb-6">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1c1c28] pb-6">
           <Link
             href="/"
             className="inline-flex items-center gap-2 text-xs font-semibold text-[#d4af37] hover:text-[#f5d77f] transition-colors"

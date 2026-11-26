@@ -71,7 +71,7 @@ function RegisterForm() {
 
   return (
     <div className="min-h-screen bg-[#08080a] flex items-center justify-center p-4 py-12">
-      <div className="w-full max-w-lg bg-[#101016] border border-[#262634] rounded-3xl p-8 shadow-2xl relative">
+      <div className="w-full max-w-lg bg-[#101016] border border-[#262634] rounded-3xl p-5 sm:p-8 shadow-2xl relative">
         <div className="text-center mb-6">
           <Link href="/" className="inline-block mb-3 group">
             <img
@@ -88,7 +88,7 @@ function RegisterForm() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 p-1.5 bg-[#161622] rounded-2xl border border-[#262636] mb-6">
+        <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-2.5 sm:gap-3 p-1.5 bg-[#161622] rounded-2xl border border-[#262636] mb-6">
           <button
             type="button"
             onClick={() => setRole('SUBSCRIBER')}
@@ -151,7 +151,7 @@ function RegisterForm() {
                   type="text"
                   required
                   value={username}
-                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
                   placeholder="miacarter"
                   className="w-full pl-8 pr-4 py-2.5 bg-[#161620] border border-[#2b2b3a] rounded-xl text-sm text-white focus:outline-none focus:border-[#d4af37]"
                 />
@@ -217,8 +217,8 @@ function RegisterForm() {
             </div>
           )}
 
-          <div className="flex items-center gap-2 pt-2 text-xs text-[#7e7e90]">
-            <input type="checkbox" required id="terms" className="accent-[#d4af37]" />
+          <div className="flex items-start gap-2 pt-2 text-xs text-[#7e7e90]">
+            <input type="checkbox" required id="terms" className="accent-[#d4af37] mt-0.5 flex-shrink-0" />
             <label htmlFor="terms">
               I am 18+ and accept the{' '}
               <Link href="/terms" className="text-[#f5d77f] underline">Terms</Link> &{' '}

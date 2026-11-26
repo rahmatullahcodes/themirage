@@ -61,7 +61,7 @@ export default function AgeGateModal() {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md p-8 bg-[#0f0f15] border border-[#d4af37]/30 rounded-2xl shadow-2xl shadow-black text-center"
+        className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto p-5 sm:p-8 bg-[#0f0f15] border border-[#d4af37]/30 rounded-2xl shadow-2xl shadow-black text-center"
       >
         {canDismiss && (
           <button

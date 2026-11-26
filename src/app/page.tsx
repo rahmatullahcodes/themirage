@@ -139,7 +139,7 @@ export default function HomePage() {
       ======================================================== */}
       <section className="relative overflow-hidden pt-8 pb-14 border-b border-[#181822]">
         {/* Subtle Ambient Gold Radial Glow */}
-        <div className="absolute top-1/4 left-1/3 w-[650px] h-[650px] bg-[#d4af37]/8 rounded-full blur-[140px] pointer-events-none" />
+        <div className="absolute top-1/4 left-1/3 w-72 h-72 sm:w-[550px] sm:h-[550px] bg-[#d4af37]/8 rounded-full blur-[120px] pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
@@ -147,12 +147,12 @@ export default function HomePage() {
             <div className="lg:col-span-5 flex flex-col justify-center space-y-6 z-10">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#16161f] border border-[#2b2b3a] w-fit">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#d4af37] animate-ping" />
-                <span className="text-[10px] uppercase font-bold tracking-[0.25em] text-[#d4af37]">
+                <span className="text-[10px] uppercase font-bold tracking-[0.2em] sm:tracking-[0.25em] text-[#d4af37]">
                   PREMIUM CREATOR PLATFORM
                 </span>
               </div>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-serif font-black tracking-tight leading-[1.08] text-white">
+              <h1 className="text-3xl sm:text-5xl lg:text-[56px] font-serif font-black tracking-tight leading-[1.08] text-white">
                 Real Creators.<br />
                 <span className="gold-text-gradient">Exclusive Content.</span><br />
                 On Your Terms.
@@ -163,24 +163,24 @@ export default function HomePage() {
               </p>
 
               {/* Call to Actions */}
-              <div className="flex flex-wrap items-center gap-4 pt-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 pt-2">
                 <Link
                   href="/explore"
-                  className="px-7 py-3 rounded-full gold-button text-sm font-bold shadow-gold-sm flex items-center gap-2 group"
+                  className="px-7 py-3 rounded-full gold-button text-sm font-bold shadow-gold-sm flex items-center justify-center gap-2 group"
                 >
                   Explore Creators
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <Link
                   href="/register"
-                  className="px-7 py-3 rounded-full bg-[#121218] hover:bg-[#1a1a24] text-white border border-[#2b2b3a] hover:border-[#d4af37]/50 text-sm font-semibold transition-all"
+                  className="px-7 py-3 rounded-full bg-[#121218] hover:bg-[#1a1a24] text-white border border-[#2b2b3a] hover:border-[#d4af37]/50 text-sm font-semibold text-center transition-all"
                 >
                   Create Account
                 </Link>
               </div>
 
               {/* Platform Statistics Row */}
-              <div className="grid grid-cols-3 gap-4 pt-6 border-t border-[#1c1c28]">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-6 border-t border-[#1c1c28]">
                 <div>
                   <div className="text-lg sm:text-xl font-bold font-serif text-white">
                     {stats.totalCreators > 0 ? stats.totalCreators : '9'}+
@@ -321,7 +321,7 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-3.5">
               {featuredCreators.map((creator) => (
                 <FeaturedCreatorCard
                   key={creator.id}

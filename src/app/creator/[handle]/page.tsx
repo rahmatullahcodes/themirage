@@ -390,23 +390,29 @@ function CreatorProfileContent() {
         >
           {/* Top Bar */}
           <div
-            className="w-full max-w-5xl flex items-center justify-between z-10 py-2 border-b border-white/10"
+            className="w-full max-w-5xl flex items-center justify-between gap-3 z-10 py-2 border-b border-white/10"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-3">
-              <img
-                src={creator.avatar}
-                alt={creator.name}
-                className="w-9 h-9 rounded-full object-cover border border-[#d4af37]/40"
-              />
-              <div>
-                <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
-                  {creator.name}
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1e1a12] text-[#f5d77f] border border-[#d4af37]/40">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              {creator.avatar ? (
+                <img
+                  src={creator.avatar}
+                  alt={creator.name}
+                  className="w-9 h-9 rounded-full object-cover border border-[#d4af37]/40 flex-shrink-0"
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-full bg-[#12121a] border border-[#d4af37]/40 flex items-center justify-center text-xs font-serif font-bold text-[#f5d77f] flex-shrink-0">
+                  {creator.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-bold text-white flex flex-wrap items-center gap-1.5">
+                  <span className="truncate">{creator.name}</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1e1a12] text-[#f5d77f] border border-[#d4af37]/40 flex-shrink-0">
                     Free Public Preview
                   </span>
                 </h4>
-                <p className="text-xs text-[#8c8c9e]">{activeLightboxPhoto.title}</p>
+                <p className="text-xs text-[#8c8c9e] truncate">{activeLightboxPhoto.title}</p>
               </div>
             </div>
 
@@ -471,23 +477,29 @@ function CreatorProfileContent() {
         >
           {/* Top Bar */}
           <div
-            className="w-full max-w-4xl flex items-center justify-between z-10 py-2 border-b border-white/10"
+            className="w-full max-w-4xl flex items-center justify-between gap-3 z-10 py-2 border-b border-white/10"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-3">
-              <img
-                src={creator.avatar}
-                alt={creator.name}
-                className="w-9 h-9 rounded-full object-cover border border-[#d4af37]/40"
-              />
-              <div>
-                <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
-                  {creator.name}
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1e1a12] text-[#f5d77f] border border-[#d4af37]/40">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              {creator.avatar ? (
+                <img
+                  src={creator.avatar}
+                  alt={creator.name}
+                  className="w-9 h-9 rounded-full object-cover border border-[#d4af37]/40 flex-shrink-0"
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-full bg-[#12121a] border border-[#d4af37]/40 flex items-center justify-center text-xs font-serif font-bold text-[#f5d77f] flex-shrink-0">
+                  {creator.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-bold text-white flex flex-wrap items-center gap-1.5">
+                  <span className="truncate">{creator.name}</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1e1a12] text-[#f5d77f] border border-[#d4af37]/40 flex-shrink-0">
                     Video Preview ({activeVideoPreview.videoDuration})
                   </span>
                 </h4>
-                <p className="text-xs text-[#8c8c9e]">{activeVideoPreview.title}</p>
+                <p className="text-xs text-[#8c8c9e] truncate">{activeVideoPreview.title}</p>
               </div>
             </div>
 
@@ -915,7 +927,7 @@ function CreatorProfileContent() {
 
             {/* Posts Stream */}
             {activeTab === 'about' ? (
-              <div className="p-6 rounded-2xl bg-[#101016] border border-[#22222e] space-y-4">
+              <div className="p-4 sm:p-6 rounded-2xl bg-[#101016] border border-[#22222e] space-y-4">
                 <h3 className="text-base font-serif font-bold text-white">About {creator.name}</h3>
                 <p className="text-sm text-[#9da3af] leading-relaxed">{creator.bio}</p>
                 <div className="pt-4 border-t border-[#1c1c28] flex items-center gap-4 text-xs text-[#717182]">

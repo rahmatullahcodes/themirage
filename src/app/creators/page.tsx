@@ -38,12 +38,12 @@ export default function CreatorsDirectoryPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#08080a] text-white py-12">
+    <div className="min-h-screen bg-[#08080a] text-white py-8 sm:py-12">
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-serif font-bold text-white">
+            <h1 className="text-2xl sm:text-4xl font-serif font-bold text-white">
               Creators <span className="gold-text-gradient">Directory</span>
             </h1>
             <p className="text-xs sm:text-sm text-[#8c8c9e] mt-1">
@@ -51,7 +51,7 @@ export default function CreatorsDirectoryPage() {
             </p>
           </div>
 
-          <div className="relative w-full max-w-sm">
+          <div className="relative w-full md:max-w-sm">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#606072]" />
             <input
               type="text"
@@ -64,13 +64,13 @@ export default function CreatorsDirectoryPage() {
         </div>
 
         {loadingCreators ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="aspect-[4/5] rounded-2xl bg-[#111116] border border-[#22222c] animate-pulse" />
             ))}
           </div>
         ) : filtered.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
             {filtered.map((creator) => (
               <FeaturedCreatorCard
                 key={creator.id}

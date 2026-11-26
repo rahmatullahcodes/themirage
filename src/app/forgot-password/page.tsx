@@ -29,7 +29,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="min-h-screen bg-[#08080a] flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-[#101016] border border-[#262634] rounded-3xl p-8 shadow-2xl relative text-center">
+      <div className="w-full max-w-md bg-[#101016] border border-[#262634] rounded-3xl p-5 sm:p-8 shadow-2xl relative text-center">
         <Link href="/" className="inline-block mb-3 group">
           <img
             src="/assets/the_mirage_logo.png"

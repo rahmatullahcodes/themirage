@@ -24,8 +24,8 @@ export default function PricingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#08080a] text-white py-16">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+    <div className="min-h-screen bg-[#08080a] text-white py-10 sm:py-16">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10 sm:space-y-12">
         <div className="text-center max-w-2xl mx-auto space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#161622] border border-[#d4af37]/30 text-[#d4af37] text-xs font-bold uppercase tracking-widest">
             Fair & Transparent
@@ -39,9 +39,9 @@ export default function PricingPage() {
         </div>
 
         {/* 2 Main Comparison Cards: Subscriber vs Creator */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto">
           {/* Subscriber Card */}
-          <div className="p-8 rounded-3xl bg-[#111117] border border-[#22222e] flex flex-col justify-between space-y-6">
+          <div className="p-5 sm:p-8 rounded-3xl bg-[#111117] border border-[#22222e] flex flex-col justify-between space-y-6">
             <div className="space-y-4">
               <div className="w-12 h-12 rounded-2xl bg-[#181824] border border-[#2a2a3c] flex items-center justify-center text-[#f5d77f]">
                 <Heart className="w-6 h-6" />
@@ -87,14 +87,15 @@ export default function PricingPage() {
           </div>
 
           {/* Creator Card */}
-          <div className="p-8 rounded-3xl bg-gradient-to-b from-[#181824] via-[#12121a] to-[#0e0e14] border border-[#d4af37]/50 shadow-gold-glow flex flex-col justify-between space-y-6 relative overflow-hidden">
-            <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/40 text-[#f5d77f] text-[10px] font-bold">
-              RECOMMENDED
-            </div>
-
+          <div className="p-5 sm:p-8 rounded-3xl bg-gradient-to-b from-[#181824] via-[#12121a] to-[#0e0e14] border border-[#d4af37]/50 shadow-gold-glow flex flex-col justify-between space-y-6 relative overflow-hidden">
             <div className="space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#d4af37] to-[#aa820a] flex items-center justify-center text-black shadow-gold-sm">
-                <Crown className="w-6 h-6" />
+              <div className="flex items-center justify-between gap-2">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#d4af37] to-[#aa820a] flex items-center justify-center text-black shadow-gold-sm">
+                  <Crown className="w-6 h-6" />
+                </div>
+                <span className="px-3 py-1 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/40 text-[#f5d77f] text-[10px] font-bold">
+                  RECOMMENDED
+                </span>
               </div>
               <h3 className="text-xl font-serif font-bold text-white">For Content Creators</h3>
               <p className="text-xs text-[#a0a0b5] leading-relaxed">

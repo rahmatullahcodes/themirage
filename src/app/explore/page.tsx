@@ -89,20 +89,20 @@ function ExploreContent() {
   });
 
   return (
-    <div className="min-h-screen bg-[#08080a] text-white py-10">
+    <div className="min-h-screen bg-[#08080a] text-white py-6 sm:py-10">
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
         <div>
-          <h1 className="text-3xl sm:text-4xl font-serif font-bold text-white">
+          <h1 className="text-2xl sm:text-4xl font-serif font-bold text-white">
             Explore <span className="gold-text-gradient">Creators</span>
           </h1>
-          <p className="text-sm text-[#94a3b8] mt-1">
+          <p className="text-xs sm:text-sm text-[#94a3b8] mt-1">
             Discover verified talent, exclusive feeds, and personalised content creators.
           </p>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
-          <div className="relative flex-1 max-w-md">
+        <div className="flex flex-col md:flex-row gap-3 sm:gap-4 items-stretch md:items-center justify-between">
+          <div className="relative flex-1 w-full md:max-w-md">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#64748b]" />
             <input
               type="text"
@@ -113,13 +113,13 @@ function ExploreContent() {
             />
           </div>
 
-          <div className="flex items-center gap-3">
-            <SlidersHorizontal className="w-4 h-4 text-[#d4af37]" />
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <SlidersHorizontal className="w-4 h-4 text-[#d4af37] flex-shrink-0" />
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               aria-label="Sort creators by"
-              className="bg-[#121217] border border-[#272736] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37]"
+              className="flex-1 md:flex-initial bg-[#121217] border border-[#272736] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37]"
             >
               <option value="popular">Most Popular</option>
               <option value="price-low">Price: Low to High</option>
@@ -146,13 +146,13 @@ function ExploreContent() {
         </div>
 
         {loadingCreators ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="aspect-[4/5] rounded-2xl bg-[#111116] border border-[#22222c] animate-pulse" />
             ))}
           </div>
         ) : filteredCreators.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
             {filteredCreators.map((creator) => (
               <FeaturedCreatorCard
                 key={creator.id}

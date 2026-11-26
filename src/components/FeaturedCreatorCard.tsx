@@ -2,7 +2,9 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Heart, CheckCircle2 } from 'lucide-react';
+import { getAuthHeaders } from '@/lib/clientAuth';
 
 export interface CreatorCardProps {
   id: string;
@@ -27,6 +29,7 @@ export default function FeaturedCreatorCard({
   category = 'Popular',
   onSubscribeClick,
 }: CreatorCardProps) {
+  const router = useRouter();
   const [liked, setLiked] = useState(false);
   const safeHandle = handle.replace(/^@/, '');
   const profileUrl = `/creator/${safeHandle}`;
@@ -35,11 +38,17 @@ export default function FeaturedCreatorCard({
     <div className="group relative flex flex-col bg-[#111116] border border-[#22222c] hover:border-[#d4af37]/50 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-card-dark hover:-translate-y-1">
       {/* Top Media Portrait Container */}
       <Link href={profileUrl} className="relative block aspect-[4/5] w-full overflow-hidden bg-[#161620]">
-        <img
-          src={image}
-          alt={name}
-          className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
-        />
+        {image ? (
+          <img
+            src={image}
+            alt={name}
+            className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1b1b26] to-[#0e0e14] text-4xl font-serif font-bold text-[#f5d77f]">
+            {name.charAt(0).toUpperCase()}
+          </div>
+        )}
 
         {/* Ambient Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#111116] via-transparent to-black/20" />
@@ -47,26 +56,34 @@ export default function FeaturedCreatorCard({
         {/* Floating Heart Button */}
         <button
           type="button"
-          onClick={(e) => {
+          onClick={async (e) => {
             e.preventDefault();
             e.stopPropagation();
+            const hasAuth = Boolean(localStorage.getItem('mirage_token') || localStorage.getItem('mirage_user'));
+            if (!hasAuth) {
+              router.push(`/login?redirect=${encodeURIComponent(profileUrl)}`);
+              return;
+            }
             const nextState = !liked;
             setLiked(nextState);
             try {
-              const rawUser = localStorage.getItem('mirage_user');
-              const uid = rawUser ? JSON.parse(rawUser)?.id || 'usr-1' : 'usr-1';
-              if (nextState) {
-                fetch('/api/user/follows', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ userId: uid, handle: safeHandle }),
-                }).catch(() => {});
-              } else {
-                fetch(`/api/user/follows?userId=${encodeURIComponent(uid)}&handle=${encodeURIComponent(safeHandle)}`, {
-                  method: 'DELETE',
-                }).catch(() => {});
+              const res = nextState
+                ? await fetch('/api/user/follows', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                    body: JSON.stringify({ handle: safeHandle }),
+                  })
+                : await fetch(`/api/user/follows?handle=${encodeURIComponent(safeHandle)}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders(),
+                  });
+              if (res.status === 401) {
+                setLiked(!nextState);
+                router.push(`/login?redirect=${encodeURIComponent(profileUrl)}`);
               }
-            } catch {}
+            } catch {
+              setLiked(!nextState);
+            }
           }}
           className={`absolute top-3 right-3 p-2 rounded-full backdrop-blur-md transition-colors ${
             liked
@@ -85,10 +102,10 @@ export default function FeaturedCreatorCard({
       </Link>
 
       {/* Info & Action Area */}
-      <div className="p-4 flex flex-col flex-1 justify-between gap-3">
+      <div className="p-3 sm:p-4 flex flex-col flex-1 justify-between gap-2.5 sm:gap-3">
         <div>
           <Link href={profileUrl} className="flex items-center gap-1.5 group/name">
-            <h4 className="font-serif font-bold text-white text-base tracking-wide group-hover/name:text-[#f5d77f] transition-colors truncate">
+            <h4 className="font-serif font-bold text-white text-sm sm:text-base tracking-wide group-hover/name:text-[#f5d77f] transition-colors truncate">
               {name}
             </h4>
             {isVerified && (

@@ -346,11 +346,13 @@ export default function CreatorStudioPage() {
         }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, status: 'DELIVERED', deliveredMediaUrl: deliveryFileUrl.trim() } : o)));
         setDeliveringOrderId(null);
         setDeliveryFileUrl('');
         showToast('Custom content delivered & unlocked in customer vault!');
+      } else {
+        showToast(data?.message || 'Failed to deliver custom order');
       }
     } catch (e) {
       showToast('Failed to deliver custom order');
@@ -419,29 +421,33 @@ export default function CreatorStudioPage() {
         }),
       });
       const data = await res.json();
-      if (data?.post) {
-        setFeedPosts(prev => [
-          {
-            id: data.post.id,
-            type: data.post.mediaType,
-            title: data.post.title,
-            url: data.post.thumbnailUrl || data.post.mediaUrl,
-            mediaUrl: data.post.mediaUrl || data.post.thumbnailUrl,
-            thumbnailUrl: data.post.thumbnailUrl || data.post.mediaUrl,
-            caption: data.post.caption,
-            visibility: data.post.visibility,
-            isPublicPreview: Boolean(data.post.isPublicPreview),
-            price: data.post.price || 0,
-            status: data.post.status,
-            likes: 0,
-            salesCount: 0,
-            date: 'Just now',
-          },
-          ...prev,
-        ]);
+      if (!res.ok || !data?.post) {
+        setUploadError(data?.message || 'Failed to publish post. Please try again.');
+        return;
       }
+      setFeedPosts(prev => [
+        {
+          id: data.post.id,
+          type: data.post.mediaType,
+          title: data.post.title,
+          url: data.post.thumbnailUrl || data.post.mediaUrl,
+          mediaUrl: data.post.mediaUrl || data.post.thumbnailUrl,
+          thumbnailUrl: data.post.thumbnailUrl || data.post.mediaUrl,
+          caption: data.post.caption,
+          visibility: data.post.visibility,
+          isPublicPreview: Boolean(data.post.isPublicPreview),
+          price: data.post.price || 0,
+          status: data.post.status,
+          likes: 0,
+          salesCount: 0,
+          date: 'Just now',
+        },
+        ...prev,
+      ]);
     } catch (err) {
       console.error('Failed to sync new post to backend:', err);
+      setUploadError('Network error while publishing post. Please try again.');
+      return;
     }
 
     setUploadSuccess(true);
@@ -953,7 +959,7 @@ export default function CreatorStudioPage() {
                   <label className="block text-xs font-semibold text-[#9da3af] mb-1.5">
                     1. Media Type
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-3">
                     <button
                       type="button"
                       onClick={() => setMediaType('IMAGE')}
@@ -1778,7 +1784,11 @@ export default function CreatorStudioPage() {
                               icon={MessageSquare}
                               label={`Chat with ${sub.name}`}
                               tone="gold"
-                              href={`/chat?role=creator&creator=${encodeURIComponent(creatorUser.username)}&customer=${encodeURIComponent(sub.userId || 'usr-1')}`}
+                              href={
+                                sub.userId
+                                  ? `/chat?role=creator&customer=${encodeURIComponent(sub.userId)}`
+                                  : '/chat?role=creator'
+                              }
                             />
                           </div>
                         </td>

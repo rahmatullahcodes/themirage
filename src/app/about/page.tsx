@@ -22,8 +22,8 @@ export default function AboutPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#08080a] text-white py-16">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+    <div className="min-h-screen bg-[#08080a] text-white py-10 sm:py-16">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10 sm:space-y-16">
         {/* Brand Showcase with official logo banner */}
         <div className="text-center space-y-4">
           <div className="max-w-md mx-auto mb-6 p-2 rounded-2xl bg-[#0f0f15] border border-[#d4af37]/30 shadow-gold-sm">
@@ -75,7 +75,7 @@ export default function AboutPage() {
         </div>
 
         {/* CTA Banner */}
-        <div className="p-8 sm:p-12 rounded-3xl bg-gradient-to-r from-[#14141e] via-[#1a1a26] to-[#14141e] border border-[#d4af37]/40 text-center space-y-4">
+        <div className="p-6 sm:p-12 rounded-3xl bg-gradient-to-r from-[#14141e] via-[#1a1a26] to-[#14141e] border border-[#d4af37]/40 text-center space-y-4">
           <h2 className="text-2xl sm:text-3xl font-serif font-bold text-white">
             Ready to Experience The Mirage?
           </h2>
