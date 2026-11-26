@@ -57,6 +57,7 @@ export async function POST(req: Request) {
       username: dbUser.username,
       email: dbUser.email,
       role: dbUser.role,
+      avatar: dbUser.avatar || '',
     };
 
     const token = signToken({

@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
         username: user.username,
         email: user.email,
         role: user.role,
+        avatar: user.avatar || '',
         bio: user.bio || '',
         ageVerified: user.ageVerified,
       },
@@ -39,16 +40,16 @@ export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
     const tokenUser = getUserFromAuthHeader(req.headers.get('Authorization'));
-    const { userId: bodyUserId, name, bio } = body || {};
+    const { userId: bodyUserId, name, username, bio, avatar } = body || {};
     const userId = tokenUser?.userId || bodyUserId;
 
     if (!userId) {
       return NextResponse.json({ success: false, message: 'userId is required' }, { status: 400 });
     }
 
-    const result = updateUserProfile(userId, { name, bio });
+    const result = updateUserProfile(userId, { name, username, bio, avatar });
     if (!result.success || !result.user) {
-      return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
+      return NextResponse.json({ success: false, message: result.error || 'User not found' }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -59,7 +60,9 @@ export async function PATCH(req: NextRequest) {
         username: result.user.username,
         email: result.user.email,
         role: result.user.role,
+        avatar: result.user.avatar || '',
         bio: result.user.bio || '',
+        ageVerified: result.user.ageVerified,
       },
     });
   } catch (error: any) {

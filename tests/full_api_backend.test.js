@@ -532,6 +532,72 @@ async function runTests() {
   console.log('✓ Test 21: Full Panel CRUD (Edit & Delete across Users, Creators, Catalog, Posts, Custom Orders) verified');
   passed++;
 
+  // 22. Two-Way 1-on-1 Chat (Subscriber <-> Creator) & Dynamic User/Creator Profile + Avatar Updates
+  const subChatSend = await request('POST', '/api/chat', {
+    userId: newSubId,
+    creator: 'ellie',
+    sender: 'user',
+    text: 'Hey Ellie, testing 1-on-1 live chat!',
+    mediaUrl: '/api/uploads/chat-photo.jpg',
+    mediaType: 'IMAGE',
+  });
+  assert.strictEqual(subChatSend.status, 200);
+  assert.strictEqual(subChatSend.data.message.sender, 'user');
+
+  const creatorInboxRes = await request(
+    'GET',
+    '/api/chat?mode=threads&role=CREATOR&userId=c9&creatorHandle=ellie'
+  );
+  assert.strictEqual(creatorInboxRes.status, 200);
+  assert.strictEqual(creatorInboxRes.data.mode, 'creator');
+  assert.ok(
+    creatorInboxRes.data.conversations.some(
+      (c) => c.userId === newSubId && c.lastMessage.includes('testing 1-on-1 live chat')
+    ),
+    'Creator inbox must show subscriber incoming 1-on-1 message'
+  );
+
+  const creatorReplyRes = await request('POST', '/api/chat', {
+    userId: newSubId,
+    creator: 'ellie',
+    sender: 'creator',
+    text: 'Hey! Received your message in Creator Inbox!',
+  });
+  assert.strictEqual(creatorReplyRes.status, 200);
+
+  const threadVerifyRes = await request('GET', `/api/chat?userId=${encodeURIComponent(newSubId)}&creator=ellie`);
+  assert.strictEqual(threadVerifyRes.status, 200);
+  assert.strictEqual(threadVerifyRes.data.messages.length, 2, 'Both Subscriber and Creator messages must sync');
+  assert.strictEqual(threadVerifyRes.data.messages[1].sender, 'creator');
+
+  const subProfileUpdate = await request('PATCH', '/api/user/profile', {
+    userId: newSubId,
+    name: 'Updated Dynamic Fan',
+    bio: 'Dynamic member bio',
+    avatar: '/api/uploads/fan-avatar-test.jpg',
+  });
+  assert.strictEqual(subProfileUpdate.status, 200);
+  assert.strictEqual(subProfileUpdate.data.user.avatar, '/api/uploads/fan-avatar-test.jpg');
+
+  const getSubProfile = await request('GET', `/api/user/profile?userId=${encodeURIComponent(newSubId)}`);
+  assert.strictEqual(getSubProfile.status, 200);
+  assert.strictEqual(getSubProfile.data.user.name, 'Updated Dynamic Fan');
+  assert.strictEqual(getSubProfile.data.user.avatar, '/api/uploads/fan-avatar-test.jpg');
+
+  const creatorAvatarPatch = await request('PATCH', '/api/creators', {
+    handle: 'ellie',
+    avatar: '/api/uploads/ellie-avatar-updated.jpg',
+  });
+  assert.strictEqual(creatorAvatarPatch.status, 200);
+  assert.strictEqual(creatorAvatarPatch.data.creator.avatar, '/api/uploads/ellie-avatar-updated.jpg');
+
+  const ellieUserSyncRes = await request('GET', '/api/user/profile?userId=c9');
+  assert.strictEqual(ellieUserSyncRes.status, 200);
+  assert.strictEqual(ellieUserSyncRes.data.user.avatar, '/api/uploads/ellie-avatar-updated.jpg');
+
+  console.log('✓ Test 22: Two-Way 1-on-1 Chat & Dynamic User/Creator Profile Avatar Sync verified');
+  passed++;
+
   console.log('\n================================================================');
   console.log(` ALL ${passed}/${passed} FULL-STACK E2E API & BACKEND TESTS PASSED! ✓`);
   console.log('================================================================');

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -97,6 +97,29 @@ const CATEGORIES = [
 ];
 
 export default function HomePage() {
+  const [featuredCreators, setFeaturedCreators] = useState(FEATURED_CREATORS);
+
+  useEffect(() => {
+    fetch('/api/creators', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.success && Array.isArray(d.creators) && d.creators.length > 0) {
+          const mapped = d.creators.slice(0, 5).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            handle: c.handle,
+            followers: c.followers || '0',
+            price: Number(c.monthlyPrice) || 9.99,
+            image: c.avatar,
+            category: c.category || 'Popular',
+            isVerified: Boolean(c.isVerified),
+          }));
+          setFeaturedCreators(mapped);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#08080a] text-white">
 
@@ -282,7 +305,7 @@ export default function HomePage() {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5">
-              {FEATURED_CREATORS.map((creator) => (
+              {featuredCreators.map((creator) => (
                 <FeaturedCreatorCard
                   key={creator.id}
                   {...creator}

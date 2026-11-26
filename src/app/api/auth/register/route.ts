@@ -51,6 +51,7 @@ export async function POST(req: Request) {
       username: regResult.user.username,
       email: regResult.user.email,
       role: regResult.user.role,
+      avatar: regResult.user.avatar || regResult.creator?.avatar || '',
       monthlyPrice: regResult.creator?.monthlyPrice,
     };
 

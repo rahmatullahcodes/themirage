@@ -11,6 +11,9 @@ const ALLOWED_MIME_TYPES: Record<string, { ext: string; mediaType: 'IMAGE' | 'VI
   'image/png': { ext: '.png', mediaType: 'IMAGE' },
   'image/webp': { ext: '.webp', mediaType: 'IMAGE' },
   'image/gif': { ext: '.gif', mediaType: 'IMAGE' },
+  'image/heic': { ext: '.heic', mediaType: 'IMAGE' },
+  'image/heif': { ext: '.heif', mediaType: 'IMAGE' },
+  'image/avif': { ext: '.avif', mediaType: 'IMAGE' },
   'video/mp4': { ext: '.mp4', mediaType: 'VIDEO' },
   'video/webm': { ext: '.webm', mediaType: 'VIDEO' },
   'video/quicktime': { ext: '.mov', mediaType: 'VIDEO' },
@@ -46,10 +49,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const mimeInfo = ALLOWED_MIME_TYPES[file.type.toLowerCase()];
+    const mimeLower = (file.type || '').toLowerCase();
+    const mimeInfo = ALLOWED_MIME_TYPES[mimeLower];
     const rawExt = path.extname(file.name || '').toLowerCase();
-    const isVideoExt = ['.mp4', '.mov', '.webm', '.m4v'].includes(rawExt);
-    const isImageExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(rawExt);
+    const isVideoExt = ['.mp4', '.mov', '.webm', '.m4v'].includes(rawExt) || mimeLower.startsWith('video/');
+    const isImageExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.heic', '.heif', '.avif'].includes(rawExt) || mimeLower.startsWith('image/');
 
     if (!mimeInfo && !isVideoExt && !isImageExt) {
       return NextResponse.json(

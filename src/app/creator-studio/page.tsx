@@ -711,6 +711,8 @@ export default function CreatorStudioPage() {
         onCloseMobile={() => setMobileSidebarOpen(false)}
         userName={creatorUser.name}
         userHandle={`@${creatorUser.username}`}
+        userAvatar={profileAvatar}
+        chatHref={`/chat?role=creator&creator=${encodeURIComponent(creatorUser.username)}`}
         badges={{
           orders: String(orders.filter(o => o.status !== 'DELIVERED').length || 0),
           feed: String(feedPosts.length),
@@ -1763,9 +1765,9 @@ export default function CreatorStudioPage() {
                             <ActionIconBtn icon={Eye} label="View Subscriber Details" tone="neutral" onClick={() => setViewSubscriberModal(sub)} />
                             <ActionIconBtn
                               icon={MessageSquare}
-                              label="Open Chat Thread"
+                              label={`Chat with ${sub.name}`}
                               tone="gold"
-                              href={`/chat?creator=${encodeURIComponent(creatorUser.username)}`}
+                              href={`/chat?role=creator&creator=${encodeURIComponent(creatorUser.username)}&customer=${encodeURIComponent(sub.userId || 'usr-1')}`}
                             />
                           </div>
                         </td>
@@ -1817,6 +1819,19 @@ export default function CreatorStudioPage() {
                       setCreatorsList((prev) =>
                         prev.map((c) => (c.handle === data.creator.handle ? { ...c, ...data.creator } : c))
                       );
+                      try {
+                        const raw = localStorage.getItem('mirage_user');
+                        if (raw) {
+                          const parsed = JSON.parse(raw);
+                          if (parsed.id === data.creator.userId || parsed.username === data.creator.handle) {
+                            localStorage.setItem(
+                              'mirage_user',
+                              JSON.stringify({ ...parsed, name: data.creator.name, avatar: data.creator.avatar })
+                            );
+                            window.dispatchEvent(new Event('mirage_auth_changed'));
+                          }
+                        }
+                      } catch {}
                       setPriceSaveSuccess(true);
                       setTimeout(() => setPriceSaveSuccess(false), 2500);
                       showToast(`Profile saved for ${data.creator.name} ($${parseFloat(monthlyPrice).toFixed(2)}/mo)`);
@@ -1870,10 +1885,16 @@ export default function CreatorStudioPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <label className="block text-xs font-semibold text-[#9da3af]">
                       Profile Photo (Avatar)
                     </label>
+                    {profileAvatar && (
+                      <div className="flex items-center gap-3 p-2 rounded-xl bg-[#161622] border border-[#2b2b3c]">
+                        <img src={profileAvatar} alt="Avatar preview" className="w-12 h-12 rounded-full object-cover border border-[#d4af37]/50" />
+                        <span className="text-[11px] text-[#94a3b8]">Current profile avatar</span>
+                      </div>
+                    )}
                     <div className="flex gap-2">
                       <label className="cursor-pointer px-3 py-2 rounded-xl bg-[#181824] hover:bg-[#222232] border border-[#d4af37]/40 text-xs font-bold text-[#f5d77f] flex items-center gap-1.5 flex-shrink-0">
                         <input
@@ -1885,7 +1906,30 @@ export default function CreatorStudioPage() {
                             e.target.value = '';
                             if (!file) return;
                             const uploaded = await uploadMediaFile(file, 'avatar');
-                            if (uploaded) setProfileAvatar(uploaded.url);
+                            if (uploaded) {
+                              setProfileAvatar(uploaded.url);
+                              try {
+                                const res = await fetch('/api/creators', {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ handle: creatorUser.username, avatar: uploaded.url }),
+                                });
+                                const d = await res.json();
+                                if (res.ok && d?.creator) {
+                                  setCreatorsList((prev) =>
+                                    prev.map((c) => (c.handle === d.creator.handle ? { ...c, ...d.creator } : c))
+                                  );
+                                  const raw = localStorage.getItem('mirage_user');
+                                  if (raw) {
+                                    const parsed = JSON.parse(raw);
+                                    if (parsed.id === d.creator.userId || parsed.username === d.creator.handle) {
+                                      localStorage.setItem('mirage_user', JSON.stringify({ ...parsed, avatar: uploaded.url }));
+                                      window.dispatchEvent(new Event('mirage_auth_changed'));
+                                    }
+                                  }
+                                }
+                              } catch {}
+                            }
                           }}
                         />
                         {uploadingSlot === 'avatar' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
@@ -1901,10 +1945,15 @@ export default function CreatorStudioPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <label className="block text-xs font-semibold text-[#9da3af]">
                       Cover Banner Image
                     </label>
+                    {profileBanner && (
+                      <div className="rounded-xl overflow-hidden bg-[#161622] border border-[#2b2b3c] h-16">
+                        <img src={profileBanner} alt="Banner preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
                     <div className="flex gap-2">
                       <label className="cursor-pointer px-3 py-2 rounded-xl bg-[#181824] hover:bg-[#222232] border border-[#d4af37]/40 text-xs font-bold text-[#f5d77f] flex items-center gap-1.5 flex-shrink-0">
                         <input
@@ -1916,7 +1965,22 @@ export default function CreatorStudioPage() {
                             e.target.value = '';
                             if (!file) return;
                             const uploaded = await uploadMediaFile(file, 'banner');
-                            if (uploaded) setProfileBanner(uploaded.url);
+                            if (uploaded) {
+                              setProfileBanner(uploaded.url);
+                              try {
+                                const res = await fetch('/api/creators', {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ handle: creatorUser.username, banner: uploaded.url }),
+                                });
+                                const d = await res.json();
+                                if (res.ok && d?.creator) {
+                                  setCreatorsList((prev) =>
+                                    prev.map((c) => (c.handle === d.creator.handle ? { ...c, ...d.creator } : c))
+                                  );
+                                }
+                              } catch {}
+                            }
                           }}
                         />
                         {uploadingSlot === 'banner' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}

@@ -45,6 +45,8 @@ interface PanelSidebarProps {
   onCloseMobile: () => void;
   userName?: string;
   userHandle?: string;
+  userAvatar?: string;
+  chatHref?: string;
   badges?: Partial<Record<string, string>>;
 }
 
@@ -58,6 +60,8 @@ export default function PanelSidebar({
   onCloseMobile,
   userName = 'User',
   userHandle = '@user',
+  userAvatar,
+  chatHref = '/chat',
   badges = {},
 }: PanelSidebarProps) {
   const router = useRouter();
@@ -155,10 +159,14 @@ export default function PanelSidebar({
         {/* User Card */}
         <div className={`p-4 border-b border-[#1c1c28] ${collapsed ? 'text-center' : ''}`}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#d4af37] to-[#aa820a] p-0.5 flex-shrink-0 shadow-gold-sm">
-              <div className="w-full h-full bg-[#121218] rounded-full flex items-center justify-center text-xs font-bold text-[#f5d77f]">
-                {userName.charAt(0).toUpperCase()}
-              </div>
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#d4af37] to-[#aa820a] p-0.5 flex-shrink-0 shadow-gold-sm overflow-hidden">
+              {userAvatar ? (
+                <img src={userAvatar} alt={userName} className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-[#121218] rounded-full flex items-center justify-center text-xs font-bold text-[#f5d77f]">
+                  {userName.charAt(0).toUpperCase()}
+                </div>
+              )}
             </div>
 
             {!collapsed && (
@@ -214,7 +222,7 @@ export default function PanelSidebar({
         {/* Quick Portal Jump / Footer Actions */}
         <div className="p-3 border-t border-[#1c1c28] space-y-2">
           <Link
-            href="/chat"
+            href={chatHref}
             className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-[#8a8a9e] hover:text-white hover:bg-[#151520] transition-colors"
             title="1-on-1 Messages"
           >

@@ -21,10 +21,11 @@ import {
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname() || '/';
-  const [user, setUser] = useState<{ id: string; username: string; role: string; name: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; username: string; role: string; name: string; avatar?: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<{ id: string; title: string; desc: string; time: string; type: string }[]>([]);
   const notificationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -48,41 +49,47 @@ export default function Navbar() {
     };
   }, [showNotifications]);
 
-  const notifications = [
-    {
-      id: 'n1',
-      title: 'Subscription Active',
-      desc: 'You have full access to Luna Rae exclusive feed.',
-      time: '10m ago',
-      type: 'sub',
-    },
-    {
-      id: 'n2',
-      title: 'Custom Order Delivered',
-      desc: 'Luna Rae delivered your 2-min VIP birthday clip.',
-      time: '1h ago',
-      type: 'order',
-    },
-    {
-      id: 'n3',
-      title: 'New Message',
-      desc: 'Luna Rae sent you a new direct message.',
-      time: '2h ago',
-      type: 'chat',
-    },
-  ];
-
   useEffect(() => {
     const syncUser = () => {
       const storedUser = localStorage.getItem('mirage_user');
       if (storedUser) {
         try {
-          setUser(JSON.parse(storedUser));
+          const parsed = JSON.parse(storedUser);
+          setUser(parsed);
+          if (parsed?.id) {
+            fetch(`/api/user/profile?userId=${encodeURIComponent(parsed.id)}`, { cache: 'no-store' })
+              .then((r) => r.json())
+              .then((d) => {
+                if (d?.success && d?.user) {
+                  setUser((prev) => (prev ? { ...prev, ...d.user } : d.user));
+                }
+              })
+              .catch(() => {});
+
+            fetch(`/api/user/transactions?userId=${encodeURIComponent(parsed.id)}`, { cache: 'no-store' })
+              .then((r) => r.json())
+              .then((t) => {
+                if (t?.success && Array.isArray(t.transactions)) {
+                  setNotifications(
+                    t.transactions.slice(0, 5).map((tx: any) => ({
+                      id: tx.id,
+                      title: tx.type === 'SUBSCRIPTION' ? 'Subscription Active' : tx.type === 'CUSTOM_CONTENT' ? 'Custom Order' : 'Content Unlocked',
+                      desc: `${tx.creatorName || 'Creator'}${tx.postTitle ? ` — ${tx.postTitle}` : ''} ($${Number(tx.grossAmount || 0).toFixed(2)})`,
+                      time: tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Recent',
+                      type: tx.type === 'CUSTOM_CONTENT' ? 'chat' : 'tx',
+                    }))
+                  );
+                }
+              })
+              .catch(() => {});
+          }
         } catch {
           setUser(null);
+          setNotifications([]);
         }
       } else {
         setUser(null);
+        setNotifications([]);
       }
     };
 
@@ -183,26 +190,32 @@ export default function Navbar() {
                   <div className="absolute right-0 mt-3 w-80 bg-[#12121a] border border-[#d4af37]/40 rounded-2xl p-4 shadow-2xl z-50 space-y-3">
                     <div className="flex justify-between items-center pb-2 border-b border-[#20202e]">
                       <span className="text-xs font-bold text-white uppercase tracking-wider">
-                        Notifications
+                        Activity & Notifications
                       </span>
-                      <span className="text-[10px] text-[#f5d77f] font-semibold">3 Unread</span>
+                      <span className="text-[10px] text-[#f5d77f] font-semibold">
+                        {notifications.length > 0 ? `${notifications.length} Recent` : 'All caught up'}
+                      </span>
                     </div>
 
                     <div className="space-y-2.5 max-h-64 overflow-y-auto">
-                      {notifications.map((n) => (
-                        <Link
-                          key={n.id}
-                          href={n.type === 'chat' ? '/chat' : '/dashboard'}
-                          onClick={() => setShowNotifications(false)}
-                          className="block p-2.5 rounded-xl bg-[#171722] hover:bg-[#1d1d2b] transition-colors"
-                        >
-                          <div className="flex justify-between items-center mb-0.5">
-                            <span className="text-xs font-bold text-white">{n.title}</span>
-                            <span className="text-[10px] text-[#717182]">{n.time}</span>
-                          </div>
-                          <p className="text-[11px] text-[#94a3b8]">{n.desc}</p>
-                        </Link>
-                      ))}
+                      {notifications.length === 0 ? (
+                        <p className="text-xs text-[#717182] py-3 text-center">No recent notifications yet.</p>
+                      ) : (
+                        notifications.map((n) => (
+                          <Link
+                            key={n.id}
+                            href={n.type === 'chat' ? '/chat' : '/dashboard'}
+                            onClick={() => setShowNotifications(false)}
+                            className="block p-2.5 rounded-xl bg-[#171722] hover:bg-[#1d1d2b] transition-colors"
+                          >
+                            <div className="flex justify-between items-center mb-0.5">
+                              <span className="text-xs font-bold text-white">{n.title}</span>
+                              <span className="text-[10px] text-[#717182]">{n.time}</span>
+                            </div>
+                            <p className="text-[11px] text-[#94a3b8]">{n.desc}</p>
+                          </Link>
+                        ))
+                      )}
                     </div>
                   </div>
                 )}
@@ -240,10 +253,14 @@ export default function Navbar() {
 
               <Link
                 href="/dashboard"
-                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-full bg-[#16161d] border border-[#2e2e3c] text-white hover:border-[#d4af37] transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-full bg-[#16161d] border border-[#2e2e3c] text-white hover:border-[#d4af37] transition-colors"
               >
-                <LayoutDashboard className="w-3.5 h-3.5 text-[#d4af37]" />
-                Dashboard
+                {user.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="w-5 h-5 rounded-full object-cover border border-[#d4af37]/50" />
+                ) : (
+                  <LayoutDashboard className="w-3.5 h-3.5 text-[#d4af37]" />
+                )}
+                <span className="max-w-[90px] truncate">{user.name || 'Dashboard'}</span>
               </Link>
 
               <button

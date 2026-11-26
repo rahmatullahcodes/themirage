@@ -91,6 +91,8 @@ export interface ChatMessageRecord {
   creatorHandle: string;
   sender: 'user' | 'creator';
   text: string;
+  mediaUrl?: string;
+  mediaType?: MediaType;
   time: string;
   createdAt: string;
   customRequestId?: string;
@@ -1656,6 +1658,7 @@ function getDbFilePath(): string {
 }
 
 function createInitialDb(): MirageDbState {
+  const nowIso = new Date().toISOString();
   return {
     users: JSON.parse(JSON.stringify(SEED_USERS)),
     creators: JSON.parse(JSON.stringify(SEED_CREATORS)),
@@ -1664,7 +1667,28 @@ function createInitialDb(): MirageDbState {
     subscriptions: JSON.parse(JSON.stringify(SEED_SUBSCRIPTIONS)),
     follows: JSON.parse(JSON.stringify(SEED_FOLLOWS)),
     customRequests: JSON.parse(JSON.stringify(SEED_CUSTOM_REQUESTS)),
-    chatMessages: [],
+    chatMessages: [
+      {
+        id: 'seed-msg-1',
+        conversationKey: 'usr-1:luna-rae',
+        userId: 'usr-1',
+        creatorHandle: 'luna-rae',
+        sender: 'creator',
+        text: 'Hey Alex! Welcome to my private Mirage channel. Message me anytime or request custom shoots ✨',
+        time: '11:42 AM',
+        createdAt: nowIso,
+      },
+      {
+        id: 'seed-msg-2',
+        conversationKey: 'usr-1:ellie',
+        userId: 'usr-1',
+        creatorHandle: 'ellie',
+        sender: 'creator',
+        text: 'Hey! Thanks for visiting my profile — feel free to send a direct message or custom content request anytime 🖤',
+        time: '12:05 PM',
+        createdAt: nowIso,
+      },
+    ],
     transactions: JSON.parse(JSON.stringify(SEED_TRANSACTIONS)),
     reports: JSON.parse(JSON.stringify(SEED_REPORTS)),
     settings: { ...DEFAULT_SETTINGS },
@@ -1955,12 +1979,28 @@ export function deleteUserAdmin(userId: string): { success: boolean; error?: str
   return { success: true };
 }
 
-export function updateUserProfile(userId: string, updates: { name?: string; bio?: string }): { success: boolean; user?: UserRecord } {
+export function updateUserProfile(
+  userId: string,
+  updates: { name?: string; username?: string; bio?: string; avatar?: string }
+): { success: boolean; user?: UserRecord; error?: string } {
   const db = getDb();
   const user = db.users.find(u => u.id === userId);
-  if (!user) return { success: false };
+  if (!user) return { success: false, error: 'User not found' };
   if (updates.name && updates.name.trim()) user.name = updates.name.trim();
+  if (updates.username !== undefined && updates.username.trim()) {
+    const clean = updates.username.trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_-]/g, '');
+    if (clean) user.username = clean;
+  }
   if (updates.bio !== undefined) user.bio = updates.bio;
+  if (updates.avatar !== undefined && updates.avatar.trim()) user.avatar = updates.avatar.trim();
+
+  const linkedCreator = db.creators.find(c => c.userId === userId || c.id === userId);
+  if (linkedCreator) {
+    if (updates.name && updates.name.trim()) linkedCreator.name = user.name;
+    if (updates.avatar && updates.avatar.trim()) linkedCreator.avatar = user.avatar!;
+    if (updates.bio !== undefined) linkedCreator.bio = updates.bio;
+  }
+
   saveDb(db);
   return { success: true, user };
 }
@@ -2071,6 +2111,8 @@ export function updateCreatorAdmin(
   if (linkedUser) {
     linkedUser.name = creator.name;
     linkedUser.status = creator.status;
+    linkedUser.bio = creator.bio;
+    if (creator.avatar) linkedUser.avatar = creator.avatar;
   }
   db.posts.forEach(p => {
     if (p.creatorId === creator.id) {
@@ -2251,6 +2293,8 @@ export function addChatMessage(params: {
   creatorHandle: string;
   sender: 'user' | 'creator';
   text: string;
+  mediaUrl?: string;
+  mediaType?: MediaType;
   customRequestId?: string;
 }): ChatMessageRecord {
   const db = getDb();
@@ -2262,6 +2306,8 @@ export function addChatMessage(params: {
     creatorHandle: cleanHandle,
     sender: params.sender,
     text: params.text,
+    mediaUrl: params.mediaUrl,
+    mediaType: params.mediaType,
     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     createdAt: new Date().toISOString(),
     customRequestId: params.customRequestId,
@@ -2269,6 +2315,111 @@ export function addChatMessage(params: {
   db.chatMessages.push(msg);
   saveDb(db);
   return msg;
+}
+
+export function getChatConversationsForUser(params: {
+  userId: string;
+  mode?: 'user' | 'creator';
+  creatorHandle?: string;
+}) {
+  const db = getDb();
+  const mode = params.mode || 'user';
+
+  if (mode === 'creator') {
+    const cleanCreatorHandle = (params.creatorHandle || '').replace(/^@/, '').toLowerCase();
+    const myCreator =
+      db.creators.find(c => cleanCreatorHandle && c.handle.toLowerCase() === cleanCreatorHandle) ||
+      db.creators.find(c => c.userId === params.userId || c.id === params.userId) ||
+      db.creators[0];
+    const handle = myCreator ? myCreator.handle.toLowerCase() : 'luna-rae';
+
+    // Collect all fan users + any userId who messaged or requested custom content from this creator
+    const fanMap = new Map<string, { id: string; name: string; username: string; avatar?: string }>();
+    db.users.forEach(u => {
+      if (u.role !== 'ADMIN' && u.id !== myCreator?.userId && u.id !== myCreator?.id) {
+        fanMap.set(u.id, { id: u.id, name: u.name, username: u.username, avatar: u.avatar });
+      }
+    });
+    db.chatMessages.forEach(m => {
+      if (m.creatorHandle.toLowerCase() === handle && !fanMap.has(m.userId)) {
+        const u = db.users.find(usr => usr.id === m.userId);
+        fanMap.set(m.userId, {
+          id: m.userId,
+          name: u?.name || 'Mirage Member',
+          username: u?.username || m.userId,
+          avatar: u?.avatar,
+        });
+      }
+    });
+    db.customRequests.forEach(r => {
+      if (r.creatorHandle.toLowerCase() === handle && !fanMap.has(r.customerId)) {
+        fanMap.set(r.customerId, {
+          id: r.customerId,
+          name: r.customerName || 'Mirage Member',
+          username: (r.customerHandle || r.customerId).replace(/^@/, ''),
+        });
+      }
+    });
+
+    const threads = Array.from(fanMap.values()).map(fan => {
+      const key = `${fan.id}:${handle}`;
+      const msgs = db.chatMessages.filter(m => m.conversationKey === key);
+      const last = msgs[msgs.length - 1];
+      const reqs = db.customRequests.filter(r => r.customerId === fan.id && r.creatorHandle.toLowerCase() === handle);
+      const lastReq = reqs[0];
+      const lastTs = last
+        ? new Date(last.createdAt).getTime()
+        : lastReq
+        ? new Date(lastReq.createdAt).getTime()
+        : 0;
+      return {
+        threadKey: key,
+        userId: fan.id,
+        creatorHandle: handle,
+        partnerName: fan.name,
+        partnerHandle: `@${fan.username}`,
+        partnerAvatar: fan.avatar || '',
+        isVerified: true,
+        lastMessage: last?.text || (lastReq ? `Custom Request: ${lastReq.title}` : `Direct chat with ${fan.name}`),
+        lastTime: last?.time || (lastReq ? 'Request' : 'Online'),
+        lastTimestamp: lastTs,
+      };
+    });
+
+    threads.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
+    return { mode: 'creator' as const, activeCreatorHandle: handle, conversations: threads };
+  }
+
+  // Subscriber / Member mode: list all active creators dynamically
+  const threads = db.creators.map(c => {
+    const cleanHandle = c.handle.toLowerCase();
+    const key = `${params.userId}:${cleanHandle}`;
+    const msgs = db.chatMessages.filter(m => m.conversationKey === key);
+    const last = msgs[msgs.length - 1];
+    const reqs = db.customRequests.filter(r => r.customerId === params.userId && r.creatorHandle.toLowerCase() === cleanHandle);
+    const lastReq = reqs[0];
+    const lastTs = last
+      ? new Date(last.createdAt).getTime()
+      : lastReq
+      ? new Date(lastReq.createdAt).getTime()
+      : 0;
+    return {
+      threadKey: key,
+      userId: params.userId,
+      creatorHandle: cleanHandle,
+      partnerName: c.name,
+      partnerHandle: `@${c.handle}`,
+      partnerAvatar: c.avatar,
+      category: c.category,
+      isVerified: c.isVerified,
+      lastMessage: last?.text || (lastReq ? `Custom Request: ${lastReq.title}` : `Message ${c.name} 1-on-1`),
+      lastTime: last?.time || 'Online',
+      lastTimestamp: lastTs,
+    };
+  });
+
+  threads.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
+  return { mode: 'user' as const, activeCreatorHandle: null, conversations: threads };
 }
 
 export function getCustomRequests(filters?: { creatorId?: string; customerId?: string }): CustomRequestRecord[] {

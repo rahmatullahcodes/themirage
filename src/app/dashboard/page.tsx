@@ -29,6 +29,8 @@ import {
   UserMinus,
   Trash2,
   Info,
+  Upload,
+  Loader2,
 } from 'lucide-react';
 import PanelSidebar from '@/components/PanelSidebar';
 import PanelHeader from '@/components/PanelHeader';
@@ -52,7 +54,7 @@ export default function UserDashboard() {
   const [activeTab, setActiveTab] = useState('subscriptions');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [user, setUser] = useState<{ id: string; name: string; username: string; email: string; role: string; ageVerified?: boolean } | null>(null);
+  const [user, setUser] = useState<{ id: string; name: string; username: string; email: string; role: string; avatar?: string; ageVerified?: boolean } | null>(null);
 
   // Vault / My Purchases state
   const [vaultItems, setVaultItems] = useState<PurchasedItem[]>([]);
@@ -67,6 +69,8 @@ export default function UserDashboard() {
   const [txFilter, setTxFilter] = useState<'ALL' | 'SUBSCRIPTION' | 'INDIVIDUAL_CONTENT' | 'CUSTOM_CONTENT'>('ALL');
   const [profileName, setProfileName] = useState('');
   const [profileBio, setProfileBio] = useState('');
+  const [profileAvatar, setProfileAvatar] = useState('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [profileAgeVerified, setProfileAgeVerified] = useState(true);
   const [profileSaved, setProfileSaved] = useState(false);
 
@@ -200,10 +204,12 @@ export default function UserDashboard() {
             username: pData.user.username,
             email: pData.user.email,
             role: pData.user.role || prev?.role || 'SUBSCRIBER',
+            avatar: pData.user.avatar || '',
             ageVerified: Boolean(pData.user.ageVerified),
           }));
           setProfileName(pData.user.name || '');
           setProfileBio(pData.user.bio || '');
+          setProfileAvatar(pData.user.avatar || '');
           setProfileAgeVerified(Boolean(pData.user.ageVerified));
         }
       }
@@ -251,15 +257,17 @@ export default function UserDashboard() {
           userId: user.id,
           name: profileName,
           bio: profileBio,
+          avatar: profileAvatar,
         }),
       });
       const data = await res.json();
       if (data.success && data.user) {
-        const updatedUser = { ...user, name: data.user.name };
+        const updatedUser = { ...user, name: data.user.name, avatar: data.user.avatar || profileAvatar };
         setUser(updatedUser);
         localStorage.setItem('mirage_user', JSON.stringify(updatedUser));
         window.dispatchEvent(new Event('mirage_auth_changed'));
         setProfileSaved(true);
+        showToast('Profile details updated & synced!');
         setTimeout(() => setProfileSaved(false), 2500);
       }
     } catch (err) {}
@@ -305,6 +313,7 @@ export default function UserDashboard() {
         onCloseMobile={() => setMobileSidebarOpen(false)}
         userName={user?.name || 'Member'}
         userHandle={`@${user?.username || 'member'}`}
+        userAvatar={profileAvatar || user?.avatar}
         badges={{
           subscriptions: subscriptions.length > 0 ? `${subscriptions.length} Active` : '0',
           purchases: String(vaultItems.length),
@@ -335,10 +344,18 @@ export default function UserDashboard() {
           {/* Welcome User Banner */}
           <div className="p-6 sm:p-8 rounded-3xl bg-[#101016] border border-[#22222e] flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-4 text-center sm:text-left">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#d4af37] via-[#f5d77f] to-[#aa820a] p-0.5 shadow-gold-sm flex-shrink-0">
-                <div className="w-full h-full bg-[#0a0a0e] rounded-[14px] flex items-center justify-center">
-                  <Crown className="w-8 h-8 text-[#f5d77f]" />
-                </div>
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#d4af37] via-[#f5d77f] to-[#aa820a] p-0.5 shadow-gold-sm flex-shrink-0 overflow-hidden">
+                {(profileAvatar || user?.avatar) ? (
+                  <img
+                    src={profileAvatar || user?.avatar}
+                    alt={user?.name || 'Member'}
+                    className="w-full h-full object-cover rounded-[14px]"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-[#0a0a0e] rounded-[14px] flex items-center justify-center">
+                    <Crown className="w-8 h-8 text-[#f5d77f]" />
+                  </div>
+                )}
               </div>
               <div>
                 <h2 className="text-xl sm:text-2xl font-serif font-bold text-white">
@@ -799,6 +816,70 @@ export default function UserDashboard() {
                 </div>
               )}
               <div className="space-y-3 text-xs">
+                <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-[#161622] border border-[#282838]">
+                  <div className="w-14 h-14 rounded-full overflow-hidden bg-[#101018] border border-[#d4af37]/50 flex items-center justify-center flex-shrink-0">
+                    {profileAvatar ? (
+                      <img src={profileAvatar} alt={profileName || 'Avatar'} className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-6 h-6 text-[#d4af37]" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <span className="text-[#9da3af] font-semibold block">Profile Photo</span>
+                    <div className="flex flex-wrap gap-2">
+                      <label className="cursor-pointer px-3 py-1.5 rounded-lg bg-[#1c1c2a] hover:bg-[#252538] border border-[#d4af37]/40 text-[11px] font-bold text-[#f5d77f] inline-flex items-center gap-1.5">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = '';
+                            if (!file || !user) return;
+                            setUploadingAvatar(true);
+                            try {
+                              const fd = new FormData();
+                              fd.append('file', file);
+                              const upRes = await fetch('/api/upload', { method: 'POST', body: fd });
+                              const upData = await upRes.json();
+                              if (upRes.ok && upData?.url) {
+                                setProfileAvatar(upData.url);
+                                const profPatch = await fetch('/api/user/profile', {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ userId: user.id, avatar: upData.url }),
+                                });
+                                const pJson = await profPatch.json();
+                                if (profPatch.ok && pJson?.user) {
+                                  const nextU = { ...user, avatar: upData.url };
+                                  setUser(nextU);
+                                  localStorage.setItem('mirage_user', JSON.stringify(nextU));
+                                  window.dispatchEvent(new Event('mirage_auth_changed'));
+                                  showToast('Profile photo uploaded & saved!');
+                                }
+                              } else {
+                                showToast(upData?.message || 'Upload failed');
+                              }
+                            } catch {
+                              showToast('Photo upload failed');
+                            } finally {
+                              setUploadingAvatar(false);
+                            }
+                          }}
+                        />
+                        {uploadingAvatar ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                        {uploadingAvatar ? 'Uploading...' : 'Upload Photo'}
+                      </label>
+                      <input
+                        type="text"
+                        value={profileAvatar}
+                        onChange={(e) => setProfileAvatar(e.target.value)}
+                        placeholder="Or image URL..."
+                        className="flex-1 min-w-[120px] px-2.5 py-1.5 rounded-lg bg-[#101018] border border-[#282838] text-[11px] text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
                 <div>
                   <label className="text-[#717182] block mb-1">Display Name</label>
                   <input

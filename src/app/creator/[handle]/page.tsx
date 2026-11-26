@@ -22,6 +22,7 @@ import {
   Eye,
   Maximize2,
   Volume2,
+  MessageSquare,
 } from 'lucide-react';
 import SubscribeModal from '@/components/SubscribeModal';
 import PurchaseContentModal from '@/components/PurchaseContentModal';
@@ -430,6 +431,7 @@ function CreatorProfileContent() {
           bio: liveCreatorMeta.bio || baseCreator.bio,
           monthlyPrice: liveCreatorMeta.monthlyPrice ?? baseCreator.monthlyPrice,
           followersCount: liveCreatorMeta.followers || baseCreator.followersCount,
+          postsCount: liveCreatorMeta.postsCount ?? baseCreator.postsCount,
           category: liveCreatorMeta.category || baseCreator.category,
           isVerified: Boolean(liveCreatorMeta.isVerified),
         }
@@ -438,12 +440,12 @@ function CreatorProfileContent() {
 
   // Up to 3 Photo Previews state
   const [photoPreviews, setPhotoPreviews] = useState<PreviewPhotoItem[]>(
-    baseCreator.photoPreviews || CREATOR_DATA['luna-rae'].photoPreviews
+    baseCreator.photoPreviews || []
   );
 
   // Up to 2 Video Previews state
   const [videoPreviews, setVideoPreviews] = useState<PreviewVideoItem[]>(
-    baseCreator.videoPreviews || CREATOR_DATA['luna-rae'].videoPreviews
+    baseCreator.videoPreviews || []
   );
 
   // Load live creator profile, follow status, and active subscription status from backend
@@ -528,66 +530,8 @@ function CreatorProfileContent() {
     }
   }, [cleanHandle]);
 
-  // Main Posts feed (PPV, Subscribers, and Full Feed)
-  const [posts, setPosts] = useState<PostItem[]>([
-    {
-      id: 'p-paid-1',
-      type: 'image',
-      mediaUrl: 'https://images.unsplash.com/photo-1516483638261-f4dbaf036963?auto=format&fit=crop&w=1600&q=95',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1516483638261-f4dbaf036963?auto=format&fit=crop&w=600&q=70',
-      title: 'Private Sunset Mirage Collection #1',
-      caption: 'Exclusive sunset cinematic photoshoot captured in Santorini. High-res RAW detail.',
-      visibility: 'PURCHASE_ONLY',
-      price: 15.00,
-      hasPurchased: false,
-      isLocked: true,
-      likes: 142,
-      date: '1 day ago',
-    },
-    {
-      id: 'p-paid-2',
-      type: 'video',
-      mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=70',
-      previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-      videoDuration: '15:20',
-      title: 'Behind the Scenes — Midnight Studio Session (4K Video)',
-      caption: '15-minute complete unfiltered 4K footage from my midnight creative session.',
-      visibility: 'PURCHASE_ONLY',
-      price: 25.00,
-      hasPurchased: false,
-      isLocked: true,
-      likes: 89,
-      date: '2 days ago',
-    },
-    {
-      id: 'p-sub-1',
-      type: 'image',
-      mediaUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=85',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=70',
-      title: 'Subscribers Only: Paris Fashion Week Teaser',
-      caption: 'Exclusive editorial shot for my monthly members.',
-      visibility: 'SUBSCRIBER_ONLY',
-      price: 0,
-      isLocked: !isSubscribed,
-      likes: 215,
-      date: '3 days ago',
-    },
-    {
-      id: 'p-sub-2',
-      type: 'video',
-      mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=600&q=70',
-      videoDuration: '10:05',
-      title: 'Subscribers Only: Private Workout Session',
-      caption: 'Morning routine & exclusive workout vlog with commentary.',
-      visibility: 'SUBSCRIBER_ONLY',
-      price: 0,
-      isLocked: !isSubscribed,
-      likes: 184,
-      date: '4 days ago',
-    },
-  ]);
+  // Main Posts feed (loaded live from backend API)
+  const [posts, setPosts] = useState<PostItem[]>([]);
 
   // Synchronize previews and feed from backend API
   useEffect(() => {
@@ -621,6 +565,7 @@ function CreatorProfileContent() {
           : `/api/content/posts?handle=${cleanHandle}`;
         const feedRes = await fetch(feedUrl, {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          cache: 'no-store',
         });
         if (feedRes.ok) {
           const feedJson = await feedRes.json();
@@ -640,12 +585,10 @@ function CreatorProfileContent() {
                 price: p.price || 0,
                 isLocked: p.visibility !== 'PUBLIC' && !p.mediaUrl,
                 hasPurchased: false,
-                likes: p.likeCount || 100,
+                likes: p.likeCount || 0,
                 date: 'Recently',
               }));
-            if (mappedPosts.length > 0) {
-              setPosts(mappedPosts);
-            }
+            setPosts(mappedPosts);
           }
         }
       } catch (err) {
@@ -1012,7 +955,14 @@ function CreatorProfileContent() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+              <Link
+                href={`/chat?creator=${encodeURIComponent(cleanHandle)}`}
+                className="px-4 py-2.5 rounded-full bg-[#161622] hover:bg-[#1e1e2e] border border-[#d4af37]/40 text-xs font-semibold text-[#f5d77f] flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                Message
+              </Link>
               <button
                 type="button"
                 onClick={handleToggleFollow}

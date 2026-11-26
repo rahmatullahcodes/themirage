@@ -1,393 +1,545 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { io, Socket } from 'socket.io-client';
 import {
   Send,
   Sparkles,
-  DollarSign,
-  Lock,
   CheckCircle2,
   Image as ImageIcon,
   Clock,
-  Shield,
   CreditCard,
-  Crown,
-  ChevronLeft,
   ArrowLeft,
   X,
+  Search,
+  Loader2,
+  Users,
+  Crown,
 } from 'lucide-react';
 
 interface ChatMessage {
   id: string;
   sender: 'user' | 'creator';
   text: string;
+  mediaUrl?: string;
+  mediaType?: 'IMAGE' | 'VIDEO';
   time: string;
+  createdAt?: string;
   isCustomOffer?: boolean;
   offerDetails?: {
     id: string;
     title: string;
     price: number;
-    status: 'PENDING_PAYMENT' | 'PAID' | 'DELIVERED';
+    status: 'PENDING_PAYMENT' | 'PAID' | 'DELIVERED' | 'CANCELLED';
     deliveredMediaUrl?: string;
   };
 }
 
+interface ConversationSummary {
+  threadKey: string;
+  userId: string;
+  creatorHandle: string;
+  partnerName: string;
+  partnerHandle: string;
+  partnerAvatar: string;
+  category?: string;
+  isVerified?: boolean;
+  lastMessage: string;
+  lastTime: string;
+  lastTimestamp: number;
+}
+
 function ChatContent() {
   const searchParams = useSearchParams();
-  const rawQueryCreator = searchParams?.get('creator') || 'luna-rae';
-  const queryCreator = rawQueryCreator.replace(/^@/, '').toLowerCase();
+  const rawQueryCreator = (searchParams?.get('creator') || '').replace(/^@/, '').toLowerCase();
+  const queryCustomer = searchParams?.get('customer') || '';
+  const queryRole = (searchParams?.get('role') || '').toLowerCase();
   const autoOpenCustom = searchParams?.get('requestCustom') === 'true';
 
-  const [activeConversation, setActiveConversation] = useState(queryCreator);
-  const [mobileView, setMobileView] = useState<'list' | 'chat'>('chat');
-
-  const CONVERSATION_CREATORS: Record<string, { name: string; avatar: string; handle: string }> = {
-    'luna-rae': {
-      name: 'Luna Rae',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-      handle: '@luna-rae',
-    },
-    'mia-carter': {
-      name: 'Mia Carter',
-      avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80',
-      handle: '@mia-carter',
-    },
-    'sophie-lee': {
-      name: 'Sophie Lee',
-      avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80',
-      handle: '@sophie-lee',
-    },
-    'zara-khan': {
-      name: 'Zara Khan',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80',
-      handle: '@zara-khan',
-    },
-    'emily-rose': {
-      name: 'Emily Rose',
-      avatar: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=200&q=80',
-      handle: '@emily-rose',
-    },
-    'ellie': {
-      name: 'Ellie',
-      avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80',
-      handle: '@ellie',
-    },
-  };
-
-  const activeCreator = CONVERSATION_CREATORS[activeConversation] || {
-    name: activeConversation.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-    handle: `@${activeConversation}`,
-  };
-
-  const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
-
-  const [messagesByCreator, setMessagesByCreator] = useState<Record<string, ChatMessage[]>>({
-    'luna-rae': [
-      {
-        id: 'm1',
-        sender: 'creator',
-        text: 'Hey! Thanks for joining my Mirage channel! Let me know if you want any custom clips or have questions ✨',
-        time: '11:42 AM',
-      },
-      {
-        id: 'm2',
-        sender: 'user',
-        text: 'Hi Luna! Loving your posts. Can I get a personalized birthday video greeting?',
-        time: '11:45 AM',
-      },
-      {
-        id: 'm3',
-        sender: 'creator',
-        text: 'Absolutely! I can film a 2-minute personalized video greeting for you today with a personal message.',
-        time: '11:46 AM',
-        isCustomOffer: true,
-        offerDetails: {
-          id: 'off-101',
-          title: '2-Minute Personalized VIP Video Greeting',
-          price: 35.00,
-          status: 'PENDING_PAYMENT',
-        },
-      },
-    ],
-    'mia-carter': [
-      {
-        id: 'mia-m1',
-        sender: 'creator',
-        text: 'Welcome to my private chat! Thank you for supporting my Malibu shoots — new lifestyle video coming Friday ✨',
-        time: 'Yesterday',
-      },
-    ],
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    name: string;
+    username: string;
+    role: string;
+    avatar?: string;
+  }>({
+    id: 'usr-1',
+    name: 'Subscriber',
+    username: 'member',
+    role: 'SUBSCRIBER',
   });
 
-  const messages = messagesByCreator[activeConversation] || [
-    {
-      id: `init-${activeConversation}`,
-      sender: 'creator',
-      text: `Hey! Welcome to my private Mirage chat. Feel free to message me or send a custom request ✨`,
-      time: 'Now',
-    },
-  ];
+  const [chatMode, setChatMode] = useState<'user' | 'creator'>(queryRole === 'creator' ? 'creator' : 'user');
+  const [myCreatorHandle, setMyCreatorHandle] = useState<string>(rawQueryCreator || 'luna-rae');
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [convSearch, setConvSearch] = useState('');
+  const [selectedThread, setSelectedThread] = useState<{ userId: string; creatorHandle: string }>({
+    userId: queryCustomer || 'usr-1',
+    creatorHandle: rawQueryCreator || 'luna-rae',
+  });
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('chat');
 
-  const updateCurrentMessages = (updater: (prev: ChatMessage[]) => ChatMessage[]) => {
-    setMessagesByCreator((prevMap) => {
-      const currentList = prevMap[activeConversation] || [
-        {
-          id: `init-${activeConversation}`,
-          sender: 'creator',
-          text: `Hey! Welcome to my private Mirage chat. Feel free to message me or send a custom request ✨`,
-          time: 'Now',
-        },
-      ];
-      return {
-        ...prevMap,
-        [activeConversation]: updater(currentList),
-      };
-    });
-  };
-
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loadingThread, setLoadingThread] = useState(false);
   const [inputText, setInputText] = useState('');
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
+
   const [showCustomModal, setShowCustomModal] = useState(autoOpenCustom);
   const [customTitle, setCustomTitle] = useState('');
   const [customPrice, setCustomPrice] = useState('35.00');
 
-  // Synchronize URL query parameters (?creator=...&requestCustom=true) when navigating while already mounted
-  useEffect(() => {
-    const c = searchParams?.get('creator');
-    if (c) {
-      setActiveConversation(c.replace(/^@/, '').toLowerCase());
-      setMobileView('chat');
-    }
-    if (searchParams?.get('requestCustom') === 'true') {
-      setShowCustomModal(true);
-    }
-  }, [searchParams]);
+  const socketRef = useRef<Socket | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const threadScrollInitRef = useRef(false);
 
-  // Hydrate persisted messages & custom requests from backend
+  // Hydrate authenticated user & mode
   useEffect(() => {
-    let activeUserId = 'usr-1';
+    let active = {
+      id: 'usr-1',
+      name: 'Alex Mercer',
+      username: 'alexmercer',
+      role: 'SUBSCRIBER',
+      avatar: '',
+    };
     try {
-      const storedUser = localStorage.getItem('mirage_user');
-      if (storedUser) activeUserId = JSON.parse(storedUser)?.id || 'usr-1';
+      const stored = localStorage.getItem('mirage_user');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.id) active = { ...active, ...parsed };
+      }
+    } catch {}
+
+    setCurrentUser(active);
+    const isCreatorViewer = queryRole === 'creator' || active.role === 'CREATOR';
+    const nextMode: 'user' | 'creator' = isCreatorViewer ? 'creator' : 'user';
+    setChatMode(nextMode);
+
+    const creatorHandleForMode =
+      rawQueryCreator || (active.role === 'CREATOR' ? active.username?.toLowerCase() : 'luna-rae');
+    setMyCreatorHandle(creatorHandleForMode);
+
+    setSelectedThread({
+      userId: nextMode === 'creator' ? queryCustomer || 'usr-1' : active.id,
+      creatorHandle: creatorHandleForMode,
+    });
+
+    fetch(`/api/user/profile?userId=${encodeURIComponent(active.id)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.success && d?.user) {
+          setCurrentUser(d.user);
+        }
+      })
+      .catch(() => {});
+  }, [rawQueryCreator, queryCustomer, queryRole]);
+
+  // Load live conversations list from backend
+  const fetchConversations = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({
+        mode: 'threads',
+        userId: currentUser.id,
+        role: chatMode === 'creator' ? 'CREATOR' : 'SUBSCRIBER',
+      });
+      if (chatMode === 'creator' && myCreatorHandle) {
+        params.set('creatorHandle', myCreatorHandle);
+      }
+      const res = await fetch(`/api/chat?${params.toString()}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (data?.success && Array.isArray(data.conversations)) {
+        setConversations(data.conversations);
+        if (chatMode === 'creator' && data.activeCreatorHandle) {
+          setMyCreatorHandle(data.activeCreatorHandle);
+        }
+      }
     } catch (e) {}
+  }, [currentUser.id, chatMode, myCreatorHandle]);
 
-    async function loadThread() {
-      try {
-        const [msgRes, reqRes] = await Promise.all([
-          fetch(`/api/chat?userId=${encodeURIComponent(activeUserId)}&creator=${encodeURIComponent(activeConversation)}`, { cache: 'no-store' }),
-          fetch(`/api/custom-requests?customerId=${encodeURIComponent(activeUserId)}&creatorId=${encodeURIComponent(activeConversation)}`, { cache: 'no-store' }),
-        ]);
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
 
-        const persistedMsgs: ChatMessage[] = [];
-        if (msgRes.ok) {
-          const mData = await msgRes.json();
-          if (Array.isArray(mData?.messages)) {
-            mData.messages.forEach((m: any) => {
-              persistedMsgs.push({
-                id: m.id,
-                sender: m.sender,
-                text: m.text,
-                time: m.time,
-              });
+  // Fetch active thread messages + custom requests
+  const fetchActiveThread = useCallback(async (showSpinner = false) => {
+    if (!selectedThread.userId || !selectedThread.creatorHandle) return;
+    if (showSpinner) setLoadingThread(true);
+    try {
+      const [msgRes, reqRes] = await Promise.all([
+        fetch(
+          `/api/chat?userId=${encodeURIComponent(selectedThread.userId)}&creator=${encodeURIComponent(
+            selectedThread.creatorHandle
+          )}`,
+          { cache: 'no-store' }
+        ),
+        fetch(
+          `/api/custom-requests?customerId=${encodeURIComponent(selectedThread.userId)}&creatorId=${encodeURIComponent(
+            selectedThread.creatorHandle
+          )}`,
+          { cache: 'no-store' }
+        ),
+      ]);
+
+      const combined: (ChatMessage & { sortTs: number })[] = [];
+
+      if (msgRes.ok) {
+        const mData = await msgRes.json();
+        if (Array.isArray(mData?.messages)) {
+          mData.messages.forEach((m: any) => {
+            combined.push({
+              id: m.id,
+              sender: m.sender === 'creator' ? 'creator' : 'user',
+              text: m.text,
+              mediaUrl: m.mediaUrl,
+              mediaType: m.mediaType,
+              time: m.time || 'Now',
+              createdAt: m.createdAt,
+              sortTs: m.createdAt ? new Date(m.createdAt).getTime() : 0,
             });
-          }
-        }
-        if (reqRes.ok) {
-          const rData = await reqRes.json();
-          if (Array.isArray(rData?.requests)) {
-            rData.requests.forEach((r: any) => {
-              persistedMsgs.push({
-                id: `msg-${r.id}`,
-                sender: 'user',
-                text: `[Custom Request Proposal]: ${r.title}`,
-                time: new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                isCustomOffer: true,
-                offerDetails: {
-                  id: r.id,
-                  title: r.title,
-                  price: r.price,
-                  status: r.status === 'AWAITING_DELIVERY' ? 'PAID' : r.status,
-                  deliveredMediaUrl: r.deliveredMediaUrl,
-                },
-              });
-            });
-          }
-        }
-
-        if (persistedMsgs.length > 0) {
-          setMessagesByCreator(prev => {
-            const base = prev[activeConversation] || [];
-            const existingIds = new Set(base.map(b => b.id));
-            const merged = [...base, ...persistedMsgs.filter(pm => !existingIds.has(pm.id))];
-            return { ...prev, [activeConversation]: merged };
           });
         }
-      } catch (e) {}
+      }
+
+      if (reqRes.ok) {
+        const rData = await reqRes.json();
+        if (Array.isArray(rData?.requests)) {
+          rData.requests.forEach((r: any) => {
+            combined.push({
+              id: `req-card-${r.id}`,
+              sender: r.status === 'PENDING_PAYMENT' ? 'creator' : 'user',
+              text:
+                r.status === 'PENDING_PAYMENT'
+                  ? `Custom Offer Proposal: ${r.title}`
+                  : `Custom Request: ${r.title}`,
+              time: r.createdAt
+                ? new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : 'Recent',
+              createdAt: r.createdAt,
+              sortTs: r.createdAt ? new Date(r.createdAt).getTime() : 0,
+              isCustomOffer: true,
+              offerDetails: {
+                id: r.id,
+                title: r.title,
+                price: Number(r.price || 0),
+                status: r.status === 'AWAITING_DELIVERY' ? 'PAID' : r.status,
+                deliveredMediaUrl: r.deliveredMediaUrl,
+              },
+            });
+          });
+        }
+      }
+
+      combined.sort((a, b) => a.sortTs - b.sortTs);
+      setMessages(combined);
+    } catch (e) {
+    } finally {
+      if (showSpinner) setLoadingThread(false);
     }
+  }, [selectedThread.userId, selectedThread.creatorHandle]);
 
-    loadThread();
-  }, [activeConversation]);
+  useEffect(() => {
+    threadScrollInitRef.current = true;
+    fetchActiveThread(true);
+  }, [fetchActiveThread]);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
+  // Auto-scroll when messages arrive
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: threadScrollInitRef.current ? 'auto' : 'smooth' });
+      threadScrollInitRef.current = false;
+    }
+  }, [messages.length]);
 
-    let activeUserId = 'usr-1';
+  // Real-time Socket.IO connection + 3s background sync fallback
+  useEffect(() => {
+    const roomId = `${selectedThread.userId}:${selectedThread.creatorHandle}`;
+    let socket: Socket | null = null;
     try {
-      const storedUser = localStorage.getItem('mirage_user');
-      if (storedUser) activeUserId = JSON.parse(storedUser)?.id || 'usr-1';
-    } catch (e) {}
-
-    const targetConv = activeConversation;
-    const textToSend = inputText;
-    const newMsg: ChatMessage = {
-      id: `m-${Date.now()}`,
-      sender: 'user',
-      text: textToSend,
-      time: 'Just now',
-    };
-
-    updateCurrentMessages(prev => [...prev, newMsg]);
-    setInputText('');
-
-    try {
-      await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: activeUserId, creator: targetConv, sender: 'user', text: textToSend }),
+      socket = io({ transports: ['websocket', 'polling'] });
+      socketRef.current = socket;
+      socket.on('connect', () => {
+        socket?.emit('join_conversation', roomId);
       });
-    } catch (err) {}
-  };
+      socket.on('new_message', (incoming: any) => {
+        if (!incoming) return;
+        setMessages((prev) => {
+          if (incoming.id && prev.some((m) => m.id === incoming.id)) return prev;
+          return [
+            ...prev,
+            {
+              id: incoming.id || `rt-${Date.now()}`,
+              sender: incoming.sender === 'creator' ? 'creator' : 'user',
+              text: incoming.text,
+              mediaUrl: incoming.mediaUrl,
+              mediaType: incoming.mediaType,
+              time: incoming.time || 'Just now',
+            },
+          ];
+        });
+        fetchConversations();
+      });
+      socket.on('custom_content_updated', () => {
+        fetchActiveThread(false);
+      });
+    } catch {}
 
-  // Global Escape key listener to dismiss modal
+    const pollInterval = setInterval(() => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        fetchActiveThread(false);
+        fetchConversations();
+      }
+    }, 3000);
+
+    return () => {
+      clearInterval(pollInterval);
+      if (socket) {
+        socket.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, [selectedThread.userId, selectedThread.creatorHandle, fetchActiveThread, fetchConversations]);
+
+  // Global Escape key listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setShowCustomModal(false);
-      }
+      if (e.key === 'Escape') setShowCustomModal(false);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handlePayOffer = async (offerId: string) => {
-    let activeUserId = 'usr-1';
+  const activePartner =
+    conversations.find(
+      (c) => c.userId === selectedThread.userId && c.creatorHandle === selectedThread.creatorHandle
+    ) || {
+      threadKey: `${selectedThread.userId}:${selectedThread.creatorHandle}`,
+      userId: selectedThread.userId,
+      creatorHandle: selectedThread.creatorHandle,
+      partnerName: selectedThread.creatorHandle
+        .split('-')
+        .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+        .join(' '),
+      partnerHandle: `@${selectedThread.creatorHandle}`,
+      partnerAvatar: '',
+      isVerified: true,
+      lastMessage: '',
+      lastTime: 'Online',
+      lastTimestamp: 0,
+    };
+
+  const mySenderRole: 'user' | 'creator' = chatMode === 'creator' ? 'creator' : 'user';
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = inputText.trim();
+    if (!trimmed) return;
+    setInputText('');
+    await postChatPayload({ text: trimmed });
+  };
+
+  const postChatPayload = async (payload: {
+    text: string;
+    mediaUrl?: string;
+    mediaType?: 'IMAGE' | 'VIDEO';
+  }) => {
+    const roomId = `${selectedThread.userId}:${selectedThread.creatorHandle}`;
     try {
-      const storedUser = localStorage.getItem('mirage_user');
-      if (storedUser) activeUserId = JSON.parse(storedUser)?.id || 'usr-1';
-    } catch (e) {}
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: selectedThread.userId,
+          creator: selectedThread.creatorHandle,
+          sender: mySenderRole,
+          text: payload.text,
+          mediaUrl: payload.mediaUrl,
+          mediaType: payload.mediaType,
+        }),
+      });
+      const data = await res.json();
+      if (data?.success && data.message) {
+        const saved = data.message;
+        setMessages((prev) =>
+          prev.some((m) => m.id === saved.id)
+            ? prev
+            : [
+                ...prev,
+                {
+                  id: saved.id,
+                  sender: saved.sender,
+                  text: saved.text,
+                  mediaUrl: saved.mediaUrl,
+                  mediaType: saved.mediaType,
+                  time: saved.time || 'Just now',
+                },
+              ]
+        );
+        socketRef.current?.emit('send_message', {
+          conversationId: roomId,
+          ...saved,
+        });
+        fetchConversations();
+      }
+    } catch {}
+  };
 
-    updateCurrentMessages(prev =>
-      prev.map(msg => {
-        if (msg.offerDetails && msg.offerDetails.id === offerId) {
-          return {
-            ...msg,
-            offerDetails: {
-              ...msg.offerDetails,
-              status: 'PAID',
-            },
-          };
-        }
-        return msg;
-      })
-    );
+  const handleUploadMediaAttachment = async (file: File) => {
+    setUploadingMedia(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (res.ok && data?.success && data?.url) {
+        await postChatPayload({
+          text: data.mediaType === 'VIDEO' ? 'Sent a private video' : 'Sent a private photo',
+          mediaUrl: data.url,
+          mediaType: data.mediaType,
+        });
+      } else {
+        setPaymentNotice(data?.message || 'Failed to upload media attachment');
+        setTimeout(() => setPaymentNotice(null), 4000);
+      }
+    } catch {
+      setPaymentNotice('Failed to upload attachment');
+      setTimeout(() => setPaymentNotice(null), 4000);
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
 
+  const handlePayOffer = async (offerId: string) => {
     try {
       await fetch('/api/custom-requests', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId: offerId, action: 'PAY', userId: activeUserId }),
+        body: JSON.stringify({ requestId: offerId, action: 'PAY', userId: selectedThread.userId }),
       });
-    } catch (e) {}
-
-    setPaymentNotice('Payment verified! Order sent to Creator Studio for production & delivery.');
-    setTimeout(() => setPaymentNotice(null), 5000);
+      socketRef.current?.emit('custom_content_update', {
+        conversationId: `${selectedThread.userId}:${selectedThread.creatorHandle}`,
+      });
+      fetchActiveThread(false);
+      setPaymentNotice('Payment verified! Order sent to Creator Studio for production & delivery.');
+      setTimeout(() => setPaymentNotice(null), 5000);
+    } catch {}
   };
 
   const handleRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customTitle) return;
-
-    let activeUser = { id: 'usr-1', name: 'Alex Mercer', username: 'alexmercer' };
-    try {
-      const storedUser = localStorage.getItem('mirage_user');
-      if (storedUser) activeUser = { ...activeUser, ...JSON.parse(storedUser) };
-    } catch (e) {}
-
+    if (!customTitle.trim()) return;
     const numericPrice = parseFloat(customPrice) || 35.0;
-    let requestId = `req-${Date.now()}`;
+    const isCreatorSendingOffer = chatMode === 'creator';
 
     try {
       const res = await fetch('/api/custom-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customerId: activeUser.id,
-          customerName: activeUser.name,
-          customerHandle: `@${activeUser.username}`,
-          creatorHandle: activeConversation,
-          title: customTitle,
+          customerId: selectedThread.userId,
+          customerName:
+            chatMode === 'user' ? currentUser.name : activePartner.partnerName || 'Subscriber',
+          customerHandle:
+            chatMode === 'user' ? `@${currentUser.username}` : activePartner.partnerHandle,
+          creatorHandle: selectedThread.creatorHandle,
+          title: customTitle.trim(),
           price: numericPrice,
-          paid: true,
+          paid: !isCreatorSendingOffer,
         }),
       });
-      const data = await res.json();
-      if (data?.request?.id) {
-        requestId = data.request.id;
+      if (res.ok) {
+        socketRef.current?.emit('custom_content_update', {
+          conversationId: `${selectedThread.userId}:${selectedThread.creatorHandle}`,
+        });
+        fetchActiveThread(false);
+        fetchConversations();
       }
-    } catch (err) {}
+    } catch {}
 
-    const newOfferMsg: ChatMessage = {
-      id: `m-cust-${Date.now()}`,
-      sender: 'user',
-      text: `[Custom Request Submitted]: ${customTitle}`,
-      time: 'Just now',
-      isCustomOffer: true,
-      offerDetails: {
-        id: requestId,
-        title: customTitle,
-        price: numericPrice,
-        status: 'PAID',
-      },
-    };
-
-    updateCurrentMessages(prev => [...prev, newOfferMsg]);
-    setPaymentNotice('Custom request submitted & sent directly to Creator Studio!');
+    setPaymentNotice(
+      isCreatorSendingOffer
+        ? 'Paid custom offer sent to subscriber in chat!'
+        : 'Custom request submitted & sent directly to Creator Studio!'
+    );
     setTimeout(() => setPaymentNotice(null), 4000);
     setShowCustomModal(false);
     setCustomTitle('');
   };
 
+  const filteredConversations = conversations.filter((c) => {
+    if (!convSearch.trim()) return true;
+    const q = convSearch.toLowerCase();
+    return (
+      c.partnerName.toLowerCase().includes(q) ||
+      c.partnerHandle.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="h-screen bg-[#08080a] text-white flex overflow-hidden">
-      <div className={`w-full md:w-80 bg-[#0d0d12] border-r border-[#1e1e28] flex flex-col ${
-        mobileView === 'chat' ? 'hidden md:flex' : 'flex'
-      }`}>
-        <div className="p-4 border-b border-[#1e1e28] flex items-center justify-between">
+      {/* Conversations Sidebar */}
+      <div
+        className={`w-full md:w-80 bg-[#0d0d12] border-r border-[#1e1e28] flex flex-col ${
+          mobileView === 'chat' ? 'hidden md:flex' : 'flex'
+        }`}
+      >
+        <div className="p-4 border-b border-[#1e1e28] flex items-center justify-between gap-2">
           <Link href="/" className="inline-flex items-center">
-            <img
-              src="/assets/the_mirage_logo.png"
-              alt="The Mirage"
-              className="h-6 w-auto object-contain"
-            />
+            <img src="/assets/the_mirage_logo.png" alt="The Mirage" className="h-6 w-auto object-contain" />
           </Link>
-          <span className="text-[10px] text-[#808092] bg-[#161622] px-2 py-0.5 rounded-full border border-[#272736]">
-            Encrypted 1-on-1
+          <span className="text-[10px] text-[#f5d77f] bg-[#181611] px-2 py-0.5 rounded-full border border-[#d4af37]/30 font-semibold">
+            {chatMode === 'creator' ? `Creator: @${myCreatorHandle}` : '1-on-1 Chat'}
           </span>
         </div>
 
+        {/* Mode Switcher & Search */}
+        <div className="p-3 border-b border-[#181822] space-y-2.5">
+          {(currentUser.role === 'CREATOR' || queryRole === 'creator') && (
+            <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[#13131c] border border-[#242434] text-[11px]">
+              <button
+                type="button"
+                onClick={() => setChatMode('creator')}
+                className={`py-1.5 px-2 rounded-lg font-bold flex items-center justify-center gap-1 transition-colors ${
+                  chatMode === 'creator' ? 'gold-button text-black' : 'text-[#8e8e9e] hover:text-white'
+                }`}
+              >
+                <Users className="w-3 h-3" /> Fan Inbox
+              </button>
+              <button
+                type="button"
+                onClick={() => setChatMode('user')}
+                className={`py-1.5 px-2 rounded-lg font-bold flex items-center justify-center gap-1 transition-colors ${
+                  chatMode === 'user' ? 'gold-button text-black' : 'text-[#8e8e9e] hover:text-white'
+                }`}
+              >
+                <Crown className="w-3 h-3" /> Creators
+              </button>
+            </div>
+          )}
+
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-[#666677] absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={convSearch}
+              onChange={(e) => setConvSearch(e.target.value)}
+              placeholder={chatMode === 'creator' ? 'Search fans & subscribers...' : 'Search creators...'}
+              className="w-full pl-8 pr-3 py-2 bg-[#14141e] border border-[#252536] rounded-xl text-xs text-white focus:outline-none focus:border-[#d4af37]"
+            />
+          </div>
+        </div>
+
+        {/* Thread List */}
         <div className="flex-1 overflow-y-auto divide-y divide-[#151520]">
-          {Object.entries(CONVERSATION_CREATORS).map(([slug, creatorInfo]) => {
-            const thread = messagesByCreator[slug] || [];
-            const lastMsg = thread[thread.length - 1];
-            const isSelected = activeConversation === slug;
+          {filteredConversations.map((c) => {
+            const isSelected =
+              selectedThread.userId === c.userId && selectedThread.creatorHandle === c.creatorHandle;
             return (
               <div
-                key={slug}
+                key={c.threadKey}
                 onClick={() => {
-                  setActiveConversation(slug);
+                  setSelectedThread({ userId: c.userId, creatorHandle: c.creatorHandle });
                   setMobileView('chat');
                 }}
                 className={`p-4 flex items-center gap-3 cursor-pointer transition-colors ${
@@ -395,34 +547,46 @@ function ChatContent() {
                 }`}
               >
                 <div className="relative flex-shrink-0">
-                  <img
-                    src={creatorInfo.avatar}
-                    alt={creatorInfo.name}
-                    className={`w-12 h-12 rounded-full object-cover ${isSelected ? 'border border-[#d4af37]/40' : ''}`}
-                  />
-                  <span className="w-3 h-3 bg-green-500 rounded-full border-2 border-[#0d0d12] absolute bottom-0 right-0"></span>
+                  {c.partnerAvatar ? (
+                    <img
+                      src={c.partnerAvatar}
+                      alt={c.partnerName}
+                      className={`w-11 h-11 rounded-full object-cover ${
+                        isSelected ? 'border border-[#d4af37]/60' : 'border border-[#272738]'
+                      }`}
+                    />
+                  ) : (
+                    <div className="w-11 h-11 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/40 flex items-center justify-center text-sm font-bold text-[#f5d77f]">
+                      {c.partnerName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#0d0d12] absolute bottom-0 right-0"></span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center mb-0.5">
-                    <span className="text-xs font-bold text-white truncate">{creatorInfo.name}</span>
-                    <span className="text-[10px] text-[#636375]">{lastMsg?.time || 'Online'}</span>
+                  <div className="flex justify-between items-center mb-0.5 gap-1">
+                    <span className="text-xs font-bold text-white truncate flex items-center gap-1">
+                      {c.partnerName}
+                      {c.isVerified && <CheckCircle2 className="w-3 h-3 fill-[#d4af37] text-black flex-shrink-0" />}
+                    </span>
+                    <span className="text-[10px] text-[#636375] flex-shrink-0">{c.lastTime}</span>
                   </div>
-                  <p className="text-[11px] text-[#88889a] truncate">
-                    {lastMsg?.text || `Direct chat with ${creatorInfo.name}`}
-                  </p>
+                  <p className="text-[11px] text-[#88889a] truncate">{c.lastMessage}</p>
                 </div>
               </div>
             );
           })}
+          {filteredConversations.length === 0 && (
+            <div className="p-8 text-center text-xs text-[#717182]">No matching conversations found.</div>
+          )}
         </div>
       </div>
 
-      <div className={`flex-1 flex-col bg-[#0a0a0e] relative ${
-        mobileView === 'list' ? 'hidden md:flex' : 'flex'
-      }`}>
-        <div className="h-16 px-4 sm:px-6 bg-[#0e0e14] border-b border-[#1c1c28] flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3">
+      {/* Main 1-on-1 Chat Window */}
+      <div className={`flex-1 flex-col bg-[#0a0a0e] relative ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}`}>
+        <div className="h-16 px-4 sm:px-6 bg-[#0e0e14] border-b border-[#1c1c28] flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
             <button
+              type="button"
               onClick={() => setMobileView('list')}
               className="p-1.5 rounded-lg bg-[#181822] text-[#9090a2] hover:text-white md:hidden"
               aria-label="Back to conversations"
@@ -430,122 +594,171 @@ function ChatContent() {
               <ArrowLeft className="w-4 h-4" />
             </button>
 
-            <img
-              src={activeCreator.avatar}
-              alt={activeCreator.name}
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border border-[#d4af37]/40"
-            />
-            <div>
-              <div className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
-                {activeCreator.name}
-                <CheckCircle2 className="w-3.5 h-3.5 fill-[#d4af37] text-black" />
+            {activePartner.partnerAvatar ? (
+              <img
+                src={activePartner.partnerAvatar}
+                alt={activePartner.partnerName}
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border border-[#d4af37]/40 flex-shrink-0"
+              />
+            ) : (
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/40 flex items-center justify-center text-xs font-bold text-[#f5d77f] flex-shrink-0">
+                {activePartner.partnerName.charAt(0).toUpperCase()}
               </div>
-              <span className="text-[10px] text-green-400">Online & Verified</span>
+            )}
+
+            <div className="min-w-0">
+              <div className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5 truncate">
+                {activePartner.partnerName}
+                {activePartner.isVerified && <CheckCircle2 className="w-3.5 h-3.5 fill-[#d4af37] text-black flex-shrink-0" />}
+              </div>
+              <span className="text-[10px] text-green-400 block truncate">
+                {activePartner.partnerHandle} • Live 1-on-1 Encrypted Chat
+              </span>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={() => setShowCustomModal(true)}
-            className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#181824] hover:bg-[#202030] text-[#f5d77f] border border-[#d4af37]/40 text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition-colors shadow-gold-sm"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#181824] hover:bg-[#202030] text-[#f5d77f] border border-[#d4af37]/40 text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition-colors shadow-gold-sm flex-shrink-0"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Request</span> Custom Content
+            <span className="hidden sm:inline">
+              {chatMode === 'creator' ? 'Send Paid Offer' : 'Request Custom Content'}
+            </span>
+            <span className="sm:hidden">{chatMode === 'creator' ? 'Send Offer' : 'Custom'}</span>
           </button>
         </div>
 
+        {/* Messages Feed */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex flex-col ${
-                msg.sender === 'user' ? 'items-end' : 'items-start'
-              }`}
-            >
-              <div
-                className={`max-w-[85%] sm:max-w-md p-3.5 sm:p-4 rounded-2xl text-xs sm:text-sm leading-relaxed ${
-                  msg.sender === 'user'
-                    ? 'bg-[#1b1b26] border border-[#2e2e42] text-white rounded-br-none'
-                    : 'bg-[#121218] border border-[#d4af37]/30 text-white rounded-bl-none shadow-gold-sm'
-                }`}
-              >
-                <p>{msg.text}</p>
-
-                {msg.isCustomOffer && msg.offerDetails && (
-                  <div className="mt-3 p-3 sm:p-3.5 rounded-xl bg-[#09090d] border border-[#d4af37]/40 space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-[#f5d77f] flex items-center gap-1">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        Custom Order Offer
-                      </span>
-                      <span className="text-sm font-extrabold text-white">
-                        ${msg.offerDetails.price.toFixed(2)}
-                      </span>
-                    </div>
-
-                    <p className="text-xs text-[#cbd5e1] font-medium">
-                      {msg.offerDetails.title}
-                    </p>
-
-                    {msg.offerDetails.status === 'PENDING_PAYMENT' && (
-                      <div className="pt-2 border-t border-[#1a1a26]">
-                        {msg.sender === 'creator' ? (
-                          <button
-                            onClick={() => handlePayOffer(msg.offerDetails!.id)}
-                            className="w-full py-2 rounded-lg gold-button text-xs font-bold shadow-gold-sm flex items-center justify-center gap-1.5"
-                          >
-                            <CreditCard className="w-3.5 h-3.5" />
-                            Pay & Unlock Request (${msg.offerDetails.price.toFixed(2)})
-                          </button>
-                        ) : (
-                          <span className="text-[11px] text-[#808092]">Awaiting creator confirmation</span>
-                        )}
-                      </div>
-                    )}
-
-                    {msg.offerDetails.status === 'PAID' && (
-                      <div className="p-2 rounded bg-green-950/40 border border-green-500/30 text-[11px] text-green-300 flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 animate-spin" />
-                        <span>Payment verified! Creator is preparing delivery.</span>
-                      </div>
-                    )}
-
-                    {msg.offerDetails.status === 'DELIVERED' && (
-                      <div className="space-y-2 pt-2 border-t border-[#1a1a26]">
-                        <span className="text-[11px] text-green-400 font-bold flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Delivered & Verified
-                        </span>
-                        <div className="aspect-video w-full rounded-lg overflow-hidden border border-[#d4af37]/40 relative">
-                          <img
-                            src={msg.offerDetails.deliveredMediaUrl}
-                            alt="Delivered"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <a
-                          href={msg.offerDetails.deliveredMediaUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block text-center py-1.5 rounded bg-[#1f1f2e] text-[11px] font-semibold text-[#f5d77f] hover:underline"
-                        >
-                          Open in Full Resolution
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              <span className="text-[10px] text-[#555566] mt-1 px-1">{msg.time}</span>
+          {loadingThread && messages.length === 0 ? (
+            <div className="py-12 flex items-center justify-center text-xs text-[#808092] gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-[#d4af37]" />
+              Loading live 1-on-1 conversation...
             </div>
-          ))}
+          ) : messages.length === 0 ? (
+            <div className="py-16 text-center space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-[#151520] border border-[#d4af37]/30 flex items-center justify-center mx-auto">
+                <Sparkles className="w-5 h-5 text-[#f5d77f]" />
+              </div>
+              <p className="text-sm font-bold text-white">Start a 1-on-1 conversation with {activePartner.partnerName}</p>
+              <p className="text-xs text-[#717182] max-w-sm mx-auto">
+                Messages, photos, videos, and custom requests sync directly between both accounts in real time.
+              </p>
+            </div>
+          ) : null}
+
+          {messages.map((msg) => {
+            const isOwnMessage = msg.sender === mySenderRole;
+            return (
+              <div key={msg.id} className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'}`}>
+                <div
+                  className={`max-w-[85%] sm:max-w-md p-3.5 sm:p-4 rounded-2xl text-xs sm:text-sm leading-relaxed space-y-2 ${
+                    isOwnMessage
+                      ? 'bg-[#1b1b26] border border-[#2e2e42] text-white rounded-br-none'
+                      : 'bg-[#121218] border border-[#d4af37]/30 text-white rounded-bl-none shadow-gold-sm'
+                  }`}
+                >
+                  {msg.mediaUrl && (
+                    <div className="rounded-xl overflow-hidden bg-black border border-[#2b2b3a]">
+                      {msg.mediaType === 'VIDEO' || /\.(mp4|mov|webm)(\?|$)/i.test(msg.mediaUrl) ? (
+                        <video src={msg.mediaUrl} controls playsInline className="w-full max-h-60 object-contain" />
+                      ) : (
+                        <img src={msg.mediaUrl} alt="Chat attachment" className="w-full max-h-60 object-contain" />
+                      )}
+                    </div>
+                  )}
+
+                  {msg.text && <p>{msg.text}</p>}
+
+                  {msg.isCustomOffer && msg.offerDetails && (
+                    <div className="mt-2 p-3 rounded-xl bg-[#09090d] border border-[#d4af37]/40 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-[#f5d77f] flex items-center gap-1">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          Custom Order
+                        </span>
+                        <span className="text-sm font-extrabold text-white">
+                          ${msg.offerDetails.price.toFixed(2)}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-[#cbd5e1] font-medium">{msg.offerDetails.title}</p>
+
+                      {msg.offerDetails.status === 'PENDING_PAYMENT' && (
+                        <div className="pt-2 border-t border-[#1a1a26]">
+                          {chatMode === 'user' ? (
+                            <button
+                              type="button"
+                              onClick={() => handlePayOffer(msg.offerDetails!.id)}
+                              className="w-full py-2 rounded-lg gold-button text-xs font-bold shadow-gold-sm flex items-center justify-center gap-1.5"
+                            >
+                              <CreditCard className="w-3.5 h-3.5" />
+                              Pay & Unlock Request (${msg.offerDetails.price.toFixed(2)})
+                            </button>
+                          ) : (
+                            <span className="text-[11px] text-[#f5d77f]">Awaiting subscriber payment</span>
+                          )}
+                        </div>
+                      )}
+
+                      {msg.offerDetails.status === 'PAID' && (
+                        <div className="p-2 rounded bg-green-950/40 border border-green-500/30 text-[11px] text-green-300 flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>Payment verified! Deliver in Creator Studio Custom Requests.</span>
+                        </div>
+                      )}
+
+                      {msg.offerDetails.status === 'DELIVERED' && msg.offerDetails.deliveredMediaUrl && (
+                        <div className="space-y-2 pt-2 border-t border-[#1a1a26]">
+                          <span className="text-[11px] text-green-400 font-bold flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Delivered & Verified
+                          </span>
+                          <div className="aspect-video w-full rounded-lg overflow-hidden border border-[#d4af37]/40 bg-black">
+                            {/\.(mp4|mov|webm)(\?|$)/i.test(msg.offerDetails.deliveredMediaUrl) ? (
+                              <video
+                                src={msg.offerDetails.deliveredMediaUrl}
+                                controls
+                                playsInline
+                                className="w-full h-full object-contain"
+                              />
+                            ) : (
+                              <img
+                                src={msg.offerDetails.deliveredMediaUrl}
+                                alt="Delivered"
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                          </div>
+                          <a
+                            href={msg.offerDetails.deliveredMediaUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block text-center py-1.5 rounded bg-[#1f1f2e] text-[11px] font-semibold text-[#f5d77f] hover:underline"
+                          >
+                            Open in Full Resolution
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <span className="text-[10px] text-[#555566] mt-1 px-1">{msg.time}</span>
+              </div>
+            );
+          })}
+          <div ref={messagesEndRef} />
         </div>
 
         {paymentNotice && (
-          <div className="mx-4 sm:mx-6 mt-3 p-3 rounded-xl bg-green-950/60 border border-green-500/40 text-xs text-green-300 flex items-center justify-between shadow-lg">
+          <div className="mx-4 sm:mx-6 mt-2 p-3 rounded-xl bg-green-950/60 border border-green-500/40 text-xs text-green-300 flex items-center justify-between shadow-lg">
             <span className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
               {paymentNotice}
             </span>
             <button
+              type="button"
               onClick={() => setPaymentNotice(null)}
               className="text-green-400 hover:text-white p-1"
               aria-label="Dismiss notice"
@@ -555,25 +768,45 @@ function ChatContent() {
           </div>
         )}
 
+        {/* Message & Media Composer */}
         <form
           onSubmit={handleSendMessage}
           className="p-3 sm:p-4 bg-[#0e0e14] border-t border-[#1c1c28] flex items-center gap-2 sm:gap-3"
         >
+          <label
+            className="cursor-pointer p-2.5 sm:p-3 rounded-xl bg-[#151520] hover:bg-[#1e1e2e] border border-[#29293a] text-[#d4af37] flex-shrink-0 transition-colors"
+            title="Send photo or video"
+          >
+            <input
+              type="file"
+              accept="image/*,video/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (f) handleUploadMediaAttachment(f);
+              }}
+            />
+            {uploadingMedia ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+          </label>
+
           <input
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder={`Type your message to ${activeCreator.name}...`}
+            placeholder={`Message ${activePartner.partnerName}...`}
             className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-[#151520] border border-[#29293a] rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-[#d4af37]"
           />
           <button
             type="submit"
             className="p-2.5 sm:p-3 rounded-xl gold-button text-black shadow-gold-sm hover:scale-105 transition-transform"
+            aria-label="Send message"
           >
             <Send className="w-4 h-4" />
           </button>
         </form>
 
+        {/* Custom Request / Paid Offer Modal */}
         {showCustomModal && (
           <div
             onClick={(e) => {
@@ -593,42 +826,43 @@ function ChatContent() {
 
               <h3 className="text-base font-serif font-bold text-white flex items-center gap-2 pr-6">
                 <Sparkles className="w-4 h-4 text-[#f5d77f]" />
-                Request Personalised Custom Content
+                {chatMode === 'creator'
+                  ? 'Send Paid Custom Offer'
+                  : 'Request Personalised Custom Content'}
               </h3>
               <p className="text-xs text-[#8c8c9e]">
-                Propose a custom clip, photo set, or personalized greeting. The creator will review and deliver directly to your chat.
+                {chatMode === 'creator'
+                  ? 'Propose a paid personalized clip or photo set to this subscriber.'
+                  : 'Propose a custom clip, photo set, or personalized greeting. Delivered directly to your chat & vault.'}
               </p>
 
               <form onSubmit={handleRequestSubmit} className="space-y-3">
                 <div>
                   <label className="block text-xs font-semibold text-[#a0a0b2] mb-1">
-                    What would you like?
+                    Custom Content Details
                   </label>
                   <input
                     type="text"
                     required
                     value={customTitle}
                     onChange={(e) => setCustomTitle(e.target.value)}
-                    placeholder="e.g. 2-min Birthday Greeting mentioning my name"
+                    placeholder="e.g. 2-min personalized VIP greeting"
                     className="w-full px-3.5 py-2.5 bg-[#181824] border border-[#2b2b3a] rounded-xl text-xs text-white focus:border-[#d4af37]"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-[#a0a0b2] mb-1">
-                    Offered Price ($ USD)
+                    Price ($ USD)
                   </label>
                   <input
                     type="number"
                     step="5"
-                    min="10"
+                    min="5"
                     value={customPrice}
                     onChange={(e) => setCustomPrice(e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-[#181824] border border-[#2b2b3a] rounded-xl text-xs text-white focus:border-[#d4af37]"
                   />
-                  <span className="text-[10px] text-[#636375] mt-1 block">
-                    Your request and offered budget will be delivered directly to the creator.
-                  </span>
                 </div>
 
                 <div className="flex gap-2 pt-2">
@@ -636,7 +870,7 @@ function ChatContent() {
                     type="submit"
                     className="flex-1 py-2.5 rounded-xl gold-button text-xs font-bold shadow-gold-sm"
                   >
-                    Send Proposal
+                    {chatMode === 'creator' ? 'Send Offer to Chat' : 'Submit Request'}
                   </button>
                   <button
                     type="button"
@@ -657,7 +891,13 @@ function ChatContent() {
 
 export default function ChatPage() {
   return (
-    <Suspense fallback={<div className="h-[calc(100vh-80px)] bg-[#08080a] flex items-center justify-center text-[#d4af37]">Loading Chat...</div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#08080a] flex items-center justify-center text-[#d4af37]">
+          Loading chat...
+        </div>
+      }
+    >
       <ChatContent />
     </Suspense>
   );
