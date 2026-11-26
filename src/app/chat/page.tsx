@@ -160,35 +160,100 @@ function ChatContent() {
     }
   }, [searchParams]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  // Hydrate persisted messages & custom requests from backend
+  useEffect(() => {
+    let activeUserId = 'usr-1';
+    try {
+      const storedUser = localStorage.getItem('mirage_user');
+      if (storedUser) activeUserId = JSON.parse(storedUser)?.id || 'usr-1';
+    } catch (e) {}
+
+    async function loadThread() {
+      try {
+        const [msgRes, reqRes] = await Promise.all([
+          fetch(`/api/chat?userId=${encodeURIComponent(activeUserId)}&creator=${encodeURIComponent(activeConversation)}`, { cache: 'no-store' }),
+          fetch(`/api/custom-requests?customerId=${encodeURIComponent(activeUserId)}&creatorId=${encodeURIComponent(activeConversation)}`, { cache: 'no-store' }),
+        ]);
+
+        const persistedMsgs: ChatMessage[] = [];
+        if (msgRes.ok) {
+          const mData = await msgRes.json();
+          if (Array.isArray(mData?.messages)) {
+            mData.messages.forEach((m: any) => {
+              persistedMsgs.push({
+                id: m.id,
+                sender: m.sender,
+                text: m.text,
+                time: m.time,
+              });
+            });
+          }
+        }
+        if (reqRes.ok) {
+          const rData = await reqRes.json();
+          if (Array.isArray(rData?.requests)) {
+            rData.requests.forEach((r: any) => {
+              persistedMsgs.push({
+                id: `msg-${r.id}`,
+                sender: 'user',
+                text: `[Custom Request Proposal]: ${r.title}`,
+                time: new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                isCustomOffer: true,
+                offerDetails: {
+                  id: r.id,
+                  title: r.title,
+                  price: r.price,
+                  status: r.status === 'AWAITING_DELIVERY' ? 'PAID' : r.status,
+                  deliveredMediaUrl: r.deliveredMediaUrl,
+                },
+              });
+            });
+          }
+        }
+
+        if (persistedMsgs.length > 0) {
+          setMessagesByCreator(prev => {
+            const base = prev[activeConversation] || [];
+            const existingIds = new Set(base.map(b => b.id));
+            const merged = [...base, ...persistedMsgs.filter(pm => !existingIds.has(pm.id))];
+            return { ...prev, [activeConversation]: merged };
+          });
+        }
+      } catch (e) {}
+    }
+
+    loadThread();
+  }, [activeConversation]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim()) return;
 
+    let activeUserId = 'usr-1';
+    try {
+      const storedUser = localStorage.getItem('mirage_user');
+      if (storedUser) activeUserId = JSON.parse(storedUser)?.id || 'usr-1';
+    } catch (e) {}
+
     const targetConv = activeConversation;
+    const textToSend = inputText;
     const newMsg: ChatMessage = {
       id: `m-${Date.now()}`,
       sender: 'user',
-      text: inputText,
+      text: textToSend,
       time: 'Just now',
     };
 
     updateCurrentMessages(prev => [...prev, newMsg]);
     setInputText('');
 
-    setTimeout(() => {
-      setMessagesByCreator((prevMap) => ({
-        ...prevMap,
-        [targetConv]: [
-          ...(prevMap[targetConv] || []),
-          {
-            id: `m-reply-${Date.now()}`,
-            sender: 'creator',
-            text: 'Got it! Working on that for you right away 🖤',
-            time: 'Just now',
-          },
-        ],
-      }));
-    }, 1500);
+    try {
+      await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: activeUserId, creator: targetConv, sender: 'user', text: textToSend }),
+      });
+    } catch (err) {}
   };
 
   // Global Escape key listener to dismiss modal
@@ -202,8 +267,13 @@ function ChatContent() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handlePayOffer = (offerId: string) => {
-    const targetConv = activeConversation;
+  const handlePayOffer = async (offerId: string) => {
+    let activeUserId = 'usr-1';
+    try {
+      const storedUser = localStorage.getItem('mirage_user');
+      if (storedUser) activeUserId = JSON.parse(storedUser)?.id || 'usr-1';
+    } catch (e) {}
+
     updateCurrentMessages(prev =>
       prev.map(msg => {
         if (msg.offerDetails && msg.offerDetails.id === offerId) {
@@ -219,49 +289,68 @@ function ChatContent() {
       })
     );
 
-    setPaymentNotice('Payment verified! The creator has been notified to produce and upload your personalized content.');
-    setTimeout(() => setPaymentNotice(null), 5000);
+    try {
+      await fetch('/api/custom-requests', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId: offerId, action: 'PAY', userId: activeUserId }),
+      });
+    } catch (e) {}
 
-    setTimeout(() => {
-      setMessagesByCreator((prevMap) => ({
-        ...prevMap,
-        [targetConv]: (prevMap[targetConv] || []).map(msg => {
-          if (msg.offerDetails && msg.offerDetails.id === offerId) {
-            return {
-              ...msg,
-              offerDetails: {
-                ...msg.offerDetails,
-                status: 'DELIVERED',
-                deliveredMediaUrl:
-                  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
-              },
-            };
-          }
-          return msg;
-        }),
-      }));
-    }, 3000);
+    setPaymentNotice('Payment verified! Order sent to Creator Studio for production & delivery.');
+    setTimeout(() => setPaymentNotice(null), 5000);
   };
 
-  const handleRequestSubmit = (e: React.FormEvent) => {
+  const handleRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customTitle) return;
+
+    let activeUser = { id: 'usr-1', name: 'Alex Mercer', username: 'alexmercer' };
+    try {
+      const storedUser = localStorage.getItem('mirage_user');
+      if (storedUser) activeUser = { ...activeUser, ...JSON.parse(storedUser) };
+    } catch (e) {}
+
+    const numericPrice = parseFloat(customPrice) || 35.0;
+    let requestId = `req-${Date.now()}`;
+
+    try {
+      const res = await fetch('/api/custom-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: activeUser.id,
+          customerName: activeUser.name,
+          customerHandle: `@${activeUser.username}`,
+          creatorHandle: activeConversation,
+          title: customTitle,
+          price: numericPrice,
+          paid: true,
+        }),
+      });
+      const data = await res.json();
+      if (data?.request?.id) {
+        requestId = data.request.id;
+      }
+    } catch (err) {}
 
     const newOfferMsg: ChatMessage = {
       id: `m-cust-${Date.now()}`,
       sender: 'user',
-      text: `[Custom Request Proposal]: ${customTitle}`,
+      text: `[Custom Request Submitted]: ${customTitle}`,
       time: 'Just now',
       isCustomOffer: true,
       offerDetails: {
-        id: `off-${Date.now()}`,
+        id: requestId,
         title: customTitle,
-        price: parseFloat(customPrice) || 30.0,
-        status: 'PENDING_PAYMENT',
+        price: numericPrice,
+        status: 'PAID',
       },
     };
 
     updateCurrentMessages(prev => [...prev, newOfferMsg]);
+    setPaymentNotice('Custom request submitted & sent directly to Creator Studio!');
+    setTimeout(() => setPaymentNotice(null), 4000);
     setShowCustomModal(false);
     setCustomTitle('');
   };

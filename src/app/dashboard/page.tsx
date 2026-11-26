@@ -55,6 +55,14 @@ export default function UserDashboard() {
   const [vaultFilter, setVaultFilter] = useState<'ALL' | 'IMAGE' | 'VIDEO'>('ALL');
   const [activeMediaModal, setActiveMediaModal] = useState<PurchasedItem | null>(null);
 
+  // Subscriptions, Follows, Billing, Profile state loaded from backend APIs
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [followed, setFollowed] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [profileName, setProfileName] = useState('');
+  const [profileBio, setProfileBio] = useState('');
+  const [profileSaved, setProfileSaved] = useState(false);
+
   useEffect(() => {
     const stored = localStorage.getItem('mirage_user');
     let currentUser = {
@@ -70,7 +78,8 @@ export default function UserDashboard() {
       } catch (e) {}
     }
     setUser(currentUser);
-    fetchPurchases(currentUser.id);
+    setProfileName(currentUser.name || '');
+    loadAllDashboardData(currentUser.id);
   }, []);
 
   // Global Escape key listener to close media viewer modal
@@ -84,137 +93,133 @@ export default function UserDashboard() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const fetchPurchases = async (userId: string) => {
+  const loadAllDashboardData = async (userId: string) => {
     setVaultLoading(true);
     try {
-      const res = await fetch(`/api/user/purchases?userId=${userId}`);
-      const data = await res.json();
-      if (data.success && Array.isArray(data.purchases)) {
-        // Also combine with initial custom delivered orders for complete vault
-        const combined = [
-          ...data.purchases,
-          {
-            id: 'pur-custom-1',
-            title: 'Custom VIP Video Shoutout & Q&A',
-            creatorName: 'Luna Rae',
-            creatorHandle: 'luna-rae',
-            price: 45.00,
-            mediaType: 'VIDEO' as const,
-            accessUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-            thumbnailUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
-            purchasedAt: '2026-10-20T14:10:00Z',
-          },
-        ];
-        setVaultItems(combined);
+      const token = localStorage.getItem('mirage_token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+
+      const [purchRes, subRes, folRes, txRes, profRes] = await Promise.all([
+        fetch(`/api/user/purchases?userId=${encodeURIComponent(userId)}`, { headers, cache: 'no-store' }),
+        fetch(`/api/user/subscriptions?userId=${encodeURIComponent(userId)}`, { headers, cache: 'no-store' }),
+        fetch(`/api/user/follows?userId=${encodeURIComponent(userId)}`, { headers, cache: 'no-store' }),
+        fetch(`/api/user/transactions?userId=${encodeURIComponent(userId)}`, { headers, cache: 'no-store' }),
+        fetch(`/api/user/profile?userId=${encodeURIComponent(userId)}`, { headers, cache: 'no-store' }),
+      ]);
+
+      if (purchRes.ok) {
+        const data = await purchRes.json();
+        if (data.success && Array.isArray(data.purchases)) {
+          setVaultItems(data.purchases);
+        }
+      }
+      if (subRes.ok) {
+        const sData = await subRes.json();
+        if (sData.success && Array.isArray(sData.subscriptions)) {
+          setSubscriptions(
+            sData.subscriptions.map((s: any) => ({
+              id: s.id,
+              creatorName: s.creatorName,
+              creatorHandle: s.creatorHandle,
+              avatar: s.creatorAvatar,
+              price: s.price,
+              status: s.status,
+              nextBilling: s.nextBilling,
+            }))
+          );
+        }
+      }
+      if (folRes.ok) {
+        const fData = await folRes.json();
+        if (fData.success && Array.isArray(fData.follows)) {
+          setFollowed(
+            fData.follows.map((f: any) => ({
+              id: f.id,
+              name: f.creatorName,
+              handle: f.creatorHandle,
+              avatar: f.creatorAvatar,
+              price: f.price,
+            }))
+          );
+        }
+      }
+      if (txRes.ok) {
+        const tData = await txRes.json();
+        if (tData.success && Array.isArray(tData.transactions)) {
+          setTransactions(
+            tData.transactions.map((t: any) => ({
+              id: t.transactionReference || t.id,
+              type: t.type,
+              description: t.postTitle ? `${t.creatorName || 'Creator'} - ${t.postTitle}` : `${t.creatorName || 'Creator'} - ${t.type}`,
+              amount: t.grossAmount,
+              status: t.status,
+              date: t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
+            }))
+          );
+        }
+      }
+      if (profRes.ok) {
+        const pData = await profRes.json();
+        if (pData.success && pData.user) {
+          setProfileName(pData.user.name || '');
+          setProfileBio(pData.user.bio || '');
+        }
       }
     } catch (e) {
-      console.error('Failed to load purchases:', e);
+      console.error('Failed to load dashboard data:', e);
     } finally {
       setVaultLoading(false);
     }
   };
 
-  // Active subscriptions (loaded from localStorage with default seeds)
-  const [subscriptions, setSubscriptions] = useState([
-    {
-      id: 'sub-1',
-      creatorName: 'Luna Rae',
-      creatorHandle: 'luna-rae',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-      price: 9.99,
-      status: 'ACTIVE',
-      nextBilling: 'November 21, 2026',
-    },
-    {
-      id: 'sub-2',
-      creatorName: 'Sophie Lee',
-      creatorHandle: 'sophie-lee',
-      avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
-      price: 9.99,
-      status: 'ACTIVE',
-      nextBilling: 'November 18, 2026',
-    },
-  ]);
-
-  // Followed creators (loaded from localStorage with default seeds)
-  const [followed, setFollowed] = useState([
-    { id: 'f1', name: 'Mia Carter', handle: 'mia-carter', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80', price: 7.99 },
-    { id: 'f2', name: 'Zara Khan', handle: 'zara-khan', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80', price: 12.99 },
-  ]);
-
-  useEffect(() => {
+  const handleUnfollow = async (creatorHandle: string) => {
+    setFollowed(prev => prev.filter(c => c.handle !== creatorHandle));
     try {
-      const storedSubs = localStorage.getItem('mirage_subscriptions');
-      if (storedSubs) {
-        const parsed = JSON.parse(storedSubs);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setSubscriptions(parsed);
-        }
-      }
-    } catch (e) {}
-
-    try {
-      const storedFollowed = localStorage.getItem('mirage_followed_creators');
-      if (storedFollowed) {
-        const parsed = JSON.parse(storedFollowed);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setFollowed(parsed);
-        }
-      }
-    } catch (e) {}
-  }, []);
-
-  const handleUnfollow = (creatorHandle: string) => {
-    const updated = followed.filter(c => c.handle !== creatorHandle);
-    setFollowed(updated);
-    try {
-      localStorage.setItem('mirage_followed_creators', JSON.stringify(updated));
+      await fetch(`/api/user/follows?userId=${encodeURIComponent(user?.id || 'usr-1')}&handle=${encodeURIComponent(creatorHandle)}`, {
+        method: 'DELETE',
+      });
     } catch (e) {}
   };
 
-  const handleCancelSubscription = (subId: string) => {
-    const updated = subscriptions.filter(s => s.id !== subId);
-    setSubscriptions(updated);
+  const handleCancelSubscription = async (subId: string) => {
+    setSubscriptions(prev => prev.filter(s => s.id !== subId));
     try {
-      localStorage.setItem('mirage_subscriptions', JSON.stringify(updated));
+      await fetch('/api/user/subscriptions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscriptionId: subId,
+          userId: user?.id || 'usr-1',
+          action: 'CANCEL',
+        }),
+      });
     } catch (e) {}
   };
 
-  // Transaction history with PPV Individual content
-  const transactions = [
-    {
-      id: 'tx-1003',
-      type: 'INDIVIDUAL_CONTENT',
-      description: 'Luna Rae - Private Sunset Mirage Collection #1',
-      amount: 15.00,
-      status: 'SUCCESS',
-      date: 'Oct 25, 2026',
-    },
-    {
-      id: 'tx-1001',
-      type: 'SUBSCRIPTION',
-      description: 'Luna Rae Monthly Subscription',
-      amount: 9.99,
-      status: 'SUCCESS',
-      date: 'Oct 21, 2026',
-    },
-    {
-      id: 'tx-1002',
-      type: 'CUSTOM_CONTENT',
-      description: 'Luna Rae - Personalised VIP Video Request',
-      amount: 45.00,
-      status: 'SUCCESS',
-      date: 'Oct 20, 2026',
-    },
-    {
-      id: 'tx-1004',
-      type: 'SUBSCRIPTION',
-      description: 'Sophie Lee Monthly Subscription',
-      amount: 9.99,
-      status: 'SUCCESS',
-      date: 'Oct 18, 2026',
-    },
-  ];
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          name: profileName,
+          bio: profileBio,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        const updatedUser = { ...user, name: data.user.name };
+        setUser(updatedUser);
+        localStorage.setItem('mirage_user', JSON.stringify(updatedUser));
+        window.dispatchEvent(new Event('mirage_auth_changed'));
+        setProfileSaved(true);
+        setTimeout(() => setProfileSaved(false), 2500);
+      }
+    } catch (err) {}
+  };
 
   const filteredVault = vaultItems.filter(item => {
     if (vaultFilter === 'ALL') return true;
@@ -251,6 +256,11 @@ export default function UserDashboard() {
         onCloseMobile={() => setMobileSidebarOpen(false)}
         userName={user?.name || 'Alex Mercer'}
         userHandle={`@${user?.username || 'alexmercer'}`}
+        badges={{
+          subscriptions: subscriptions.length > 0 ? `${subscriptions.length} Active` : '0',
+          purchases: String(vaultItems.length),
+          followed: String(followed.length),
+        }}
       />
 
       {/* Main Content Area */}
@@ -612,6 +622,13 @@ export default function UserDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#1e1e28] text-white">
+                    {transactions.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-[#717182]">
+                          No billing invoices found yet.
+                        </td>
+                      </tr>
+                    )}
                     {transactions.map((tx) => (
                       <tr key={tx.id} className="hover:bg-[#161622]/50">
                         <td className="py-3.5 px-4 font-mono text-[#a3a3b5]">{tx.id}</td>
@@ -642,19 +659,46 @@ export default function UserDashboard() {
 
           {/* Tab 5: Account Settings */}
           {activeTab === 'settings' && (
-            <div className="max-w-md mx-auto p-6 sm:p-8 rounded-3xl bg-[#111118] border border-[#232332] space-y-4">
+            <form
+              onSubmit={handleSaveProfile}
+              className="max-w-md mx-auto p-6 sm:p-8 rounded-3xl bg-[#111118] border border-[#232332] space-y-4"
+            >
               <h3 className="text-base font-serif font-bold text-white flex items-center gap-2">
                 <User className="w-4 h-4 text-[#f5d77f]" />
                 Account Profile & Privacy
               </h3>
+              {profileSaved && (
+                <div className="p-3 rounded-xl bg-green-950/60 border border-green-500/40 text-green-300 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-400" />
+                  Profile updated and synced to server!
+                </div>
+              )}
               <div className="space-y-3 text-xs">
                 <div>
-                  <span className="text-[#717182] block mb-1">Display Name</span>
-                  <div className="p-2.5 rounded-xl bg-[#161622] text-white font-semibold">{user?.name || 'Alex Mercer'}</div>
+                  <label className="text-[#717182] block mb-1">Display Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-[#161622] border border-[#282838] text-white font-semibold focus:outline-none focus:border-[#d4af37]"
+                  />
                 </div>
                 <div>
-                  <span className="text-[#717182] block mb-1">Email Address</span>
-                  <div className="p-2.5 rounded-xl bg-[#161622] text-white font-semibold">{user?.email || 'subscriber@themirage.vip'}</div>
+                  <label className="text-[#717182] block mb-1">Email Address</label>
+                  <div className="p-2.5 rounded-xl bg-[#161622]/70 text-[#94a3b8] font-semibold">
+                    {user?.email || 'subscriber@themirage.vip'}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[#717182] block mb-1">Bio</label>
+                  <textarea
+                    rows={2}
+                    value={profileBio}
+                    onChange={(e) => setProfileBio(e.target.value)}
+                    placeholder="Short member bio..."
+                    className="w-full p-2.5 rounded-xl bg-[#161622] border border-[#282838] text-white focus:outline-none focus:border-[#d4af37]"
+                  />
                 </div>
                 <div>
                   <span className="text-[#717182] block mb-1">Age Verification Status</span>
@@ -663,7 +707,13 @@ export default function UserDashboard() {
                   </div>
                 </div>
               </div>
-            </div>
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-xl gold-button text-xs font-bold shadow-gold-sm"
+              >
+                Save Account Changes
+              </button>
+            </form>
           )}
         </main>
       </div>

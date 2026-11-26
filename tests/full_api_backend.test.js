@@ -14,7 +14,7 @@ console.log('================================================================\n'
 // Start the real Next.js/Node server on an isolated port
 const PORT = 3009;
 const server = spawn('node', ['server.js'], {
-  env: { ...process.env, NODE_ENV: 'production', PORT: String(PORT) },
+  env: { ...process.env, NODE_ENV: 'production', PORT: String(PORT), MIRAGE_DISABLE_DISK_PERSIST: 'true' },
   stdio: ['ignore', 'inherit', 'inherit'],
 });
 
@@ -271,6 +271,69 @@ async function runTests() {
   assert.strictEqual(creatorsRouteRes.status, 200);
   assert.ok(typeof creatorsRouteRes.data === 'string' && creatorsRouteRes.data.includes('Mia Carter'));
   console.log('✓ Test 17: Creator Profile Pages (/creator and /creators) return 200 OK');
+  passed++;
+
+  // 18. Real User Registration -> Admin User Accounts & Creators Sync
+  const uniqueSubEmail = `newsub_${Date.now()}@themirage.vip`;
+  const subRegRes = await request('POST', '/api/auth/register', {
+    name: 'Real New Subscriber',
+    username: `realsub_${Date.now()}`,
+    email: uniqueSubEmail,
+    password: 'SecretPassword123',
+    role: 'SUBSCRIBER',
+  });
+  assert.strictEqual(subRegRes.status, 200);
+  const newSubId = subRegRes.data.user.id;
+
+  const adminUsersRes = await request('GET', '/api/admin/users');
+  assert.strictEqual(adminUsersRes.status, 200);
+  assert.ok(adminUsersRes.data.users.some(u => u.email === uniqueSubEmail), 'Registered subscriber must immediately appear in Admin Users');
+
+  const uniqueCreatorEmail = `newcreator_${Date.now()}@themirage.vip`;
+  const creatorRegRes = await request('POST', '/api/auth/register', {
+    name: 'Elena Live Creator',
+    username: `elena_live_${Date.now()}`,
+    email: uniqueCreatorEmail,
+    password: 'SecretPassword123',
+    role: 'CREATOR',
+    monthlyPrice: 19.99,
+  });
+  assert.strictEqual(creatorRegRes.status, 200);
+
+  const adminCreatorsRes = await request('GET', '/api/admin/creators');
+  assert.strictEqual(adminCreatorsRes.status, 200);
+  assert.ok(adminCreatorsRes.data.creators.some(c => c.name === 'Elena Live Creator'), 'Registered creator must immediately appear in Admin Creators');
+  console.log('✓ Test 18: Newly registered Subscriber & Creator live-synced to Admin Panel');
+  passed++;
+
+  // 19. Real Follows, Custom Requests & Admin Overview Analytics
+  const followRes = await request('POST', '/api/user/follows', { userId: newSubId, handle: 'luna-rae' });
+  assert.strictEqual(followRes.status, 200);
+  const followsListRes = await request('GET', `/api/user/follows?userId=${newSubId}`);
+  assert.ok(followsListRes.data.follows.some(f => f.creatorHandle === 'luna-rae'));
+
+  const customReqRes = await request('POST', '/api/custom-requests', {
+    customerId: newSubId,
+    creatorHandle: 'luna-rae',
+    title: 'VIP Integration Custom Clip',
+    price: 40.00,
+    paid: true,
+  });
+  assert.strictEqual(customReqRes.status, 200);
+  const reqId = customReqRes.data.request.id;
+
+  const deliverRes = await request('PATCH', '/api/custom-requests', {
+    requestId: reqId,
+    action: 'DELIVER',
+    deliveredMediaUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
+  });
+  assert.strictEqual(deliverRes.status, 200);
+  assert.strictEqual(deliverRes.data.request.status, 'DELIVERED');
+
+  const adminOverviewRes = await request('GET', '/api/admin/overview');
+  assert.strictEqual(adminOverviewRes.status, 200);
+  assert.ok(adminOverviewRes.data.metrics.totalGross > 0);
+  console.log('✓ Test 19: Follows, Custom Request Delivery -> Vault, & Admin Live Overview verified');
   passed++;
 
   console.log('\n================================================================');

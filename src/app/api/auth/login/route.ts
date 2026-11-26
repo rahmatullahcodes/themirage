@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { signToken } from '@/lib/auth';
+import { signToken, comparePassword } from '@/lib/auth';
+import { findUserByEmail, registerNewUser } from '@/lib/contentStore';
 
 export async function POST(req: Request) {
   try {
@@ -17,46 +18,45 @@ export async function POST(req: Request) {
     }
 
     const lowerEmail = email.trim().toLowerCase();
+    let dbUser = findUserByEmail(lowerEmail);
 
-    // Assign demo roles for verified demo accounts; external signups default to SUBSCRIBER
-    let role: 'ADMIN' | 'CREATOR' | 'SUBSCRIBER' = 'SUBSCRIBER';
-    let name = 'Alex Mercer';
-    let username = 'alexmercer';
-    let id = 'usr-1';
-
-    if (lowerEmail === 'admin@themirage.vip') {
-      role = 'ADMIN';
-      name = 'Mirage Admin';
-      username = 'admin';
-      id = 'admin-1';
-    } else if (lowerEmail === 'creator@themirage.vip' || lowerEmail === 'luna@themirage.vip') {
-      role = 'CREATOR';
-      name = 'Luna Rae';
-      username = 'luna-rae';
-      id = 'c1';
-    } else if (lowerEmail === 'sophie@themirage.vip') {
-      role = 'CREATOR';
-      name = 'Sophie Lee';
-      username = 'sophie-lee';
-      id = 'c2';
-    } else if (lowerEmail === 'mia@themirage.vip') {
-      role = 'CREATOR';
-      name = 'Mia Carter';
-      username = 'mia-carter';
-      id = 'c3';
-    } else if (lowerEmail !== 'subscriber@themirage.vip') {
+    if (dbUser) {
+      if (dbUser.status === 'SUSPENDED') {
+        return NextResponse.json(
+          { error: 'This account has been suspended by administration.' },
+          { status: 403 }
+        );
+      }
+      // Verify hashed password if the account was registered with a password
+      if (dbUser.passwordHash) {
+        const isValid = await comparePassword(password, dbUser.passwordHash);
+        if (!isValid) {
+          return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+        }
+      }
+    } else {
+      // Auto-provision subscriber record on demo/test login so user appears in Admin User Accounts
       const localPart = lowerEmail.split('@')[0] || 'member';
-      name = localPart.replace(/[._-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-      username = localPart.replace(/[^a-z0-9_-]/g, '');
-      id = `usr_${Buffer.from(lowerEmail).toString('hex').slice(0, 10)}`;
+      const displayName = localPart.replace(/[._-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+      const cleanUsername = localPart.replace(/[^a-z0-9_-]/g, '') || `user_${Date.now()}`;
+      const reg = registerNewUser({
+        name: displayName,
+        username: cleanUsername,
+        email: lowerEmail,
+        role: 'SUBSCRIBER',
+      });
+      if (!reg.success || !reg.user) {
+        return NextResponse.json({ error: 'Authentication failed' }, { status: 401 });
+      }
+      dbUser = reg.user;
     }
 
     const user = {
-      id,
-      name,
-      username,
-      email: lowerEmail,
-      role,
+      id: dbUser.id,
+      name: dbUser.name,
+      username: dbUser.username,
+      email: dbUser.email,
+      role: dbUser.role,
     };
 
     const token = signToken({
@@ -75,4 +75,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Login error occurred' }, { status: 500 });
   }
 }
-

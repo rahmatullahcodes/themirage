@@ -6,6 +6,7 @@ import {
   resolveCreatorId,
   getCreatorNameById,
   recordTransaction,
+  getPlatformSettings,
 } from '@/lib/contentStore';
 
 export async function POST(req: Request) {
@@ -37,8 +38,9 @@ export async function POST(req: Request) {
     // Record active subscription entitlement in contentStore so subscriber-only media unlocks on backend
     subscribeUserToCreator(user.userId, resolvedCreatorId);
 
-    // Calculate commission using unified engine (85% Creator / 15% Platform)
-    const commission = calculateCommission(numericAmount);
+    // Calculate commission using live configured platform rule (default 85% Creator / 15% Platform)
+    const settings = getPlatformSettings();
+    const commission = calculateCommission(numericAmount, settings.creatorCommissionPercent);
     const now = new Date().toISOString();
     const txRef = `MIRAGE_SUB_${Date.now()}`;
 

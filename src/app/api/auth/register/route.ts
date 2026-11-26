@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { signToken } from '@/lib/auth';
+import { signToken, hashPassword } from '@/lib/auth';
+import { registerNewUser } from '@/lib/contentStore';
 
 export async function POST(req: Request) {
   try {
@@ -25,21 +26,38 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
     }
 
+    const passwordHash = await hashPassword(password);
     const assignedRole = role === 'CREATOR' ? 'CREATOR' : 'SUBSCRIBER';
 
-    const user = {
-      id: `usr_${Date.now()}`,
-      name: name.trim(),
-      username: username.trim().toLowerCase(),
-      email: email.trim().toLowerCase(),
+    const regResult = registerNewUser({
+      name,
+      username,
+      email,
+      passwordHash,
       role: assignedRole,
       monthlyPrice: assignedRole === 'CREATOR' ? (Number(monthlyPrice) || 9.99) : undefined,
+    });
+
+    if (!regResult.success || !regResult.user) {
+      return NextResponse.json(
+        { error: regResult.error || 'Registration failed' },
+        { status: 400 }
+      );
+    }
+
+    const user = {
+      id: regResult.user.id,
+      name: regResult.user.name,
+      username: regResult.user.username,
+      email: regResult.user.email,
+      role: regResult.user.role,
+      monthlyPrice: regResult.creator?.monthlyPrice,
     };
 
     const token = signToken({
       userId: user.id,
       email: user.email,
-      role: user.role as 'SUBSCRIBER' | 'CREATOR' | 'ADMIN',
+      role: user.role,
       username: user.username,
     });
 
@@ -52,4 +70,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Failed to register account' }, { status: 500 });
   }
 }
-

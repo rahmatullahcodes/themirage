@@ -130,7 +130,31 @@ function ExploreContent() {
     return num;
   };
 
-  const filteredCreators = ALL_CREATORS.filter((c) => {
+  const [creatorsList, setCreatorsList] = useState(ALL_CREATORS);
+
+  useEffect(() => {
+    fetch('/api/creators', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.success && Array.isArray(data.creators) && data.creators.length > 0) {
+          setCreatorsList(
+            data.creators.map((c: any) => ({
+              id: c.id,
+              name: c.name,
+              handle: c.handle,
+              followers: c.followers || '0',
+              price: Number(c.monthlyPrice) || 9.99,
+              image: c.avatar,
+              category: c.category || 'Popular',
+              isVerified: Boolean(c.isVerified),
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const filteredCreators = creatorsList.filter((c) => {
     const matchesCategory =
       activeCategory === 'All' || c.category.toLowerCase() === activeCategory.toLowerCase();
     const matchesSearch =

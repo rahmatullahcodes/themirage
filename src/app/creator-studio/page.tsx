@@ -36,17 +36,25 @@ export default function CreatorStudioPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [creatorUser, setCreatorUser] = useState({
+    id: 'c1',
     name: 'Luna Rae',
     username: 'luna-rae',
   });
+  const [studioNotice, setStudioNotice] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setStudioNotice(msg);
+    setTimeout(() => setStudioNotice(null), 3500);
+  };
 
   useEffect(() => {
     try {
       const stored = localStorage.getItem('mirage_user');
       if (stored) {
         const u = JSON.parse(stored);
-        if (u.name) {
+        if (u.name && u.role === 'CREATOR') {
           setCreatorUser({
+            id: u.id || 'c1',
             name: u.name,
             username: u.username || u.name.toLowerCase().replace(/\s+/g, '-'),
           });
@@ -77,30 +85,13 @@ export default function CreatorStudioPage() {
   const [monthlyPrice, setMonthlyPrice] = useState('9.99');
   const [priceSaveSuccess, setPriceSaveSuccess] = useState(false);
 
-  // Custom Content Orders state
-  const [orders, setOrders] = useState([
-    {
-      id: 'req-201',
-      customerName: 'Alex Mercer',
-      title: 'Birthday Video Shoutout for Sarah',
-      price: 50.00,
-      status: 'AWAITING_DELIVERY',
-      requestedAt: 'Oct 20, 2026',
-    },
-    {
-      id: 'req-202',
-      customerName: 'Marcus Wright',
-      title: 'Private Fitness Nutrition Advice Clip',
-      price: 35.00,
-      status: 'DELIVERED',
-      requestedAt: 'Oct 18, 2026',
-    },
-  ]);
+  // Live Custom Content Orders state
+  const [orders, setOrders] = useState<any[]>([]);
 
   const [deliveringOrderId, setDeliveringOrderId] = useState<string | null>(null);
   const [deliveryFileUrl, setDeliveryFileUrl] = useState('');
 
-  // Feed posts (including individual paid content and public previews)
+  // Feed posts (loaded from /api/content/posts?studio=true)
   interface CreatorFeedPost {
     id: string;
     type: 'image' | 'video' | 'IMAGE' | 'VIDEO';
@@ -115,191 +106,34 @@ export default function CreatorStudioPage() {
     date: string;
   }
 
-  const [feedPosts, setFeedPosts] = useState<CreatorFeedPost[]>([
-    {
-      id: 'fp-prev-1',
-      type: 'image',
-      title: 'Santorini Sunset Editorial',
-      url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
-      caption: 'Golden hour shot over Oia cliffs. One of my favorite looks from the summer campaign.',
-      visibility: 'PUBLIC',
-      isPublicPreview: true,
-      price: 0,
-      status: 'PUBLISHED',
-      likes: 1420,
-      date: '2 days ago',
-    },
-    {
-      id: 'fp-prev-2',
-      type: 'image',
-      title: 'Parisian Morning Bloom',
-      url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80',
-      caption: 'Early morning coffee on the private balcony overlooking the city.',
-      visibility: 'PUBLIC',
-      isPublicPreview: true,
-      price: 0,
-      status: 'PUBLISHED',
-      likes: 980,
-      date: '3 days ago',
-    },
-    {
-      id: 'fp-prev-3',
-      type: 'image',
-      title: 'Milan Haute Couture Session',
-      url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
-      caption: 'Studio lighting test before Milan Fashion Week runway show.',
-      visibility: 'PUBLIC',
-      isPublicPreview: true,
-      price: 0,
-      status: 'PUBLISHED',
-      likes: 1650,
-      date: '4 days ago',
-    },
-    {
-      id: 'fp-prev-vid-1',
-      type: 'video',
-      title: 'Paris Runway Fashion Week Teaser',
-      url: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=600&q=80',
-      caption: 'Exclusive backstage sneak peek into the 2026 autumn runway collection.',
-      visibility: 'PUBLIC',
-      isPublicPreview: true,
-      price: 0,
-      status: 'PUBLISHED',
-      likes: 2310,
-      date: '1 day ago',
-    },
-    {
-      id: 'fp-prev-vid-2',
-      type: 'video',
-      title: 'Sunset Studio BTS Clip',
-      url: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=600&q=80',
-      caption: 'Behind the lens of our private coastal editorial shoot.',
-      visibility: 'PUBLIC',
-      isPublicPreview: true,
-      price: 0,
-      status: 'PUBLISHED',
-      likes: 3120,
-      date: '3 days ago',
-    },
-    {
-      id: 'fp-1',
-      type: 'image',
-      title: 'Luxury Villa Sunset Photoshoot (4K Set)',
-      url: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=600&q=80',
-      caption: 'Ultra high-definition exclusive studio photoshoot in Monaco.',
-      visibility: 'PURCHASE_ONLY',
-      isPublicPreview: false,
-      price: 15.00,
-      status: 'PUBLISHED',
-      likes: 4610,
-      date: '1 day ago',
-    },
-    {
-      id: 'fp-2',
-      type: 'video',
-      title: 'Paris Runway Fashion Week 4K Cinematic Film',
-      url: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=600&q=80',
-      caption: 'Full 18-minute backstage runway documentary & commentary.',
-      visibility: 'PURCHASE_ONLY',
-      isPublicPreview: false,
-      price: 24.99,
-      status: 'PUBLISHED',
-      likes: 6120,
-      date: '2 days ago',
-    },
-    {
-      id: 'fp-3',
-      type: 'image',
-      title: 'Backstage Photoshoot',
-      url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80',
-      caption: 'Exclusive backstage photoshoot session. Live for subscribers!',
-      visibility: 'SUBSCRIBER_ONLY',
-      isPublicPreview: false,
-      price: 0,
-      status: 'PUBLISHED',
-      likes: 3820,
-      date: '3 days ago',
-    },
-  ]);
+  const [feedPosts, setFeedPosts] = useState<CreatorFeedPost[]>([]);
 
-  // Earnings Breakdown State (Section 7 Requirement)
+  // Live Earnings Breakdown State
   const [revenueFilter, setRevenueFilter] = useState<'ALL' | 'SUBSCRIPTIONS' | 'INDIVIDUAL' | 'CUSTOM'>('ALL');
+  const [commissionSplit, setCommissionSplit] = useState({ creatorPercent: 85, platformPercent: 15 });
+  const [earningsSummary, setEarningsSummary] = useState({
+    subscriptions: { count: 0, grossAmount: 0, creatorNet: 0, platformShare: 0 },
+    individualContent: { count: 0, grossAmount: 0, creatorNet: 0, platformShare: 0 },
+    customRequests: { count: 0, grossAmount: 0, creatorNet: 0, platformShare: 0 },
+    totals: { totalGross: 0, totalCreatorNet: 0, totalPlatformCut: 0 },
+    activeSubscribersCount: 0,
+  });
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [subscribers, setSubscribers] = useState<any[]>([]);
 
-  const subscriptionGross = 2840.00;
-  const individualContentGross = 1280.00;
-  const customOrdersGross = 160.00;
-  const totalGross = subscriptionGross + individualContentGross + customOrdersGross;
-
-  const totalCommission = calculateCommission(totalGross, 85);
-  const subCommission = calculateCommission(subscriptionGross, 85);
-  const indCommission = calculateCommission(individualContentGross, 85);
-  const custCommission = calculateCommission(customOrdersGross, 85);
-
-  const individualSalesOrders = [
-    {
-      ref: 'MIRAGE_PAY_99182',
-      title: 'Luxury Villa Sunset Photoshoot (4K Set)',
-      mediaType: 'IMAGE',
-      buyer: 'alexmercer',
-      gross: 15.00,
-      creatorShare: 12.75, // 85%
-      date: 'Oct 22, 2026',
-      status: 'SUCCESS',
-    },
-    {
-      ref: 'MIRAGE_PAY_88310',
-      title: 'Paris Runway Fashion Week 4K Cinematic Film',
-      mediaType: 'VIDEO',
-      buyer: 'marcus_w',
-      gross: 24.99,
-      creatorShare: 21.24, // 85%
-      date: 'Oct 21, 2026',
-      status: 'SUCCESS',
-    },
-    {
-      ref: 'MIRAGE_PAY_77491',
-      title: 'Luxury Villa Sunset Photoshoot (4K Set)',
-      mediaType: 'IMAGE',
-      buyer: 'david_k',
-      gross: 15.00,
-      creatorShare: 12.75, // 85%
-      date: 'Oct 20, 2026',
-      status: 'SUCCESS',
-    },
-    {
-      ref: 'MIRAGE_PAY_66238',
-      title: 'Paris Runway Fashion Week 4K Cinematic Film',
-      mediaType: 'VIDEO',
-      buyer: 'liamv',
-      gross: 24.99,
-      creatorShare: 21.24, // 85%
-      date: 'Oct 19, 2026',
-      status: 'SUCCESS',
-    },
-  ];
-
-  // Subscribers
-  const subscribers = [
-    { id: 's1', name: 'Alex Mercer', handle: '@alexmercer', status: 'ACTIVE', joined: 'Oct 12, 2026', totalSpent: '$85.00' },
-    { id: 's2', name: 'Marcus Wright', handle: '@marcus_w', status: 'ACTIVE', joined: 'Oct 14, 2026', totalSpent: '$44.99' },
-    { id: 's3', name: 'David Kim', handle: '@david_k', status: 'ACTIVE', joined: 'Oct 16, 2026', totalSpent: '$19.98' },
-    { id: 's4', name: 'Liam Vance', handle: '@liamv', status: 'ACTIVE', joined: 'Oct 18, 2026', totalSpent: '$9.99' },
-  ];
-
-  // Synchronize creator studio posts and saved price from backend/storage
-  useEffect(() => {
+  const loadAllStudioData = async (targetHandle: string) => {
     try {
-      const savedPrice = localStorage.getItem('mirage_creator_price');
-      if (savedPrice) setMonthlyPrice(savedPrice);
-    } catch (e) {}
+      const [postsRes, earningsRes, ordersRes] = await Promise.all([
+        fetch(`/api/content/posts?handle=${encodeURIComponent(targetHandle)}&studio=true`, { cache: 'no-store' }),
+        fetch(`/api/creator/earnings?creatorId=${encodeURIComponent(targetHandle)}`, { cache: 'no-store' }),
+        fetch(`/api/custom-requests?creatorId=${encodeURIComponent(targetHandle)}`, { cache: 'no-store' }),
+      ]);
 
-    async function loadStudioData() {
-      try {
-        const res = await fetch('/api/content/posts?handle=luna-rae&studio=true');
-        if (res.ok) {
-          const json = await res.json();
-          if (json?.posts && Array.isArray(json.posts)) {
-            const mapped: CreatorFeedPost[] = json.posts.map((p: any) => ({
+      if (postsRes.ok) {
+        const json = await postsRes.json();
+        if (json?.posts && Array.isArray(json.posts)) {
+          setFeedPosts(
+            json.posts.map((p: any) => ({
               id: p.id,
               type: p.mediaType,
               title: p.title,
@@ -309,20 +143,69 @@ export default function CreatorStudioPage() {
               isPublicPreview: Boolean(p.isPublicPreview),
               price: p.price || 0,
               status: p.status || 'PUBLISHED',
-              likes: p.likeCount || 100,
-              date: 'Recently',
-            }));
-            if (mapped.length > 0) {
-              setFeedPosts(mapped);
-            }
+              likes: p.likeCount || 0,
+              date: p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Recently',
+            }))
+          );
+        }
+      }
+
+      if (earningsRes.ok) {
+        const eJson = await earningsRes.json();
+        const e = eJson?.earnings;
+        if (e) {
+          setEarningsSummary({
+            subscriptions: e.subscriptions || { count: 0, grossAmount: 0, creatorNet: 0, platformShare: 0 },
+            individualContent: e.individualContent || { count: 0, grossAmount: 0, creatorNet: 0, platformShare: 0 },
+            customRequests: e.customRequests || { count: 0, grossAmount: 0, creatorNet: 0, platformShare: 0 },
+            totals: e.totals || { totalGross: 0, totalCreatorNet: 0, totalPlatformCut: 0 },
+            activeSubscribersCount: e.activeSubscribersCount ?? 0,
+          });
+          if (Array.isArray(e.recentTransactions)) setRecentTransactions(e.recentTransactions);
+          if (Array.isArray(e.subscribersList)) setSubscribers(e.subscribersList);
+          if (e.creatorProfile?.monthlyPrice) setMonthlyPrice(String(e.creatorProfile.monthlyPrice));
+          if (e.settings) {
+            setCommissionSplit({
+              creatorPercent: e.settings.creatorCommissionPercent || 85,
+              platformPercent: e.settings.platformCommissionPercent || 15,
+            });
           }
         }
-      } catch (e) {
-        // Fallback to initial state
       }
+
+      if (ordersRes.ok) {
+        const oJson = await ordersRes.json();
+        if (Array.isArray(oJson?.requests)) {
+          setOrders(oJson.requests);
+        }
+      }
+    } catch (e) {
+      console.error('Error loading Creator Studio data:', e);
     }
-    loadStudioData();
-  }, []);
+  };
+
+  useEffect(() => {
+    loadAllStudioData(creatorUser.username);
+  }, [creatorUser.username]);
+
+  const subscriptionGross = earningsSummary.subscriptions.grossAmount;
+  const individualContentGross = earningsSummary.individualContent.grossAmount;
+  const customOrdersGross = earningsSummary.customRequests.grossAmount;
+
+  const totalCommission = {
+    grossAmount: earningsSummary.totals.totalGross,
+    creatorShare: earningsSummary.totals.totalCreatorNet,
+  };
+  const subCommission = { creatorShare: earningsSummary.subscriptions.creatorNet };
+  const indCommission = { creatorShare: earningsSummary.individualContent.creatorNet };
+  const custCommission = { creatorShare: earningsSummary.customRequests.creatorNet };
+
+  const filteredLedgerTxs = recentTransactions.filter((tx) => {
+    if (revenueFilter === 'INDIVIDUAL') return tx.type === 'INDIVIDUAL_CONTENT';
+    if (revenueFilter === 'SUBSCRIPTIONS') return tx.type === 'SUBSCRIPTION';
+    if (revenueFilter === 'CUSTOM') return tx.type === 'CUSTOM_CONTENT';
+    return true;
+  });
 
   // Calculate current public profile preview counts (max 3 photos, max 2 videos)
   const previewPhotosCount = feedPosts.filter(
@@ -332,19 +215,31 @@ export default function CreatorStudioPage() {
     p => (p.type === 'video' || p.type === 'VIDEO') && p.isPublicPreview && p.status === 'PUBLISHED'
   ).length;
 
-  const handleDeliverOrder = (orderId: string) => {
-    if (!deliveryFileUrl) {
-      alert('Please enter or select a private delivery media URL');
+  const handleDeliverOrder = async (orderId: string) => {
+    if (!deliveryFileUrl.trim()) {
+      showToast('Please enter a private delivery media URL');
       return;
     }
-    setOrders(prev =>
-      prev.map(o =>
-        o.id === orderId ? { ...o, status: 'DELIVERED' } : o
-      )
-    );
-    setDeliveringOrderId(null);
-    setDeliveryFileUrl('');
-    alert('Custom content successfully delivered to customer vault!');
+    try {
+      const res = await fetch('/api/custom-requests', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: orderId,
+          action: 'DELIVER',
+          deliveredMediaUrl: deliveryFileUrl.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, status: 'DELIVERED', deliveredMediaUrl: deliveryFileUrl.trim() } : o)));
+        setDeliveringOrderId(null);
+        setDeliveryFileUrl('');
+        showToast('Custom content delivered & unlocked in customer vault!');
+      }
+    } catch (e) {
+      showToast('Failed to deliver custom order');
+    }
   };
 
   const handleCreatePost = async (e: React.FormEvent) => {
@@ -388,17 +283,15 @@ export default function CreatorStudioPage() {
       date: 'Just now',
     };
 
-    setFeedPosts(prev => [newPost, ...prev]);
-
     // Persist to backend contentStore
     try {
-      await fetch('/api/content/posts', {
+      const res = await fetch('/api/content/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          creatorId: 'c1',
-          creatorHandle: 'luna-rae',
-          creatorName: 'Luna Rae',
+          creatorId: creatorUser.id,
+          creatorHandle: creatorUser.username,
+          creatorName: creatorUser.name,
           title: newPost.title,
           caption: newPost.caption,
           mediaType,
@@ -410,6 +303,25 @@ export default function CreatorStudioPage() {
           price,
         }),
       });
+      const data = await res.json();
+      if (data?.post) {
+        setFeedPosts(prev => [
+          {
+            id: data.post.id,
+            type: data.post.mediaType,
+            title: data.post.title,
+            url: data.post.thumbnailUrl || data.post.mediaUrl,
+            caption: data.post.caption,
+            visibility: data.post.visibility,
+            isPublicPreview: Boolean(data.post.isPublicPreview),
+            price: data.post.price || 0,
+            status: data.post.status,
+            likes: 0,
+            date: 'Just now',
+          },
+          ...prev,
+        ]);
+      }
     } catch (err) {
       console.error('Failed to sync new post to backend:', err);
     }
@@ -442,18 +354,18 @@ export default function CreatorStudioPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           postId,
-          creatorId: 'c1',
+          creatorId: creatorUser.id,
           updates: { isPublicPreview: false },
         }),
       }).catch(err => console.error('Error toggling preview:', err));
     } else {
       const isVid = target.type === 'video' || target.type === 'VIDEO';
       if (!isVid && previewPhotosCount >= 3) {
-        alert('Limit reached: You already have 3 public preview photos. Unmark an existing photo preview first.');
+        showToast('Limit reached: Max 3 public preview photos allowed. Unmark one first.');
         return;
       }
       if (isVid && previewVideosCount >= 2) {
-        alert('Limit reached: You already have 2 public preview videos. Unmark an existing video preview first.');
+        showToast('Limit reached: Max 2 public preview videos allowed. Unmark one first.');
         return;
       }
       setFeedPosts(prev =>
@@ -466,7 +378,7 @@ export default function CreatorStudioPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           postId,
-          creatorId: 'c1',
+          creatorId: creatorUser.id,
           updates: { isPublicPreview: true, visibility: 'PUBLIC' },
         }),
       }).catch(err => console.error('Error toggling preview:', err));
@@ -476,7 +388,7 @@ export default function CreatorStudioPage() {
   const handleUpdatePrice = (postId: string) => {
     const p = parseFloat(editPriceInput);
     if (isNaN(p) || p <= 0) {
-      alert('Please enter a valid price amount');
+      showToast('Please enter a valid price amount');
       return;
     }
     setFeedPosts(prev =>
@@ -489,7 +401,7 @@ export default function CreatorStudioPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         postId,
-        creatorId: 'c1',
+        creatorId: creatorUser.id,
         updates: { price: p },
       }),
     }).catch(err => console.error('Error updating price:', err));
@@ -517,7 +429,7 @@ export default function CreatorStudioPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         postId,
-        creatorId: 'c1',
+        creatorId: creatorUser.id,
         updates: { status: nextStatus },
       }),
     }).catch(err => console.error('Error updating status:', err));
@@ -557,6 +469,12 @@ export default function CreatorStudioPage() {
         onCloseMobile={() => setMobileSidebarOpen(false)}
         userName={creatorUser.name}
         userHandle={`@${creatorUser.username}`}
+        badges={{
+          orders: String(orders.filter(o => o.status !== 'DELIVERED').length || 0),
+          feed: String(feedPosts.length),
+          earnings: `$${totalCommission.creatorShare.toFixed(0)}`,
+          subscribers: String(earningsSummary.activeSubscribersCount),
+        }}
       />
 
       {/* Main Content Area */}
@@ -572,11 +490,18 @@ export default function CreatorStudioPage() {
         />
 
         <main className="flex-1 p-4 sm:p-8 space-y-8 max-w-7xl mx-auto w-full">
+          {studioNotice && (
+            <div className="p-3.5 rounded-xl bg-green-950/70 border border-green-500/40 text-green-300 text-xs flex items-center gap-2 shadow-lg">
+              <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+              <span>{studioNotice}</span>
+            </div>
+          )}
+
           {/* 4 Financial & Engagement KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="p-5 rounded-2xl bg-[#111117] border border-[#22222e]">
               <div className="flex justify-between items-center text-[#7e7e90] text-xs mb-2">
-                <span>Total 85% Net Earnings</span>
+                <span>Total {commissionSplit.creatorPercent}% Net Earnings</span>
                 <DollarSign className="w-4 h-4 text-[#f5d77f]" />
               </div>
               <div className="text-2xl font-serif font-bold text-[#f5d77f]">
@@ -596,7 +521,7 @@ export default function CreatorStudioPage() {
                 ${indCommission.creatorShare.toFixed(2)}
               </div>
               <div className="text-[10px] text-green-400 mt-1">
-                {individualSalesOrders.length} pay-per-view orders
+                {earningsSummary.individualContent.count} pay-per-view orders
               </div>
             </div>
 
@@ -605,7 +530,7 @@ export default function CreatorStudioPage() {
                 <span>Active Subscribers</span>
                 <Users className="w-4 h-4 text-[#f5d77f]" />
               </div>
-              <div className="text-2xl font-serif font-bold text-white">428</div>
+              <div className="text-2xl font-serif font-bold text-white">{earningsSummary.activeSubscribersCount}</div>
               <div className="text-[10px] text-[#555566] mt-1">${subCommission.creatorShare.toFixed(2)} net recurring</div>
             </div>
 
@@ -958,6 +883,11 @@ export default function CreatorStudioPage() {
                 </p>
               </div>
 
+              {orders.length === 0 && (
+                <div className="p-8 rounded-2xl bg-[#111117] border border-[#262636] text-center text-xs text-[#8a8a9e]">
+                  No custom content orders yet. Orders submitted by fans in 1-on-1 chat will appear here.
+                </div>
+              )}
               <div className="space-y-4">
                 {orders.map((order) => (
                   <div
@@ -978,7 +908,9 @@ export default function CreatorStudioPage() {
                       <p className="text-xs text-[#8a8a9e]">
                         Customer: <span className="text-white font-medium">{order.customerName}</span> • Agreed Price: <span className="text-[#f5d77f] font-bold">${order.price.toFixed(2)}</span>
                       </p>
-                      <p className="text-[10px] text-[#555566]">Requested: {order.requestedAt}</p>
+                      <p className="text-[10px] text-[#555566]">
+                        Requested: {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'}
+                      </p>
                     </div>
 
                     <div>
@@ -1209,12 +1141,12 @@ export default function CreatorStudioPage() {
                   </div>
                   <div className="text-2xl font-bold font-serif text-white">
                     ${subCommission.creatorShare.toFixed(2)}
-                    <span className="text-xs text-[#6e6e80] font-sans font-normal"> (85% net)</span>
+                    <span className="text-xs text-[#6e6e80] font-sans font-normal"> ({commissionSplit.creatorPercent}% net)</span>
                   </div>
-                  <p className="text-[11px] text-[#717182]">Gross: ${subscriptionGross.toFixed(2)} • 428 Members</p>
+                  <p className="text-[11px] text-[#717182]">Gross: ${subscriptionGross.toFixed(2)} • {earningsSummary.activeSubscribersCount} Active Members</p>
                 </div>
 
-                {/* 2. Individual Content Sales (Section 7 Requirement) */}
+                {/* 2. Individual Content Sales */}
                 <div className="p-5 rounded-2xl bg-[#111117] border border-[#d4af37]/40 space-y-2">
                   <div className="flex items-center justify-between text-xs text-[#f5d77f]">
                     <span className="font-bold">Individual Paid Content</span>
@@ -1222,9 +1154,9 @@ export default function CreatorStudioPage() {
                   </div>
                   <div className="text-2xl font-bold font-serif text-[#f5d77f]">
                     ${indCommission.creatorShare.toFixed(2)}
-                    <span className="text-xs text-[#a0821e] font-sans font-normal"> (85% net)</span>
+                    <span className="text-xs text-[#a0821e] font-sans font-normal"> ({commissionSplit.creatorPercent}% net)</span>
                   </div>
-                  <p className="text-[11px] text-[#717182]">Gross: ${individualContentGross.toFixed(2)} • {individualSalesOrders.length} Paid Purchases</p>
+                  <p className="text-[11px] text-[#717182]">Gross: ${individualContentGross.toFixed(2)} • {earningsSummary.individualContent.count} Paid Purchases</p>
                 </div>
 
                 {/* 3. Custom Content Requests */}
@@ -1235,20 +1167,20 @@ export default function CreatorStudioPage() {
                   </div>
                   <div className="text-2xl font-bold font-serif text-white">
                     ${custCommission.creatorShare.toFixed(2)}
-                    <span className="text-xs text-[#6e6e80] font-sans font-normal"> (85% net)</span>
+                    <span className="text-xs text-[#6e6e80] font-sans font-normal"> ({commissionSplit.creatorPercent}% net)</span>
                   </div>
-                  <p className="text-[11px] text-[#717182]">Gross: ${customOrdersGross.toFixed(2)} • 2 Delivered Clips</p>
+                  <p className="text-[11px] text-[#717182]">Gross: ${customOrdersGross.toFixed(2)} • {earningsSummary.customRequests.count} Paid Orders</p>
                 </div>
               </div>
 
-              {/* Individual Content Sales Orders Ledger Table */}
+              {/* Sales Orders Ledger Table */}
               <div className="p-6 rounded-2xl bg-[#111118] border border-[#232330] space-y-4">
                 <div className="flex justify-between items-center">
                   <h4 className="text-sm font-bold text-white">
-                    Individual Content Sales Ledger (Pay-Per-View)
+                    Sales & Commission Ledger ({filteredLedgerTxs.length})
                   </h4>
                   <span className="text-xs text-[#d4af37] font-semibold">
-                    Configured Split: 85% Creator / 15% Platform
+                    Configured Split: {commissionSplit.creatorPercent}% Creator / {commissionSplit.platformPercent}% Platform
                   </span>
                 </div>
 
@@ -1257,29 +1189,31 @@ export default function CreatorStudioPage() {
                     <thead className="bg-[#161622] text-[#8e8e9e] border-b border-[#232330]">
                       <tr>
                         <th className="py-3 px-4">Order Reference</th>
-                        <th className="py-3 px-4">Content Title</th>
-                        <th className="py-3 px-4">Media</th>
+                        <th className="py-3 px-4">Content / Description</th>
+                        <th className="py-3 px-4">Type</th>
                         <th className="py-3 px-4">Buyer</th>
                         <th className="py-3 px-4">Price Paid</th>
-                        <th className="py-3 px-4">Your 85% Net</th>
+                        <th className="py-3 px-4">Your {commissionSplit.creatorPercent}% Net</th>
                         <th className="py-3 px-4">Date</th>
                         <th className="py-3 px-4">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#1e1e28] text-white">
-                      {individualSalesOrders.map((sale) => (
-                        <tr key={sale.ref} className="hover:bg-[#161622]/40">
-                          <td className="py-3.5 px-4 font-mono text-[#d4af37] font-semibold">{sale.ref}</td>
-                          <td className="py-3.5 px-4 font-bold">{sale.title}</td>
+                      {filteredLedgerTxs.map((sale) => (
+                        <tr key={sale.id} className="hover:bg-[#161622]/40">
+                          <td className="py-3.5 px-4 font-mono text-[#d4af37] font-semibold">{sale.transactionReference}</td>
+                          <td className="py-3.5 px-4 font-bold">{sale.postTitle || sale.type}</td>
                           <td className="py-3.5 px-4">
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#181824] border border-[#2b2b3d]">
-                              {sale.mediaType}
+                              {sale.type}
                             </span>
                           </td>
-                          <td className="py-3.5 px-4 text-[#94a3b8]">@{sale.buyer}</td>
-                          <td className="py-3.5 px-4 font-bold">${sale.gross.toFixed(2)}</td>
-                          <td className="py-3.5 px-4 font-bold text-green-400">${sale.creatorShare.toFixed(2)}</td>
-                          <td className="py-3.5 px-4 text-[#717182]">{sale.date}</td>
+                          <td className="py-3.5 px-4 text-[#94a3b8]">{sale.userName}</td>
+                          <td className="py-3.5 px-4 font-bold">${Number(sale.grossAmount).toFixed(2)}</td>
+                          <td className="py-3.5 px-4 font-bold text-green-400">${Number(sale.creatorShare).toFixed(2)}</td>
+                          <td className="py-3.5 px-4 text-[#717182]">
+                            {sale.createdAt ? new Date(sale.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent'}
+                          </td>
                           <td className="py-3.5 px-4">
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-950/60 text-green-400 border border-green-500/30">
                               {sale.status}
@@ -1287,6 +1221,13 @@ export default function CreatorStudioPage() {
                           </td>
                         </tr>
                       ))}
+                      {filteredLedgerTxs.length === 0 && (
+                        <tr>
+                          <td colSpan={8} className="py-8 text-center text-[#717182]">
+                            No sales recorded in this category yet.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1364,13 +1305,25 @@ export default function CreatorStudioPage() {
               )}
 
               <form
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
                   try {
-                    localStorage.setItem('mirage_creator_price', monthlyPrice);
-                  } catch (err) {}
-                  setPriceSaveSuccess(true);
-                  setTimeout(() => setPriceSaveSuccess(false), 2000);
+                    const res = await fetch('/api/creators', {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        handle: creatorUser.username,
+                        monthlyPrice: parseFloat(monthlyPrice),
+                      }),
+                    });
+                    if (res.ok) {
+                      setPriceSaveSuccess(true);
+                      setTimeout(() => setPriceSaveSuccess(false), 2500);
+                      showToast(`Monthly price updated to $${parseFloat(monthlyPrice).toFixed(2)}/mo`);
+                    }
+                  } catch (err) {
+                    console.error('Failed to update price:', err);
+                  }
                 }}
                 className="space-y-4"
               >

@@ -1,10 +1,117 @@
-// In-memory persistent content & transactions store for The Mirage Phase 1 PPV & Subscriptions
+// Persistent unified data store for The Mirage (Users, Creators, Posts, Subscriptions, PPV Vault, Chat, Orders & Admin)
+import fs from 'fs';
+import path from 'path';
 import { calculateCommission } from './commission';
 
 export type MediaType = 'IMAGE' | 'VIDEO' | 'AUDIO';
 export type Visibility = 'PUBLIC' | 'SUBSCRIBER_ONLY' | 'PURCHASE_ONLY';
 export type PostStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 export type TransactionType = 'SUBSCRIPTION' | 'CUSTOM_CONTENT' | 'INDIVIDUAL_CONTENT' | 'TIP';
+export type UserRole = 'ADMIN' | 'CREATOR' | 'SUBSCRIBER';
+export type AccountStatus = 'ACTIVE' | 'SUSPENDED';
+
+export interface UserRecord {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  passwordHash?: string;
+  role: UserRole;
+  status: AccountStatus;
+  avatar?: string;
+  bio?: string;
+  ageVerified: boolean;
+  createdAt: string;
+}
+
+export interface CreatorRecord {
+  id: string;
+  userId: string;
+  name: string;
+  handle: string;
+  avatar: string;
+  banner: string;
+  bio: string;
+  category: string;
+  monthlyPrice: number;
+  isVerified: boolean;
+  followersCount: number;
+  likesCount: number;
+  status: AccountStatus;
+  createdAt: string;
+}
+
+export interface SubscriptionRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  userHandle: string;
+  creatorId: string;
+  creatorHandle: string;
+  creatorName: string;
+  creatorAvatar: string;
+  price: number;
+  status: 'ACTIVE' | 'CANCELLED';
+  startDate: string;
+  nextBilling: string;
+}
+
+export interface FollowRecord {
+  id: string;
+  userId: string;
+  creatorId: string;
+  creatorHandle: string;
+  creatorName: string;
+  creatorAvatar: string;
+  price: number;
+  createdAt: string;
+}
+
+export interface CustomRequestRecord {
+  id: string;
+  customerId: string;
+  customerName: string;
+  customerHandle: string;
+  creatorId: string;
+  creatorHandle: string;
+  creatorName: string;
+  title: string;
+  description: string;
+  price: number;
+  status: 'PENDING_PAYMENT' | 'AWAITING_DELIVERY' | 'DELIVERED' | 'CANCELLED';
+  deliveredMediaUrl?: string;
+  createdAt: string;
+  deliveredAt?: string;
+}
+
+export interface ChatMessageRecord {
+  id: string;
+  conversationKey: string; // e.g. "usr-1:luna-rae"
+  userId: string;
+  creatorHandle: string;
+  sender: 'user' | 'creator';
+  text: string;
+  time: string;
+  createdAt: string;
+  customRequestId?: string;
+}
+
+export interface ContentReportRecord {
+  id: string;
+  reporterId: string;
+  reporterName: string;
+  postId?: string;
+  postTitle: string;
+  reason: string;
+  status: 'PENDING' | 'RESOLVED' | 'DISMISSED';
+  createdAt: string;
+}
+
+export interface PlatformSettingsRecord {
+  creatorCommissionPercent: number;
+  platformCommissionPercent: number;
+  updatedAt: string;
+}
 
 export interface PostItem {
   id: string;
@@ -831,13 +938,270 @@ const SEED_POSTS: PostItem[] = [
   },
 ];
 
-let posts: PostItem[] = JSON.parse(JSON.stringify(SEED_POSTS));
+export interface MirageDbState {
+  users: UserRecord[];
+  creators: CreatorRecord[];
+  posts: PostItem[];
+  purchases: PurchaseRecord[];
+  subscriptions: SubscriptionRecord[];
+  follows: FollowRecord[];
+  customRequests: CustomRequestRecord[];
+  chatMessages: ChatMessageRecord[];
+  transactions: TransactionRecord[];
+  reports: ContentReportRecord[];
+  settings: PlatformSettingsRecord;
+}
 
-// Initial user purchases
-let purchases: PurchaseRecord[] = [
+const SEED_USERS: UserRecord[] = [
+  {
+    id: 'admin-1',
+    name: 'Mirage Admin',
+    username: 'admin',
+    email: 'admin@themirage.vip',
+    role: 'ADMIN',
+    status: 'ACTIVE',
+    bio: 'Platform Administrator',
+    ageVerified: true,
+    createdAt: '2026-10-01T09:00:00Z',
+  },
+  {
+    id: 'c1',
+    name: 'Luna Rae',
+    username: 'luna-rae',
+    email: 'creator@themirage.vip',
+    role: 'CREATOR',
+    status: 'ACTIVE',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    bio: 'Fashion model, fitness enthusiast and creative visual storyteller.',
+    ageVerified: true,
+    createdAt: '2026-10-08T10:00:00Z',
+  },
+  {
+    id: 'c2',
+    name: 'Sophie Lee',
+    username: 'sophie-lee',
+    email: 'sophie@themirage.vip',
+    role: 'CREATOR',
+    status: 'ACTIVE',
+    avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+    bio: 'Cosplay artist, designer, and studio creator.',
+    ageVerified: true,
+    createdAt: '2026-10-12T10:00:00Z',
+  },
+  {
+    id: 'c3',
+    name: 'Mia Carter',
+    username: 'mia-carter',
+    email: 'mia@themirage.vip',
+    role: 'CREATOR',
+    status: 'ACTIVE',
+    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80',
+    bio: 'Lifestyle creator and wellness guide.',
+    ageVerified: true,
+    createdAt: '2026-10-13T10:00:00Z',
+  },
+  {
+    id: 'c4',
+    name: 'Zara Khan',
+    username: 'zara-khan',
+    email: 'zara@themirage.vip',
+    role: 'CREATOR',
+    status: 'ACTIVE',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
+    bio: 'Luxury travel filmmaker & photographer.',
+    ageVerified: true,
+    createdAt: '2026-10-14T10:00:00Z',
+  },
+  {
+    id: 'c5',
+    name: 'Emily Rose',
+    username: 'emily-rose',
+    email: 'emily@themirage.vip',
+    role: 'CREATOR',
+    status: 'ACTIVE',
+    avatar: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=400&q=80',
+    bio: 'Athletic conditioning coach & creator.',
+    ageVerified: true,
+    createdAt: '2026-10-15T10:00:00Z',
+  },
+  {
+    id: 'usr-1',
+    name: 'Alex Mercer',
+    username: 'alexmercer',
+    email: 'subscriber@themirage.vip',
+    role: 'SUBSCRIBER',
+    status: 'ACTIVE',
+    bio: 'VIP Subscriber member on The Mirage.',
+    ageVerified: true,
+    createdAt: '2026-10-14T11:30:00Z',
+  },
+  {
+    id: 'usr-2',
+    name: 'Marcus Wright',
+    username: 'marcus_w',
+    email: 'marcus@example.com',
+    role: 'SUBSCRIBER',
+    status: 'ACTIVE',
+    ageVerified: true,
+    createdAt: '2026-10-15T12:00:00Z',
+  },
+  {
+    id: 'usr-3',
+    name: 'David Kim',
+    username: 'david_k',
+    email: 'david@example.com',
+    role: 'SUBSCRIBER',
+    status: 'ACTIVE',
+    ageVerified: true,
+    createdAt: '2026-10-16T09:00:00Z',
+  },
+  {
+    id: 'usr-4',
+    name: 'John Doe',
+    username: 'johndoe',
+    email: 'john@example.com',
+    role: 'SUBSCRIBER',
+    status: 'SUSPENDED',
+    ageVerified: true,
+    createdAt: '2026-10-10T08:00:00Z',
+  },
+];
+
+const SEED_CREATORS: CreatorRecord[] = [
+  {
+    id: 'c1',
+    userId: 'c1',
+    name: 'Luna Rae',
+    handle: 'luna-rae',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+    banner: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1400&q=80',
+    bio: 'Fashion model, fitness enthusiast and creative visual storyteller. Sharing my exclusive lifestyle, behind the scenes, and direct chat moments with you.',
+    category: 'Popular',
+    monthlyPrice: 9.99,
+    isVerified: true,
+    followersCount: 128000,
+    likesCount: 340000,
+    status: 'ACTIVE',
+    createdAt: '2026-10-08T10:00:00Z',
+  },
+  {
+    id: 'c2',
+    userId: 'c2',
+    name: 'Sophie Lee',
+    handle: 'sophie-lee',
+    avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
+    banner: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1400&q=80',
+    bio: 'Cosplay designer, editorial stylist, and studio creator. Exclusive looks, photo shoots, and custom video sets available for subscribers.',
+    category: 'Cosplay',
+    monthlyPrice: 9.99,
+    isVerified: true,
+    followersCount: 180000,
+    likesCount: 410000,
+    status: 'ACTIVE',
+    createdAt: '2026-10-12T10:00:00Z',
+  },
+  {
+    id: 'c3',
+    userId: 'c3',
+    name: 'Mia Carter',
+    handle: 'mia-carter',
+    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80',
+    banner: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1400&q=80',
+    bio: 'Lifestyle creator, wellness guide, and everyday glamour enthusiast. Join my private community for daily looks, personal vlogs, and 1-on-1 chats.',
+    category: 'Lifestyle',
+    monthlyPrice: 7.99,
+    isVerified: true,
+    followersCount: 95000,
+    likesCount: 290000,
+    status: 'ACTIVE',
+    createdAt: '2026-10-13T10:00:00Z',
+  },
+  {
+    id: 'c4',
+    userId: 'c4',
+    name: 'Zara Khan',
+    handle: 'zara-khan',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=80',
+    banner: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1400&q=80',
+    bio: 'Luxury travel filmmaker & resort editorial creator. Unlock private travel diaries, 4K sunset shoots, and behind-the-scenes clips from Dubai to Amalfi.',
+    category: 'Travel',
+    monthlyPrice: 12.99,
+    isVerified: true,
+    followersCount: 210000,
+    likesCount: 520000,
+    status: 'ACTIVE',
+    createdAt: '2026-10-14T10:00:00Z',
+  },
+  {
+    id: 'c5',
+    userId: 'c5',
+    name: 'Emily Rose',
+    handle: 'emily-rose',
+    avatar: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=600&q=80',
+    banner: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=1400&q=80',
+    bio: 'Certified athletic conditioning coach & fitness creator. Full-length guided training routines, studio sets, and personalized custom fitness videos.',
+    category: 'Fitness',
+    monthlyPrice: 8.99,
+    isVerified: true,
+    followersCount: 98000,
+    likesCount: 265000,
+    status: 'ACTIVE',
+    createdAt: '2026-10-15T10:00:00Z',
+  },
+  {
+    id: 'c6',
+    userId: 'c6',
+    name: 'Aria Vance',
+    handle: 'aria-vance',
+    avatar: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=600&q=80',
+    banner: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1400&q=80',
+    bio: 'Rising visual artist and fashion editorial muse on The Mirage.',
+    category: 'New',
+    monthlyPrice: 10.99,
+    isVerified: true,
+    followersCount: 142000,
+    likesCount: 210000,
+    status: 'ACTIVE',
+    createdAt: '2026-10-16T10:00:00Z',
+  },
+  {
+    id: 'c7',
+    userId: 'c7',
+    name: 'Chloe Bennett',
+    handle: 'chloe-bennett',
+    avatar: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80',
+    banner: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1400&q=80',
+    bio: 'Curated lifestyle & city portraits creator.',
+    category: 'Nearby',
+    monthlyPrice: 6.99,
+    isVerified: false,
+    followersCount: 88000,
+    likesCount: 124000,
+    status: 'ACTIVE',
+    createdAt: '2026-10-17T10:00:00Z',
+  },
+  {
+    id: 'c8',
+    userId: 'c8',
+    name: 'Elena Rostova',
+    handle: 'elena-rostova',
+    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80',
+    banner: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1400&q=80',
+    bio: 'Exclusive VIP mature art & private gallery creator.',
+    category: 'Mature',
+    monthlyPrice: 14.99,
+    isVerified: true,
+    followersCount: 230000,
+    likesCount: 495000,
+    status: 'ACTIVE',
+    createdAt: '2026-10-18T10:00:00Z',
+  },
+];
+
+const SEED_PURCHASES: PurchaseRecord[] = [
   {
     id: 'pur-seed-1',
-    userId: 'usr-1', // Default logged-in subscriber Alex Mercer
+    userId: 'usr-1',
     postId: 'post-ppv-1',
     title: 'Private Sunset Mirage Collection #1',
     creatorId: 'c1',
@@ -851,13 +1215,122 @@ let purchases: PurchaseRecord[] = [
   },
 ];
 
-// Active subscriptions store (userId -> Set of creatorIds)
-const userSubscriptions: Record<string, Set<string>> = {
-  'usr-1': new Set(['c1', 'c2']), // Subscribed to Luna Rae and Sophie Lee
-};
+const SEED_SUBSCRIPTIONS: SubscriptionRecord[] = [
+  {
+    id: 'sub-1',
+    userId: 'usr-1',
+    userName: 'Alex Mercer',
+    userHandle: '@alexmercer',
+    creatorId: 'c1',
+    creatorHandle: 'luna-rae',
+    creatorName: 'Luna Rae',
+    creatorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    price: 9.99,
+    status: 'ACTIVE',
+    startDate: '2026-10-21T11:45:00Z',
+    nextBilling: 'November 21, 2026',
+  },
+  {
+    id: 'sub-2',
+    userId: 'usr-1',
+    userName: 'Alex Mercer',
+    userHandle: '@alexmercer',
+    creatorId: 'c2',
+    creatorHandle: 'sophie-lee',
+    creatorName: 'Sophie Lee',
+    creatorAvatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+    price: 9.99,
+    status: 'ACTIVE',
+    startDate: '2026-10-18T10:00:00Z',
+    nextBilling: 'November 18, 2026',
+  },
+  {
+    id: 'sub-3',
+    userId: 'usr-2',
+    userName: 'Marcus Wright',
+    userHandle: '@marcus_w',
+    creatorId: 'c1',
+    creatorHandle: 'luna-rae',
+    creatorName: 'Luna Rae',
+    creatorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    price: 9.99,
+    status: 'ACTIVE',
+    startDate: '2026-10-14T10:00:00Z',
+    nextBilling: 'November 14, 2026',
+  },
+  {
+    id: 'sub-4',
+    userId: 'usr-3',
+    userName: 'David Kim',
+    userHandle: '@david_k',
+    creatorId: 'c1',
+    creatorHandle: 'luna-rae',
+    creatorName: 'Luna Rae',
+    creatorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    price: 9.99,
+    status: 'ACTIVE',
+    startDate: '2026-10-16T10:00:00Z',
+    nextBilling: 'November 16, 2026',
+  },
+];
 
-// Initial transactions
-let transactions: TransactionRecord[] = [
+const SEED_FOLLOWS: FollowRecord[] = [
+  {
+    id: 'fol-1',
+    userId: 'usr-1',
+    creatorId: 'c3',
+    creatorHandle: 'mia-carter',
+    creatorName: 'Mia Carter',
+    creatorAvatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80',
+    price: 7.99,
+    createdAt: '2026-10-15T10:00:00Z',
+  },
+  {
+    id: 'fol-2',
+    userId: 'usr-1',
+    creatorId: 'c4',
+    creatorHandle: 'zara-khan',
+    creatorName: 'Zara Khan',
+    creatorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80',
+    price: 12.99,
+    createdAt: '2026-10-16T10:00:00Z',
+  },
+];
+
+const SEED_CUSTOM_REQUESTS: CustomRequestRecord[] = [
+  {
+    id: 'req-201',
+    customerId: 'usr-1',
+    customerName: 'Alex Mercer',
+    customerHandle: '@alexmercer',
+    creatorId: 'c1',
+    creatorHandle: 'luna-rae',
+    creatorName: 'Luna Rae',
+    title: 'Birthday Video Shoutout for Sarah',
+    description: '2-min custom greeting mentioning Sarah in VIP black & gold studio.',
+    price: 50.00,
+    status: 'AWAITING_DELIVERY',
+    createdAt: '2026-10-20T14:00:00Z',
+  },
+  {
+    id: 'req-202',
+    customerId: 'usr-2',
+    customerName: 'Marcus Wright',
+    customerHandle: '@marcus_w',
+    creatorId: 'c1',
+    creatorHandle: 'luna-rae',
+    creatorName: 'Luna Rae',
+    title: 'Private Fitness Nutrition Advice Clip',
+    description: 'Custom Q&A clip covering morning routine and nutrition.',
+    price: 35.00,
+    status: 'DELIVERED',
+    deliveredMediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    createdAt: '2026-10-18T11:00:00Z',
+    deliveredAt: '2026-10-18T16:30:00Z',
+  },
+];
+
+const SEED_TRANSACTIONS: TransactionRecord[] = [
   {
     id: 'tx-1001',
     transactionReference: 'MIRAGE_SUB_9941',
@@ -914,7 +1387,166 @@ let transactions: TransactionRecord[] = [
     gatewayReference: 'gw_ppv_7721',
     createdAt: '2026-10-25T16:20:00Z',
   },
+  {
+    id: 'tx-1004',
+    transactionReference: 'MIRAGE_SUB_7721',
+    userId: 'usr-2',
+    userName: 'Marcus Wright',
+    creatorId: 'c1',
+    creatorName: 'Luna Rae',
+    type: 'SUBSCRIPTION',
+    grossAmount: 9.99,
+    creatorShare: 8.49,
+    platformShare: 1.50,
+    feeAmount: 0.0,
+    currency: 'USD',
+    status: 'SUCCESS',
+    paymentGateway: 'MIRAGE_PAY',
+    gatewayReference: 'gw_sub_7721',
+    createdAt: '2026-10-22T16:12:00Z',
+  },
+  {
+    id: 'tx-1005',
+    transactionReference: 'MIRAGE_PPV_5542',
+    userId: 'usr-2',
+    userName: 'Marcus Wright',
+    creatorId: 'c1',
+    creatorName: 'Luna Rae',
+    postId: 'post-ppv-2',
+    postTitle: 'Behind the Scenes — Midnight Studio Session (4K Video)',
+    type: 'INDIVIDUAL_CONTENT',
+    grossAmount: 25.00,
+    creatorShare: 21.25,
+    platformShare: 3.75,
+    feeAmount: 0.0,
+    currency: 'USD',
+    status: 'SUCCESS',
+    paymentGateway: 'MIRAGE_PAY',
+    gatewayReference: 'gw_ppv_5542',
+    createdAt: '2026-10-26T20:30:00Z',
+  },
+  {
+    id: 'tx-1006',
+    transactionReference: 'MIRAGE_SUB_6619',
+    userId: 'usr-3',
+    userName: 'David Kim',
+    creatorId: 'c2',
+    creatorName: 'Sophie Lee',
+    type: 'SUBSCRIPTION',
+    grossAmount: 9.99,
+    creatorShare: 8.49,
+    platformShare: 1.50,
+    feeAmount: 0.0,
+    currency: 'USD',
+    status: 'SUCCESS',
+    paymentGateway: 'MIRAGE_PAY',
+    gatewayReference: 'gw_sub_6619',
+    createdAt: '2026-10-23T09:30:00Z',
+  },
 ];
+
+const SEED_REPORTS: ContentReportRecord[] = [
+  {
+    id: 'rep-1',
+    reporterId: 'usr-1',
+    reporterName: 'Alex Mercer',
+    postTitle: 'Exclusive Stage Set',
+    reason: 'Copyright Rights Verification Check',
+    status: 'PENDING',
+    createdAt: '2026-10-20T12:00:00Z',
+  },
+  {
+    id: 'rep-2',
+    reporterId: 'system',
+    reporterName: 'System Gate',
+    postTitle: 'Feed Post #41',
+    reason: 'Age verification declaration audit',
+    status: 'RESOLVED',
+    createdAt: '2026-10-19T08:00:00Z',
+  },
+];
+
+const DEFAULT_SETTINGS: PlatformSettingsRecord = {
+  creatorCommissionPercent: 85,
+  platformCommissionPercent: 15,
+  updatedAt: '2026-10-01T00:00:00Z',
+};
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __mirageDb: MirageDbState | undefined;
+}
+
+function getDbFilePath(): string {
+  return process.env.MIRAGE_DB_FILE || path.join(process.cwd(), 'data', 'mirage-db.json');
+}
+
+function createInitialDb(): MirageDbState {
+  return {
+    users: JSON.parse(JSON.stringify(SEED_USERS)),
+    creators: JSON.parse(JSON.stringify(SEED_CREATORS)),
+    posts: JSON.parse(JSON.stringify(SEED_POSTS)),
+    purchases: JSON.parse(JSON.stringify(SEED_PURCHASES)),
+    subscriptions: JSON.parse(JSON.stringify(SEED_SUBSCRIPTIONS)),
+    follows: JSON.parse(JSON.stringify(SEED_FOLLOWS)),
+    customRequests: JSON.parse(JSON.stringify(SEED_CUSTOM_REQUESTS)),
+    chatMessages: [],
+    transactions: JSON.parse(JSON.stringify(SEED_TRANSACTIONS)),
+    reports: JSON.parse(JSON.stringify(SEED_REPORTS)),
+    settings: { ...DEFAULT_SETTINGS },
+  };
+}
+
+function saveDb(db: MirageDbState): void {
+  if (process.env.MIRAGE_DISABLE_DISK_PERSIST === 'true') return;
+  try {
+    const dbFile = getDbFilePath();
+    const dir = path.dirname(dbFile);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(dbFile, JSON.stringify(db, null, 2), 'utf8');
+  } catch (err) {
+    console.error('[MirageDB] Failed to persist store to disk:', err);
+  }
+}
+
+function getDb(): MirageDbState {
+  if (globalThis.__mirageDb) {
+    return globalThis.__mirageDb;
+  }
+
+  const dbFile = getDbFilePath();
+  if (process.env.MIRAGE_DISABLE_DISK_PERSIST !== 'true' && fs.existsSync(dbFile)) {
+    try {
+      const raw = fs.readFileSync(dbFile, 'utf8');
+      const parsed = JSON.parse(raw) as Partial<MirageDbState>;
+      const base = createInitialDb();
+      const hydrated: MirageDbState = {
+        users: Array.isArray(parsed.users) ? parsed.users : base.users,
+        creators: Array.isArray(parsed.creators) ? parsed.creators : base.creators,
+        posts: Array.isArray(parsed.posts) ? parsed.posts : base.posts,
+        purchases: Array.isArray(parsed.purchases) ? parsed.purchases : base.purchases,
+        subscriptions: Array.isArray(parsed.subscriptions) ? parsed.subscriptions : base.subscriptions,
+        follows: Array.isArray(parsed.follows) ? parsed.follows : base.follows,
+        customRequests: Array.isArray(parsed.customRequests) ? parsed.customRequests : base.customRequests,
+        chatMessages: Array.isArray(parsed.chatMessages) ? parsed.chatMessages : base.chatMessages,
+        transactions: Array.isArray(parsed.transactions) ? parsed.transactions : base.transactions,
+        reports: Array.isArray(parsed.reports) ? parsed.reports : base.reports,
+        settings: parsed.settings || base.settings,
+      };
+      globalThis.__mirageDb = hydrated;
+      return hydrated;
+    } catch (err) {
+      console.error('[MirageDB] Corrupt DB file detected, initializing fresh defaults:', err);
+    }
+  }
+
+  const initial = createInitialDb();
+  globalThis.__mirageDb = initial;
+  saveDb(initial);
+  return initial;
+}
 
 const HANDLE_TO_CREATOR_ID: Record<string, string> = {
   'luna-rae': 'c1',
@@ -922,83 +1554,576 @@ const HANDLE_TO_CREATOR_ID: Record<string, string> = {
   'mia-carter': 'c3',
   'zara-khan': 'c4',
   'emily-rose': 'c5',
+  'aria-vance': 'c6',
+  'chloe-bennett': 'c7',
+  'elena-rostova': 'c8',
 };
 
 export function resolveCreatorId(creatorIdOrHandle: string): string {
   if (!creatorIdOrHandle || typeof creatorIdOrHandle !== 'string') return '';
   const cleaned = creatorIdOrHandle.replace(/^creator-/, '').replace(/^@/, '').toLowerCase();
-  return HANDLE_TO_CREATOR_ID[cleaned] || creatorIdOrHandle;
+  if (HANDLE_TO_CREATOR_ID[cleaned]) return HANDLE_TO_CREATOR_ID[cleaned];
+  const db = getDb();
+  const match = db.creators.find(
+    c => c.id.toLowerCase() === cleaned || c.handle.toLowerCase() === cleaned
+  );
+  return match ? match.id : creatorIdOrHandle;
 }
 
 export function getCreatorNameById(creatorIdOrHandle: string): string {
   const resolved = resolveCreatorId(creatorIdOrHandle);
-  const match = posts.find(p => p.creatorId === resolved);
-  if (match) return match.creatorName;
-  const map: Record<string, string> = {
-    c1: 'Luna Rae',
-    c2: 'Sophie Lee',
-    c3: 'Mia Carter',
-    c4: 'Zara Khan',
-    c5: 'Emily Rose',
-  };
-  return map[resolved] || 'The Mirage Creator';
+  const db = getDb();
+  const creatorMatch = db.creators.find(c => c.id === resolved || c.handle === resolved);
+  if (creatorMatch) return creatorMatch.name;
+  const postMatch = db.posts.find(p => p.creatorId === resolved);
+  return postMatch ? postMatch.creatorName : 'The Mirage Creator';
 }
+
+export function getPlatformSettings(): PlatformSettingsRecord {
+  return { ...getDb().settings };
+}
+
+export function updatePlatformSettings(creatorCommissionPercent: number): PlatformSettingsRecord {
+  const clamped = Math.min(95, Math.max(50, Math.round(Number(creatorCommissionPercent) || 85)));
+  const db = getDb();
+  db.settings = {
+    creatorCommissionPercent: clamped,
+    platformCommissionPercent: 100 - clamped,
+    updatedAt: new Date().toISOString(),
+  };
+  saveDb(db);
+  return { ...db.settings };
+}
+
+// ======================= USER & CREATOR REGISTRY =======================
+
+export function listAllUsers(): UserRecord[] {
+  return [...getDb().users];
+}
+
+export function findUserByEmail(email: string): UserRecord | undefined {
+  const clean = email.trim().toLowerCase();
+  return getDb().users.find(u => u.email.toLowerCase() === clean);
+}
+
+export function findUserById(userId: string): UserRecord | undefined {
+  return getDb().users.find(u => u.id === userId);
+}
+
+export function registerNewUser(params: {
+  name: string;
+  username: string;
+  email: string;
+  passwordHash?: string;
+  role: UserRole;
+  monthlyPrice?: number;
+}): { success: boolean; user?: UserRecord; creator?: CreatorRecord; error?: string } {
+  const db = getDb();
+  const cleanEmail = params.email.trim().toLowerCase();
+  const cleanUsername = params.username.trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_-]/g, '') || `user_${Date.now()}`;
+
+  const existingEmail = db.users.find(u => u.email.toLowerCase() === cleanEmail);
+  if (existingEmail) {
+    return { success: false, error: 'An account with this email already exists.' };
+  }
+
+  const now = new Date().toISOString();
+  const userId = `usr_${Date.now()}`;
+  const assignedRole: UserRole = params.role === 'CREATOR' ? 'CREATOR' : 'SUBSCRIBER';
+
+  const newUser: UserRecord = {
+    id: userId,
+    name: params.name.trim(),
+    username: cleanUsername,
+    email: cleanEmail,
+    passwordHash: params.passwordHash,
+    role: assignedRole,
+    status: 'ACTIVE',
+    avatar:
+      assignedRole === 'CREATOR'
+        ? 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=600&q=80'
+        : undefined,
+    bio: assignedRole === 'CREATOR' ? 'Exclusive creator on The Mirage.' : 'Subscriber member on The Mirage.',
+    ageVerified: true,
+    createdAt: now,
+  };
+
+  db.users.unshift(newUser);
+
+  let createdCreator: CreatorRecord | undefined;
+  if (assignedRole === 'CREATOR') {
+    const existingHandle = db.creators.some(c => c.handle.toLowerCase() === cleanUsername);
+    const finalHandle = existingHandle ? `${cleanUsername}-${Date.now().toString().slice(-4)}` : cleanUsername;
+    createdCreator = {
+      id: userId,
+      userId,
+      name: newUser.name,
+      handle: finalHandle,
+      avatar: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=600&q=80',
+      banner: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1400&q=80',
+      bio: `Official Mirage profile for ${newUser.name}. Subscribe for exclusive photos, videos & 1-on-1 chat.`,
+      category: 'New',
+      monthlyPrice: Number(params.monthlyPrice) > 0 ? Number(params.monthlyPrice) : 9.99,
+      isVerified: false,
+      followersCount: 0,
+      likesCount: 0,
+      status: 'ACTIVE',
+      createdAt: now,
+    };
+    db.creators.unshift(createdCreator);
+  }
+
+  saveDb(db);
+  return { success: true, user: newUser, creator: createdCreator };
+}
+
+export function updateUserStatusAdmin(userId: string, status: AccountStatus): { success: boolean; user?: UserRecord } {
+  const db = getDb();
+  const user = db.users.find(u => u.id === userId);
+  if (!user) return { success: false };
+  user.status = status;
+  const creator = db.creators.find(c => c.id === userId || c.userId === userId);
+  if (creator) creator.status = status;
+  saveDb(db);
+  return { success: true, user };
+}
+
+export function updateUserProfile(userId: string, updates: { name?: string; bio?: string }): { success: boolean; user?: UserRecord } {
+  const db = getDb();
+  const user = db.users.find(u => u.id === userId);
+  if (!user) return { success: false };
+  if (updates.name && updates.name.trim()) user.name = updates.name.trim();
+  if (updates.bio !== undefined) user.bio = updates.bio;
+  saveDb(db);
+  return { success: true, user };
+}
+
+export function formatFollowerLabel(count: number): string {
+  if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+  if (count >= 1000) return `${Math.round(count / 1000)}K`;
+  return String(count);
+}
+
+export function listAllCreators(filters?: { category?: string; q?: string; sort?: string; handle?: string }) {
+  const db = getDb();
+  let list = db.creators.map(c => {
+    const subs = db.subscriptions.filter(s => s.creatorId === c.id && s.status === 'ACTIVE').length;
+    const earnings = db.transactions
+      .filter(t => t.creatorId === c.id && t.status === 'SUCCESS')
+      .reduce((sum, t) => sum + t.creatorShare, 0);
+    const postsCount = db.posts.filter(p => p.creatorId === c.id && p.status === 'PUBLISHED').length;
+    return {
+      ...c,
+      followers: formatFollowerLabel(c.followersCount),
+      subscribers: subs,
+      earnings: Number(earnings.toFixed(2)),
+      postsCount,
+    };
+  });
+
+  if (filters?.handle) {
+    const clean = filters.handle.replace(/^@/, '').toLowerCase();
+    list = list.filter(c => c.handle.toLowerCase() === clean || c.id.toLowerCase() === clean);
+  }
+  if (filters?.category && filters.category.toLowerCase() !== 'all') {
+    list = list.filter(c => c.category.toLowerCase() === filters.category!.toLowerCase());
+  }
+  if (filters?.q) {
+    const q = filters.q.toLowerCase();
+    list = list.filter(c => c.name.toLowerCase().includes(q) || c.handle.toLowerCase().includes(q));
+  }
+  if (filters?.sort === 'price-low') {
+    list.sort((a, b) => a.monthlyPrice - b.monthlyPrice);
+  } else if (filters?.sort === 'price-high') {
+    list.sort((a, b) => b.monthlyPrice - a.monthlyPrice);
+  } else if (filters?.sort === 'newest') {
+    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  } else {
+    list.sort((a, b) => b.followersCount - a.followersCount);
+  }
+  return list;
+}
+
+export function toggleCreatorVerificationAdmin(creatorId: string): { success: boolean; creator?: CreatorRecord } {
+  const db = getDb();
+  const resolved = resolveCreatorId(creatorId);
+  const creator = db.creators.find(c => c.id === creatorId || c.id === resolved);
+  if (!creator) return { success: false };
+  creator.isVerified = !creator.isVerified;
+  saveDb(db);
+  return { success: true, creator };
+}
+
+export function updateCreatorProfileSettings(
+  creatorIdOrHandle: string,
+  updates: { monthlyPrice?: number; bio?: string; category?: string; name?: string }
+): { success: boolean; creator?: CreatorRecord; error?: string } {
+  const db = getDb();
+  const resolved = resolveCreatorId(creatorIdOrHandle);
+  const creator = db.creators.find(
+    c => c.id === resolved || c.id === creatorIdOrHandle || c.handle.toLowerCase() === creatorIdOrHandle.replace(/^@/, '').toLowerCase()
+  );
+  if (!creator) return { success: false, error: 'Creator profile not found' };
+  if (updates.monthlyPrice !== undefined) {
+    const p = Number(updates.monthlyPrice);
+    if (!Number.isFinite(p) || p < 1) return { success: false, error: 'Invalid monthly price' };
+    creator.monthlyPrice = Number(p.toFixed(2));
+  }
+  if (updates.bio !== undefined) creator.bio = updates.bio;
+  if (updates.category !== undefined) creator.category = updates.category;
+  if (updates.name !== undefined && updates.name.trim()) creator.name = updates.name.trim();
+  saveDb(db);
+  return { success: true, creator };
+}
+
+// ======================= TRANSACTIONS & SUBSCRIPTIONS =======================
 
 export function recordTransaction(tx: TransactionRecord): void {
-  if (tx && tx.id) {
-    transactions.unshift(tx);
-  }
+  if (!tx || !tx.id) return;
+  const db = getDb();
+  db.transactions.unshift(tx);
+  saveDb(db);
 }
 
-export function subscribeUserToCreator(userId: string, creatorIdOrHandle: string): void {
-  if (!userId || !creatorIdOrHandle) return;
+export function subscribeUserToCreator(
+  userId: string,
+  creatorIdOrHandle: string,
+  priceOverride?: number
+): SubscriptionRecord | null {
+  if (!userId || !creatorIdOrHandle) return null;
+  const db = getDb();
   const resolvedId = resolveCreatorId(creatorIdOrHandle);
-  if (!userSubscriptions[userId]) {
-    userSubscriptions[userId] = new Set<string>();
+  const creator = db.creators.find(c => c.id === resolvedId || c.handle === creatorIdOrHandle);
+  const user = db.users.find(u => u.id === userId);
+  const nextBillingDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+  const existing = db.subscriptions.find(s => s.userId === userId && s.creatorId === resolvedId);
+  if (existing) {
+    existing.status = 'ACTIVE';
+    existing.nextBilling = nextBillingDate;
+    if (priceOverride && priceOverride > 0) existing.price = priceOverride;
+    saveDb(db);
+    return existing;
   }
-  userSubscriptions[userId].add(resolvedId);
+
+  const newSub: SubscriptionRecord = {
+    id: `sub-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    userId,
+    userName: user?.name || 'Subscriber',
+    userHandle: user ? `@${user.username}` : '@subscriber',
+    creatorId: resolvedId,
+    creatorHandle: creator?.handle || creatorIdOrHandle.replace(/^creator-/, '').replace(/^@/, ''),
+    creatorName: creator?.name || getCreatorNameById(resolvedId),
+    creatorAvatar:
+      creator?.avatar ||
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    price: priceOverride || creator?.monthlyPrice || 9.99,
+    status: 'ACTIVE',
+    startDate: new Date().toISOString(),
+    nextBilling: nextBillingDate,
+  };
+
+  db.subscriptions.unshift(newSub);
+  saveDb(db);
+  return newSub;
 }
 
-// Helper: check if user is active subscriber
+export function getUserSubscriptions(userId: string): SubscriptionRecord[] {
+  if (!userId) return [];
+  return getDb().subscriptions.filter(s => s.userId === userId && s.status === 'ACTIVE');
+}
+
+export function cancelUserSubscription(userId: string, subscriptionId: string): { success: boolean } {
+  const db = getDb();
+  const sub = db.subscriptions.find(s => s.id === subscriptionId && s.userId === userId);
+  if (!sub) return { success: false };
+  sub.status = 'CANCELLED';
+  saveDb(db);
+  return { success: true };
+}
+
 export function isUserSubscribedToCreator(userId: string | null | undefined, creatorId: string): boolean {
   if (!userId) return false;
-  return !!userSubscriptions[userId]?.has(resolveCreatorId(creatorId));
+  const resolvedId = resolveCreatorId(creatorId);
+  return getDb().subscriptions.some(
+    s => s.userId === userId && (s.creatorId === resolvedId || s.creatorId === creatorId) && s.status === 'ACTIVE'
+  );
 }
 
-// Creator Studio full list (includes DRAFT/ARCHIVED posts for owner)
-export function getCreatorStudioPosts(creatorHandle?: string): PostItem[] {
-  if (!creatorHandle) return [...posts];
+// ======================= FOLLOWS =======================
+
+export function getUserFollows(userId: string): FollowRecord[] {
+  if (!userId) return [];
+  return getDb().follows.filter(f => f.userId === userId);
+}
+
+export function followCreator(userId: string, creatorIdOrHandle: string): { success: boolean; follow?: FollowRecord } {
+  if (!userId || !creatorIdOrHandle) return { success: false };
+  const db = getDb();
+  const resolvedId = resolveCreatorId(creatorIdOrHandle);
+  const creator = db.creators.find(c => c.id === resolvedId || c.handle === creatorIdOrHandle.replace(/^@/, '').toLowerCase());
+  const existing = db.follows.find(
+    f => f.userId === userId && (f.creatorId === resolvedId || f.creatorHandle === (creator?.handle || creatorIdOrHandle))
+  );
+  if (existing) return { success: true, follow: existing };
+
+  const follow: FollowRecord = {
+    id: `fol-${Date.now()}`,
+    userId,
+    creatorId: creator?.id || resolvedId,
+    creatorHandle: creator?.handle || creatorIdOrHandle.replace(/^@/, '').toLowerCase(),
+    creatorName: creator?.name || getCreatorNameById(resolvedId),
+    creatorAvatar:
+      creator?.avatar ||
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+    price: creator?.monthlyPrice || 9.99,
+    createdAt: new Date().toISOString(),
+  };
+
+  db.follows.unshift(follow);
+  if (creator) creator.followersCount += 1;
+  saveDb(db);
+  return { success: true, follow };
+}
+
+export function unfollowCreator(userId: string, creatorIdOrHandle: string): { success: boolean } {
+  if (!userId || !creatorIdOrHandle) return { success: false };
+  const db = getDb();
+  const cleanHandle = creatorIdOrHandle.replace(/^creator-/, '').replace(/^@/, '').toLowerCase();
+  const resolvedId = resolveCreatorId(creatorIdOrHandle);
+  const idx = db.follows.findIndex(
+    f => f.userId === userId && (f.creatorId === resolvedId || f.creatorHandle.toLowerCase() === cleanHandle)
+  );
+  if (idx === -1) return { success: false };
+  db.follows.splice(idx, 1);
+  const creator = db.creators.find(c => c.id === resolvedId || c.handle.toLowerCase() === cleanHandle);
+  if (creator && creator.followersCount > 0) creator.followersCount -= 1;
+  saveDb(db);
+  return { success: true };
+}
+
+// ======================= CHAT & CUSTOM REQUESTS =======================
+
+export function getChatMessagesForThread(userId: string, creatorHandle: string): ChatMessageRecord[] {
   const cleanHandle = creatorHandle.replace(/^@/, '').toLowerCase();
-  return posts.filter(p => p.creatorHandle.toLowerCase() === cleanHandle);
+  const key = `${userId}:${cleanHandle}`;
+  return getDb().chatMessages.filter(m => m.conversationKey === key);
 }
 
-// Helper: check if user has purchased a specific post
+export function addChatMessage(params: {
+  userId: string;
+  creatorHandle: string;
+  sender: 'user' | 'creator';
+  text: string;
+  customRequestId?: string;
+}): ChatMessageRecord {
+  const db = getDb();
+  const cleanHandle = params.creatorHandle.replace(/^@/, '').toLowerCase();
+  const msg: ChatMessageRecord = {
+    id: `msg-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    conversationKey: `${params.userId}:${cleanHandle}`,
+    userId: params.userId,
+    creatorHandle: cleanHandle,
+    sender: params.sender,
+    text: params.text,
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    createdAt: new Date().toISOString(),
+    customRequestId: params.customRequestId,
+  };
+  db.chatMessages.push(msg);
+  saveDb(db);
+  return msg;
+}
+
+export function getCustomRequests(filters?: { creatorId?: string; customerId?: string }): CustomRequestRecord[] {
+  let list = [...getDb().customRequests];
+  if (filters?.creatorId) {
+    const resolved = resolveCreatorId(filters.creatorId);
+    const clean = filters.creatorId.replace(/^@/, '').toLowerCase();
+    list = list.filter(
+      r => r.creatorId === resolved || r.creatorId === filters.creatorId || r.creatorHandle.toLowerCase() === clean
+    );
+  }
+  if (filters?.customerId) {
+    list = list.filter(r => r.customerId === filters.customerId);
+  }
+  return list;
+}
+
+export function createCustomRequest(params: {
+  customerId: string;
+  customerName?: string;
+  customerHandle?: string;
+  creatorIdOrHandle: string;
+  title: string;
+  description?: string;
+  price: number;
+  paid?: boolean;
+}): CustomRequestRecord {
+  const db = getDb();
+  const resolvedCreator = resolveCreatorId(params.creatorIdOrHandle);
+  const creator = db.creators.find(
+    c => c.id === resolvedCreator || c.handle === params.creatorIdOrHandle.replace(/^@/, '').toLowerCase()
+  );
+  const customer = db.users.find(u => u.id === params.customerId);
+  const now = new Date().toISOString();
+  const numericPrice = Math.max(5, Number(params.price) || 35);
+
+  const reqItem: CustomRequestRecord = {
+    id: `req-${Date.now()}`,
+    customerId: params.customerId,
+    customerName: params.customerName || customer?.name || 'Subscriber',
+    customerHandle: params.customerHandle || (customer ? `@${customer.username}` : '@subscriber'),
+    creatorId: creator?.id || resolvedCreator,
+    creatorHandle: creator?.handle || params.creatorIdOrHandle.replace(/^@/, '').toLowerCase(),
+    creatorName: creator?.name || getCreatorNameById(resolvedCreator),
+    title: params.title,
+    description: params.description || params.title,
+    price: numericPrice,
+    status: params.paid ? 'AWAITING_DELIVERY' : 'PENDING_PAYMENT',
+    createdAt: now,
+  };
+
+  db.customRequests.unshift(reqItem);
+
+  if (params.paid) {
+    const split = calculateCommission(numericPrice, db.settings.creatorCommissionPercent);
+    db.transactions.unshift({
+      id: `tx_cust_${Date.now()}`,
+      transactionReference: `MIRAGE_CUST_${Date.now()}`,
+      userId: reqItem.customerId,
+      userName: reqItem.customerName,
+      creatorId: reqItem.creatorId,
+      creatorName: reqItem.creatorName,
+      postTitle: reqItem.title,
+      type: 'CUSTOM_CONTENT',
+      grossAmount: split.grossAmount,
+      creatorShare: split.creatorShare,
+      platformShare: split.platformShare,
+      feeAmount: 0,
+      currency: 'USD',
+      status: 'SUCCESS',
+      paymentGateway: 'MIRAGE_PAY',
+      gatewayReference: `gw_cust_${Date.now()}`,
+      createdAt: now,
+    });
+  }
+
+  saveDb(db);
+  return reqItem;
+}
+
+export function payCustomRequest(requestId: string, userId: string): { success: boolean; request?: CustomRequestRecord; error?: string } {
+  const db = getDb();
+  const reqItem = db.customRequests.find(r => r.id === requestId);
+  if (!reqItem) return { success: false, error: 'Custom request not found' };
+  if (reqItem.status !== 'PENDING_PAYMENT') {
+    return { success: true, request: reqItem };
+  }
+
+  const split = calculateCommission(reqItem.price, db.settings.creatorCommissionPercent);
+  const now = new Date().toISOString();
+  reqItem.status = 'AWAITING_DELIVERY';
+
+  db.transactions.unshift({
+    id: `tx_cust_${Date.now()}`,
+    transactionReference: `MIRAGE_CUST_${Date.now()}`,
+    userId: userId || reqItem.customerId,
+    userName: reqItem.customerName,
+    creatorId: reqItem.creatorId,
+    creatorName: reqItem.creatorName,
+    postTitle: reqItem.title,
+    type: 'CUSTOM_CONTENT',
+    grossAmount: split.grossAmount,
+    creatorShare: split.creatorShare,
+    platformShare: split.platformShare,
+    feeAmount: 0,
+    currency: 'USD',
+    status: 'SUCCESS',
+    paymentGateway: 'MIRAGE_PAY',
+    gatewayReference: `gw_cust_${Date.now()}`,
+    createdAt: now,
+  });
+
+  saveDb(db);
+  return { success: true, request: reqItem };
+}
+
+export function deliverCustomRequest(
+  requestId: string,
+  deliveredMediaUrl: string
+): { success: boolean; request?: CustomRequestRecord; error?: string } {
+  const db = getDb();
+  const reqItem = db.customRequests.find(r => r.id === requestId);
+  if (!reqItem) return { success: false, error: 'Custom order not found' };
+  if (!deliveredMediaUrl.trim()) return { success: false, error: 'Delivery media URL is required' };
+
+  const now = new Date().toISOString();
+  reqItem.status = 'DELIVERED';
+  reqItem.deliveredMediaUrl = deliveredMediaUrl.trim();
+  reqItem.deliveredAt = now;
+
+  // Unlock into subscriber's Private Vault automatically
+  const existingVault = db.purchases.find(p => p.customRequestId === reqItem.id);
+  if (!existingVault) {
+    const isVideo = /\.(mp4|mov|webm)(\?|$)/i.test(reqItem.deliveredMediaUrl);
+    db.purchases.unshift({
+      id: `pur-cust-${Date.now()}`,
+      userId: reqItem.customerId,
+      customRequestId: reqItem.id,
+      title: `Custom Order: ${reqItem.title}`,
+      creatorId: reqItem.creatorId,
+      creatorName: reqItem.creatorName,
+      creatorHandle: reqItem.creatorHandle,
+      mediaType: isVideo ? 'VIDEO' : 'IMAGE',
+      accessUrl: reqItem.deliveredMediaUrl,
+      thumbnailUrl: isVideo
+        ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80'
+        : reqItem.deliveredMediaUrl,
+      price: reqItem.price,
+      purchasedAt: now,
+    });
+  }
+
+  saveDb(db);
+  return { success: true, request: reqItem };
+}
+
+// ======================= POSTS, MEDIA & PPV VAULT =======================
+
+export function getCreatorStudioPosts(creatorHandle?: string): PostItem[] {
+  const db = getDb();
+  if (!creatorHandle) return [...db.posts];
+  const cleanHandle = creatorHandle.replace(/^@/, '').toLowerCase();
+  return db.posts.filter(p => p.creatorHandle.toLowerCase() === cleanHandle);
+}
+
 export function hasUserPurchasedPost(userId: string | null | undefined, postId: string): boolean {
   if (!userId) return false;
-  return purchases.some(p => p.userId === userId && p.postId === postId);
+  return getDb().purchases.some(p => p.userId === userId && p.postId === postId);
 }
 
-// Media Security: Check access authorization
 export function checkMediaAuthorization(
   userId: string | null | undefined,
   postId: string
 ): { authorized: boolean; post?: PostItem; error?: string } {
-  const post = posts.find(p => p.id === postId);
+  const post = getDb().posts.find(p => p.id === postId);
   if (!post) {
     return { authorized: false, error: 'Post not found' };
   }
 
-  // Creator can always access their own content
   if (userId && post.creatorId === userId) {
     return { authorized: true, post };
   }
 
-  // Public posts and public previews are available to anyone without subscription or login
   if (post.isPublicPreview || post.visibility === 'PUBLIC') {
     return { authorized: true, post };
   }
 
-  // Subscriber-only posts require active subscription
   if (post.visibility === 'SUBSCRIBER_ONLY') {
     if (isUserSubscribedToCreator(userId, post.creatorId)) {
       return { authorized: true, post };
@@ -1006,7 +2131,6 @@ export function checkMediaAuthorization(
     return { authorized: false, error: 'Subscription required to view this content' };
   }
 
-  // PURCHASE_ONLY requires explicit individual purchase
   if (post.visibility === 'PURCHASE_ONLY') {
     if (hasUserPurchasedPost(userId, postId)) {
       return { authorized: true, post };
@@ -1020,9 +2144,8 @@ export function checkMediaAuthorization(
   return { authorized: false, error: 'Access denied' };
 }
 
-// Feed retrieval: Enforce strict URL protection for non-buyers while delivering public previews
 export function getFeedForUser(creatorHandle?: string, userId?: string | null): PostItem[] {
-  let list = posts.filter(p => p.status === 'PUBLISHED');
+  let list = getDb().posts.filter(p => p.status === 'PUBLISHED');
 
   if (creatorHandle) {
     const cleanHandle = creatorHandle.replace(/^@/, '').toLowerCase();
@@ -1030,7 +2153,6 @@ export function getFeedForUser(creatorHandle?: string, userId?: string | null): 
   }
 
   return list.map(post => {
-    // Public previews and public content are always fully accessible
     if (post.isPublicPreview || post.visibility === 'PUBLIC') {
       return post;
     }
@@ -1039,12 +2161,11 @@ export function getFeedForUser(creatorHandle?: string, userId?: string | null): 
     const isSubscribed = isUserSubscribedToCreator(userId, post.creatorId);
     const hasPurchased = hasUserPurchasedPost(userId, post.id);
 
-    // If locked PPV, NEVER return original full-resolution mediaUrl!
     if (post.visibility === 'PURCHASE_ONLY' && !isOwner && !hasPurchased) {
       return {
         ...post,
-        mediaUrl: '', // Stripped completely for security
-        thumbnailUrl: post.thumbnailUrl, // Low-res preview/thumbnail
+        mediaUrl: '',
+        thumbnailUrl: post.thumbnailUrl,
       };
     }
 
@@ -1060,15 +2181,15 @@ export function getFeedForUser(creatorHandle?: string, userId?: string | null): 
   });
 }
 
-// Purchase individual content (PPV)
 export function purchaseIndividualContent(params: {
   userId: string;
   userName?: string;
   postId: string;
 }): { success: boolean; purchase?: PurchaseRecord; transaction?: TransactionRecord; error?: string } {
   const { userId, userName = 'Subscriber', postId } = params;
+  const db = getDb();
 
-  const post = posts.find(p => p.id === postId);
+  const post = db.posts.find(p => p.id === postId);
   if (!post) {
     return { success: false, error: 'Content not found' };
   }
@@ -1077,13 +2198,11 @@ export function purchaseIndividualContent(params: {
     return { success: false, error: 'This content is not currently available for purchase.' };
   }
 
-  // 1. Self-purchase prevention
   if (post.creatorId === userId) {
     return { success: false, error: 'Creators cannot purchase their own content.' };
   }
 
-  // 2. Idempotency check: Already purchased?
-  const existingPurchase = purchases.find(p => p.userId === userId && p.postId === postId);
+  const existingPurchase = db.purchases.find(p => p.userId === userId && p.postId === postId);
   if (existingPurchase) {
     return {
       success: true,
@@ -1097,14 +2216,10 @@ export function purchaseIndividualContent(params: {
     return { success: false, error: 'Invalid price for paid content.' };
   }
 
-  // Calculate unified creator / platform split
-  const split = calculateCommission(grossAmount);
-  const creatorShare = split.creatorShare;
-  const platformShare = split.platformShare;
+  const split = calculateCommission(grossAmount, db.settings.creatorCommissionPercent);
   const now = new Date().toISOString();
   const txRef = `MIRAGE_PPV_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
-  // Grant entitlement
   const newPurchase: PurchaseRecord = {
     id: `pur-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     userId,
@@ -1114,16 +2229,15 @@ export function purchaseIndividualContent(params: {
     creatorName: post.creatorName,
     creatorHandle: post.creatorHandle,
     mediaType: post.mediaType,
-    accessUrl: post.mediaUrl, // Secure full access url unlocked
+    accessUrl: post.mediaUrl,
     thumbnailUrl: post.thumbnailUrl,
     price: grossAmount,
     purchasedAt: now,
   };
 
-  purchases.unshift(newPurchase);
+  db.purchases.unshift(newPurchase);
   post.salesCount = (post.salesCount || 0) + 1;
 
-  // Record transaction
   const newTransaction: TransactionRecord = {
     id: `tx-${Date.now()}`,
     transactionReference: txRef,
@@ -1135,8 +2249,8 @@ export function purchaseIndividualContent(params: {
     postTitle: post.title,
     type: 'INDIVIDUAL_CONTENT',
     grossAmount,
-    creatorShare,
-    platformShare,
+    creatorShare: split.creatorShare,
+    platformShare: split.platformShare,
     feeAmount: 0.0,
     currency: 'USD',
     status: 'SUCCESS',
@@ -1145,7 +2259,8 @@ export function purchaseIndividualContent(params: {
     createdAt: now,
   };
 
-  transactions.unshift(newTransaction);
+  db.transactions.unshift(newTransaction);
+  saveDb(db);
 
   return {
     success: true,
@@ -1154,12 +2269,15 @@ export function purchaseIndividualContent(params: {
   };
 }
 
-// User Purchases Library
 export function getUserPurchasesLibrary(userId: string): PurchaseRecord[] {
-  return purchases.filter(p => p.userId === userId);
+  return getDb().purchases.filter(p => p.userId === userId);
 }
 
-// Helper: Get public preview photos (up to 3) and video clips (up to 2) for creator profile
+export function getUserTransactions(userId: string): TransactionRecord[] {
+  if (!userId) return [];
+  return getDb().transactions.filter(t => t.userId === userId);
+}
+
 export function getCreatorPublicPreviews(creatorHandle: string): {
   photos: PostItem[];
   videos: PostItem[];
@@ -1167,7 +2285,7 @@ export function getCreatorPublicPreviews(creatorHandle: string): {
   totalVideos: number;
 } {
   const cleanHandle = creatorHandle.replace(/^@/, '').toLowerCase();
-  const creatorPosts = posts.filter(
+  const creatorPosts = getDb().posts.filter(
     p => p.creatorHandle.toLowerCase() === cleanHandle && p.status === 'PUBLISHED' && p.isPublicPreview === true
   );
 
@@ -1182,7 +2300,6 @@ export function getCreatorPublicPreviews(creatorHandle: string): {
   };
 }
 
-// Helper: Get current public preview counts for creator (enforces max 3 photos, max 2 videos)
 export function getCreatorPreviewCounts(creatorId: string): {
   photos: number;
   videos: number;
@@ -1191,7 +2308,7 @@ export function getCreatorPreviewCounts(creatorId: string): {
   canAddPhoto: boolean;
   canAddVideo: boolean;
 } {
-  const creatorPosts = posts.filter(
+  const creatorPosts = getDb().posts.filter(
     p => p.creatorId === creatorId && p.status === 'PUBLISHED' && p.isPublicPreview === true
   );
   const photoCount = creatorPosts.filter(p => p.mediaType === 'IMAGE').length;
@@ -1207,7 +2324,6 @@ export function getCreatorPreviewCounts(creatorId: string): {
   };
 }
 
-// Creator upload new post
 export function createCreatorPost(data: {
   creatorId: string;
   creatorHandle: string;
@@ -1226,6 +2342,7 @@ export function createCreatorPost(data: {
   isPublicPreview?: boolean;
 }): PostItem {
   const isPreview = !!data.isPublicPreview;
+  const db = getDb();
 
   if (isPreview) {
     const counts = getCreatorPreviewCounts(data.creatorId);
@@ -1238,13 +2355,17 @@ export function createCreatorPost(data: {
   }
 
   const visibility = isPreview ? 'PUBLIC' : data.visibility;
+  const creator = db.creators.find(c => c.id === data.creatorId || c.handle === data.creatorHandle);
 
   const newPost: PostItem = {
     id: `post-${Date.now()}`,
-    creatorId: data.creatorId,
-    creatorHandle: data.creatorHandle,
-    creatorName: data.creatorName,
-    creatorAvatar: data.creatorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    creatorId: creator?.id || data.creatorId,
+    creatorHandle: creator?.handle || data.creatorHandle,
+    creatorName: creator?.name || data.creatorName,
+    creatorAvatar:
+      data.creatorAvatar ||
+      creator?.avatar ||
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
     title: data.title,
     caption: data.caption,
     mediaType: data.mediaType,
@@ -1262,28 +2383,30 @@ export function createCreatorPost(data: {
     updatedAt: new Date().toISOString(),
   };
 
-  posts.unshift(newPost);
+  db.posts.unshift(newPost);
+  saveDb(db);
   return newPost;
 }
 
-// Update existing post (price, status, title, caption, isPublicPreview)
 export function updatePostDetails(
   postId: string,
   creatorId: string,
   updates: Partial<Pick<PostItem, 'price' | 'status' | 'title' | 'caption' | 'thumbnailUrl' | 'isPublicPreview'>>
 ): { success: boolean; post?: PostItem; error?: string } {
-  const post = posts.find(p => p.id === postId);
+  const db = getDb();
+  const post = db.posts.find(p => p.id === postId);
   if (!post) {
     return { success: false, error: 'Post not found' };
   }
 
-  if (post.creatorId !== creatorId) {
+  const resolvedCreator = resolveCreatorId(creatorId);
+  if (post.creatorId !== creatorId && post.creatorId !== resolvedCreator) {
     return { success: false, error: 'Unauthorized to edit this post' };
   }
 
   if (updates.isPublicPreview !== undefined && updates.isPublicPreview !== post.isPublicPreview) {
     if (updates.isPublicPreview) {
-      const counts = getCreatorPreviewCounts(creatorId);
+      const counts = getCreatorPreviewCounts(post.creatorId);
       if (post.mediaType === 'IMAGE' && !counts.canAddPhoto) {
         return { success: false, error: 'Maximum of 3 public preview photos allowed per creator. Please unmark an existing preview photo first.' };
       }
@@ -1302,7 +2425,7 @@ export function updatePostDetails(
   }
   if (updates.status !== undefined) {
     if (updates.status === 'PUBLISHED' && post.status !== 'PUBLISHED' && post.isPublicPreview) {
-      const counts = getCreatorPreviewCounts(creatorId);
+      const counts = getCreatorPreviewCounts(post.creatorId);
       if (post.mediaType === 'IMAGE' && !counts.canAddPhoto) {
         return { success: false, error: 'Maximum of 3 public preview photos allowed per creator. Please unmark an existing preview photo first.' };
       }
@@ -1312,51 +2435,65 @@ export function updatePostDetails(
     }
     post.status = updates.status;
   }
-  if (updates.title !== undefined) {
-    post.title = updates.title;
-  }
-  if (updates.caption !== undefined) {
-    post.caption = updates.caption;
-  }
-  if (updates.thumbnailUrl !== undefined) {
-    post.thumbnailUrl = updates.thumbnailUrl;
-  }
+  if (updates.title !== undefined) post.title = updates.title;
+  if (updates.caption !== undefined) post.caption = updates.caption;
+  if (updates.thumbnailUrl !== undefined) post.thumbnailUrl = updates.thumbnailUrl;
   post.updatedAt = new Date().toISOString();
 
+  saveDb(db);
   return { success: true, post };
 }
 
-// Creator Segregated Earnings
-export function getCreatorSegregatedEarnings(creatorId: string) {
-  const resolvedId = resolveCreatorId(creatorId);
-  const creatorTxs = transactions.filter(t => (t.creatorId === creatorId || t.creatorId === resolvedId) && t.status === 'SUCCESS');
+// ======================= CREATOR EARNINGS & ADMIN DASHBOARD =======================
 
-  // Subscriptions
+export function getCreatorSegregatedEarnings(creatorId: string) {
+  const db = getDb();
+  const resolvedId = resolveCreatorId(creatorId);
+  const creatorTxs = db.transactions.filter(
+    t => (t.creatorId === creatorId || t.creatorId === resolvedId) && t.status === 'SUCCESS'
+  );
+  const creatorProfile = db.creators.find(c => c.id === resolvedId || c.id === creatorId);
+  const activeSubscribers = db.subscriptions.filter(
+    s => (s.creatorId === resolvedId || s.creatorId === creatorId) && s.status === 'ACTIVE'
+  );
+
   const subTxs = creatorTxs.filter(t => t.type === 'SUBSCRIPTION');
   const subscriptionGross = subTxs.reduce((sum, t) => sum + t.grossAmount, 0);
   const subscriptionCreatorNet = subTxs.reduce((sum, t) => sum + t.creatorShare, 0);
   const subscriptionPlatformCut = subTxs.reduce((sum, t) => sum + t.platformShare, 0);
 
-  // Individual Content Sales (PPV)
   const ppvTxs = creatorTxs.filter(t => t.type === 'INDIVIDUAL_CONTENT');
   const ppvGross = ppvTxs.reduce((sum, t) => sum + t.grossAmount, 0);
   const ppvCreatorNet = ppvTxs.reduce((sum, t) => sum + t.creatorShare, 0);
   const ppvPlatformCut = ppvTxs.reduce((sum, t) => sum + t.platformShare, 0);
-  const ppvSalesCount = ppvTxs.length;
 
-  // Custom Content Requests
   const custTxs = creatorTxs.filter(t => t.type === 'CUSTOM_CONTENT');
   const customGross = custTxs.reduce((sum, t) => sum + t.grossAmount, 0);
   const customCreatorNet = custTxs.reduce((sum, t) => sum + t.creatorShare, 0);
   const customPlatformCut = custTxs.reduce((sum, t) => sum + t.platformShare, 0);
 
-  // Total
   const totalGross = subscriptionGross + ppvGross + customGross;
   const totalCreatorNet = subscriptionCreatorNet + ppvCreatorNet + customCreatorNet;
   const totalPlatformCut = subscriptionPlatformCut + ppvPlatformCut + customPlatformCut;
 
   return {
-    creatorId,
+    creatorId: resolvedId || creatorId,
+    creatorProfile: creatorProfile || null,
+    activeSubscribersCount: activeSubscribers.length,
+    subscribersList: activeSubscribers.map(sub => {
+      const userSpent = creatorTxs
+        .filter(t => t.userId === sub.userId)
+        .reduce((s, t) => s + t.grossAmount, 0);
+      return {
+        id: sub.id,
+        userId: sub.userId,
+        name: sub.userName,
+        handle: sub.userHandle,
+        status: sub.status,
+        joined: new Date(sub.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        totalSpent: `$${Math.max(sub.price, userSpent).toFixed(2)}`,
+      };
+    }),
     subscriptions: {
       count: subTxs.length,
       grossAmount: Number(subscriptionGross.toFixed(2)),
@@ -1364,7 +2501,7 @@ export function getCreatorSegregatedEarnings(creatorId: string) {
       platformShare: Number(subscriptionPlatformCut.toFixed(2)),
     },
     individualContent: {
-      count: ppvSalesCount,
+      count: ppvTxs.length,
       grossAmount: Number(ppvGross.toFixed(2)),
       creatorNet: Number(ppvCreatorNet.toFixed(2)),
       platformShare: Number(ppvPlatformCut.toFixed(2)),
@@ -1379,15 +2516,15 @@ export function getCreatorSegregatedEarnings(creatorId: string) {
       totalGross: Number(totalGross.toFixed(2)),
       totalCreatorNet: Number(totalCreatorNet.toFixed(2)),
       totalPlatformCut: Number(totalPlatformCut.toFixed(2)),
-      commissionSplit: '85% Creator / 15% Platform',
+      commissionSplit: `${db.settings.creatorCommissionPercent}% Creator / ${db.settings.platformCommissionPercent}% Platform`,
     },
-    recentTransactions: creatorTxs.slice(0, 15),
+    recentTransactions: creatorTxs.slice(0, 25),
+    settings: db.settings,
   };
 }
 
-// Admin Catalog retrieval
 export function getAdminCatalogList(filters?: { status?: string; mediaType?: string }) {
-  let list = [...posts];
+  let list = [...getDb().posts];
   if (filters?.status && filters.status !== 'ALL') {
     list = list.filter(p => p.status === filters.status);
   }
@@ -1397,18 +2534,18 @@ export function getAdminCatalogList(filters?: { status?: string; mediaType?: str
   return list;
 }
 
-// Admin Moderation: Toggle status
 export function setPostStatusAdmin(postId: string, status: PostStatus): { success: boolean; post?: PostItem } {
-  const post = posts.find(p => p.id === postId);
+  const db = getDb();
+  const post = db.posts.find(p => p.id === postId);
   if (!post) return { success: false };
   post.status = status;
   post.updatedAt = new Date().toISOString();
+  saveDb(db);
   return { success: true, post };
 }
 
-// Admin All Transactions with filtering
 export function getAdminTransactions(filters?: { type?: string; search?: string }) {
-  let list = [...transactions];
+  let list = [...getDb().transactions];
   if (filters?.type && filters.type !== 'ALL') {
     list = list.filter(t => t.type === filters.type);
   }
@@ -1425,24 +2562,73 @@ export function getAdminTransactions(filters?: { type?: string; search?: string 
   return list;
 }
 
+export function issueRefundAdmin(txId: string): { success: boolean; transaction?: TransactionRecord } {
+  const db = getDb();
+  const tx = db.transactions.find(t => t.id === txId);
+  if (!tx) return { success: false };
+  tx.status = 'REFUNDED';
+  saveDb(db);
+  return { success: true, transaction: tx };
+}
+
+export function getAdminReports(): ContentReportRecord[] {
+  return [...getDb().reports];
+}
+
+export function updateReportStatusAdmin(
+  reportId: string,
+  status: 'PENDING' | 'RESOLVED' | 'DISMISSED'
+): { success: boolean; report?: ContentReportRecord } {
+  const db = getDb();
+  const report = db.reports.find(r => r.id === reportId);
+  if (!report) return { success: false };
+  report.status = status;
+  saveDb(db);
+  return { success: true, report };
+}
+
+export function getAdminOverviewData() {
+  const db = getDb();
+  const activeTxs = db.transactions.filter(t => t.status === 'SUCCESS');
+
+  const subscriptionVolume = activeTxs
+    .filter(t => t.type === 'SUBSCRIPTION')
+    .reduce((sum, t) => sum + t.grossAmount, 0);
+  const ppvContentVolume = activeTxs
+    .filter(t => t.type === 'INDIVIDUAL_CONTENT')
+    .reduce((sum, t) => sum + t.grossAmount, 0);
+  const customRequestsVolume = activeTxs
+    .filter(t => t.type === 'CUSTOM_CONTENT')
+    .reduce((sum, t) => sum + t.grossAmount, 0);
+
+  const totalGross = subscriptionVolume + ppvContentVolume + customRequestsVolume;
+  const totalCreatorNet = activeTxs.reduce((sum, t) => sum + t.creatorShare, 0);
+  const totalPlatformCut = activeTxs.reduce((sum, t) => sum + t.platformShare, 0);
+
+  return {
+    metrics: {
+      subscriptionVolume: Number(subscriptionVolume.toFixed(2)),
+      ppvContentVolume: Number(ppvContentVolume.toFixed(2)),
+      customRequestsVolume: Number(customRequestsVolume.toFixed(2)),
+      totalGross: Number(totalGross.toFixed(2)),
+      totalCreatorNet: Number(totalCreatorNet.toFixed(2)),
+      totalPlatformCut: Number(totalPlatformCut.toFixed(2)),
+      activeUsersCount: db.users.filter(u => u.status === 'ACTIVE').length,
+      totalUsersCount: db.users.length,
+      totalCreatorsCount: db.creators.length,
+      pendingReportsCount: db.reports.filter(r => r.status === 'PENDING').length,
+    },
+    users: [...db.users],
+    creators: listAllCreators(),
+    transactions: [...db.transactions],
+    reports: [...db.reports],
+    settings: { ...db.settings },
+  };
+}
+
 // Reset store (used in automated testing)
 export function resetStoreForTesting() {
-  posts = JSON.parse(JSON.stringify(SEED_POSTS));
-  purchases = [
-    {
-      id: 'pur-seed-1',
-      userId: 'usr-1',
-      postId: 'post-ppv-1',
-      title: 'Private Sunset Mirage Collection #1',
-      creatorId: 'c1',
-      creatorName: 'Luna Rae',
-      creatorHandle: 'luna-rae',
-      mediaType: 'IMAGE',
-      accessUrl: 'https://images.unsplash.com/photo-1516483638261-f4dbaf036963?auto=format&fit=crop&w=1600&q=95',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1516483638261-f4dbaf036963?auto=format&fit=crop&w=600&q=70',
-      price: 15.00,
-      purchasedAt: '2026-10-25T16:20:00Z',
-    },
-  ];
+  globalThis.__mirageDb = createInitialDb();
+  saveDb(globalThis.__mirageDb);
 }
 

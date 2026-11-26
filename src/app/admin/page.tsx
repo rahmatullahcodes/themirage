@@ -27,8 +27,8 @@ import {
   Video,
   Archive,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react';
-import { calculateCommission } from '@/lib/commission';
 import PanelSidebar from '@/components/PanelSidebar';
 import PanelHeader from '@/components/PanelHeader';
 
@@ -36,10 +36,55 @@ export default function AdminPanelPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [loadingOverview, setLoadingOverview] = useState(true);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [confirmRefundTxId, setConfirmRefundTxId] = useState<string | null>(null);
+
   const [adminUser, setAdminUser] = useState({
     name: 'Super Admin',
     handle: 'admin@themirage.vip',
   });
+
+  // Live Commission Config
+  const [creatorCommission, setCreatorCommission] = useState(85);
+  const [platformCommission, setPlatformCommission] = useState(15);
+  const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Live Platform Metrics
+  const [metrics, setMetrics] = useState({
+    subscriptionVolume: 0,
+    ppvContentVolume: 0,
+    customRequestsVolume: 0,
+    totalGross: 0,
+    totalCreatorNet: 0,
+    totalPlatformCut: 0,
+    activeUsersCount: 0,
+    totalUsersCount: 0,
+    totalCreatorsCount: 0,
+    pendingReportsCount: 0,
+  });
+
+  // Live Entities from Backend Store
+  const [users, setUsers] = useState<any[]>([]);
+  const [userSearch, setUserSearch] = useState('');
+  const [creators, setCreators] = useState<any[]>([]);
+  const [reports, setReports] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+
+  // Catalog state
+  const [catalogItems, setCatalogItems] = useState<any[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogStatusFilter, setCatalogStatusFilter] = useState('ALL');
+  const [catalogTypeFilter, setCatalogTypeFilter] = useState('ALL');
+
+  // Transactions filters
+  const [txSearch, setTxSearch] = useState('');
+  const [txTypeFilter, setTxTypeFilter] = useState('ALL');
+
+  const showToast = (msg: string) => {
+    setActionNotice(msg);
+    setTimeout(() => setActionNotice(null), 3500);
+  };
 
   useEffect(() => {
     try {
@@ -54,140 +99,32 @@ export default function AdminPanelPage() {
         }
       }
     } catch (e) {}
+
+    loadAdminOverview();
   }, []);
 
-  // Configurable commission state (Requirement 2 & 14 & 17)
-  const [creatorCommission, setCreatorCommission] = useState(85);
-  const [platformCommission, setPlatformCommission] = useState(15);
-  const [savedSuccess, setSavedSuccess] = useState(false);
-
-  // Platform metrics (Segregated revenue breakdown)
-  const subscriptionVolume = 24200.00;
-  const ppvContentVolume = 9750.00;
-  const customRequestsVolume = 4500.00;
-  const totalGross = subscriptionVolume + ppvContentVolume + customRequestsVolume; // $38,450.00
-  const metrics = calculateCommission(totalGross, creatorCommission);
-
-  // Catalog state
-  const [catalogItems, setCatalogItems] = useState<any[]>([]);
-  const [catalogLoading, setCatalogLoading] = useState(false);
-  const [catalogStatusFilter, setCatalogStatusFilter] = useState('ALL');
-  const [catalogTypeFilter, setCatalogTypeFilter] = useState('ALL');
-
-  // Transactions state & filters
-  const [txSearch, setTxSearch] = useState('');
-  const [txTypeFilter, setTxTypeFilter] = useState('ALL');
-
-  // Demo users
-  const [users, setUsers] = useState([
-    { id: 'u1', name: 'Sophie Lee', email: 'sophie@themirage.vip', role: 'CREATOR', status: 'ACTIVE', joined: 'Oct 12, 2026' },
-    { id: 'u2', name: 'Luna Rae', email: 'luna@themirage.vip', role: 'CREATOR', status: 'ACTIVE', joined: 'Oct 08, 2026' },
-    { id: 'u3', name: 'Alex Mercer', email: 'alex@example.com', role: 'SUBSCRIBER', status: 'ACTIVE', joined: 'Oct 14, 2026' },
-    { id: 'u4', name: 'John Doe', email: 'john@example.com', role: 'SUBSCRIBER', status: 'SUSPENDED', joined: 'Oct 10, 2026' },
-  ]);
-
-  // Demo creators with verification toggle
-  const [creators, setCreators] = useState([
-    { id: 'c1', name: 'Luna Rae', handle: '@luna-rae', isVerified: true, monthlyPrice: 9.99, earnings: 14200.00, subscribers: 428, status: 'ACTIVE' },
-    { id: 'c2', name: 'Mia Carter', handle: '@mia-carter', isVerified: true, monthlyPrice: 7.99, earnings: 9800.00, subscribers: 310, status: 'ACTIVE' },
-    { id: 'c3', name: 'Zara Khan', handle: '@zara-khan', isVerified: false, monthlyPrice: 12.99, earnings: 4500.00, subscribers: 195, status: 'ACTIVE' },
-    { id: 'c4', name: 'Aria Vance', handle: '@aria-vance', isVerified: false, monthlyPrice: 10.99, earnings: 1200.00, subscribers: 84, status: 'ACTIVE' },
-  ]);
-
-  // Demo reports
-  const [reports, setReports] = useState([
-    { id: 'rep-1', reporter: 'Alex Mercer', reason: 'Copyright Rights Question', status: 'PENDING', post: 'Exclusive Stage Set', date: 'Oct 20, 2026' },
-    { id: 'rep-2', reporter: 'System Gate', reason: 'Age verification declaration check', status: 'RESOLVED', post: 'Feed Post #41', date: 'Oct 19, 2026' },
-  ]);
-
-  // Demo transactions with PPV individual content items
-  const [transactions, setTransactions] = useState([
-    {
-      id: 'tx-1005',
-      ref: 'MIRAGE_PPV_7721',
-      user: 'alexmercer',
-      creator: 'Luna Rae',
-      type: 'INDIVIDUAL_CONTENT',
-      amount: 15.00,
-      creatorShare: 12.75,
-      platformShare: 2.25,
-      status: 'SUCCESS',
-      date: 'Oct 25, 2026, 04:20 PM',
-    },
-    {
-      id: 'tx-1006',
-      ref: 'MIRAGE_PPV_5542',
-      user: 'marcus_w',
-      creator: 'Luna Rae',
-      type: 'INDIVIDUAL_CONTENT',
-      amount: 25.00,
-      creatorShare: 21.25,
-      platformShare: 3.75,
-      status: 'SUCCESS',
-      date: 'Oct 26, 2026, 08:30 PM',
-    },
-    {
-      id: 'tx-1001',
-      ref: 'MIRAGE_SUB_9941',
-      user: 'alexmercer',
-      creator: 'Luna Rae',
-      type: 'SUBSCRIPTION',
-      amount: 9.99,
-      creatorShare: 8.49,
-      platformShare: 1.50,
-      status: 'SUCCESS',
-      date: 'Oct 21, 2026, 11:45 AM',
-    },
-    {
-      id: 'tx-1002',
-      ref: 'MIRAGE_CUST_8832',
-      user: 'alexmercer',
-      creator: 'Luna Rae',
-      type: 'CUSTOM_CONTENT',
-      amount: 45.00,
-      creatorShare: 38.25,
-      platformShare: 6.75,
-      status: 'SUCCESS',
-      date: 'Oct 21, 2026, 11:46 AM',
-    },
-    {
-      id: 'tx-1003',
-      ref: 'MIRAGE_SUB_7721',
-      user: 'marcus_w',
-      creator: 'Sophie Lee',
-      type: 'SUBSCRIPTION',
-      amount: 9.99,
-      creatorShare: 8.49,
-      platformShare: 1.50,
-      status: 'SUCCESS',
-      date: 'Oct 20, 2026, 04:12 PM',
-    },
-    {
-      id: 'tx-1004',
-      ref: 'MIRAGE_SUB_6619',
-      user: 'david_k',
-      creator: 'Mia Carter',
-      type: 'SUBSCRIPTION',
-      amount: 7.99,
-      creatorShare: 6.79,
-      platformShare: 1.20,
-      status: 'REFUNDED',
-      date: 'Oct 19, 2026, 09:30 AM',
-    },
-  ]);
-
-  useEffect(() => {
+  const loadAdminOverview = async () => {
+    setLoadingOverview(true);
     try {
-      const savedRules = localStorage.getItem('mirage_commission_rules');
-      if (savedRules) {
-        const parsed = JSON.parse(savedRules);
-        if (typeof parsed.creatorCommission === 'number') {
-          setCreatorCommission(parsed.creatorCommission);
-          setPlatformCommission(100 - parsed.creatorCommission);
+      const res = await fetch('/api/admin/overview', { cache: 'no-store' });
+      const data = await res.json();
+      if (data.success) {
+        if (data.metrics) setMetrics(data.metrics);
+        if (Array.isArray(data.users)) setUsers(data.users);
+        if (Array.isArray(data.creators)) setCreators(data.creators);
+        if (Array.isArray(data.transactions)) setTransactions(data.transactions);
+        if (Array.isArray(data.reports)) setReports(data.reports);
+        if (data.settings) {
+          setCreatorCommission(data.settings.creatorCommissionPercent);
+          setPlatformCommission(data.settings.platformCommissionPercent);
         }
       }
-    } catch (e) {}
-  }, []);
+    } catch (e) {
+      console.error('Failed to load admin overview:', e);
+    } finally {
+      setLoadingOverview(false);
+    }
+  };
 
   useEffect(() => {
     fetchCatalog();
@@ -196,7 +133,9 @@ export default function AdminPanelPage() {
   const fetchCatalog = async () => {
     setCatalogLoading(true);
     try {
-      const res = await fetch(`/api/admin/catalog?status=${catalogStatusFilter}&mediaType=${catalogTypeFilter}`);
+      const res = await fetch(`/api/admin/catalog?status=${catalogStatusFilter}&mediaType=${catalogTypeFilter}`, {
+        cache: 'no-store',
+      });
       const data = await res.json();
       if (data.success && Array.isArray(data.catalog)) {
         setCatalogItems(data.catalog);
@@ -220,57 +159,142 @@ export default function AdminPanelPage() {
         setCatalogItems(prev =>
           prev.map(item => (item.id === postId ? { ...item, status: newStatus } : item))
         );
+        showToast(`Catalog item updated to ${newStatus}`);
       }
     } catch (e) {
       console.error('Failed to change status:', e);
     }
   };
 
-  const handleToggleVerification = (creatorId: string) => {
-    setCreators(prev =>
-      prev.map(c => (c.id === creatorId ? { ...c, isVerified: !c.isVerified } : c))
-    );
-  };
-
-  const handleToggleUserStatus = (userId: string) => {
-    setUsers(prev =>
-      prev.map(u =>
-        u.id === userId
-          ? { ...u, status: u.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' }
-          : u
-      )
-    );
-  };
-
-  const handleIssueRefund = (txId: string) => {
-    if (confirm(`Are you sure you want to issue an administrative refund for ${txId}?`)) {
-      setTransactions(prev =>
-        prev.map(t => (t.id === txId ? { ...t, status: 'REFUNDED' } : t))
-      );
-      alert(`Refund processed for transaction ${txId}. Customer ledger updated.`);
+  const handleToggleVerification = async (creatorId: string) => {
+    try {
+      const res = await fetch('/api/admin/creators', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creatorId }),
+      });
+      const data = await res.json();
+      if (data.success && data.creator) {
+        setCreators(prev =>
+          prev.map(c => (c.id === creatorId ? { ...c, isVerified: data.creator.isVerified } : c))
+        );
+        showToast(
+          data.creator.isVerified
+            ? `Verified badge granted to ${data.creator.name}`
+            : `Verified badge revoked for ${data.creator.name}`
+        );
+      }
+    } catch (e) {
+      console.error('Failed to toggle creator verification:', e);
     }
   };
 
-  const handleSaveSettings = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleToggleUserStatus = async (userId: string) => {
+    const target = users.find(u => u.id === userId);
+    if (!target) return;
+    const nextStatus = target.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+
     try {
-      localStorage.setItem(
-        'mirage_commission_rules',
-        JSON.stringify({ creatorCommission, platformCommission })
-      );
-    } catch (err) {}
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2000);
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, status: nextStatus }),
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        setUsers(prev =>
+          prev.map(u => (u.id === userId ? { ...u, status: data.user.status } : u))
+        );
+        showToast(`Account ${target.name} updated to ${nextStatus}`);
+      }
+    } catch (e) {
+      console.error('Failed to update user status:', e);
+    }
   };
 
+  const handleIssueRefund = async (txId: string) => {
+    try {
+      const res = await fetch('/api/admin/transactions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ txId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setConfirmRefundTxId(null);
+        showToast(`Refund processed for transaction ${txId}. Platform metrics updated.`);
+        loadAdminOverview();
+      }
+    } catch (e) {
+      console.error('Failed to refund transaction:', e);
+    }
+  };
+
+  const handleReportDecision = async (reportId: string, status: 'RESOLVED' | 'DISMISSED') => {
+    try {
+      const res = await fetch('/api/admin/reports', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportId, status }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setReports(prev => prev.map(r => (r.id === reportId ? { ...r, status } : r)));
+        showToast(`Report ${reportId} marked as ${status}`);
+      }
+    } catch (e) {
+      console.error('Failed to update report:', e);
+    }
+  };
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creatorCommissionPercent: creatorCommission }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSavedSuccess(true);
+        setTimeout(() => setSavedSuccess(false), 2500);
+        showToast(`Commission split updated to ${creatorCommission}% / ${platformCommission}%`);
+      }
+    } catch (e) {
+      console.error('Failed to save settings:', e);
+    }
+  };
+
+  const filteredUsers = users.filter(u => {
+    if (!userSearch.trim()) return true;
+    const q = userSearch.toLowerCase();
+    return (
+      (u.name || '').toLowerCase().includes(q) ||
+      (u.email || '').toLowerCase().includes(q) ||
+      (u.username || '').toLowerCase().includes(q) ||
+      (u.role || '').toLowerCase().includes(q)
+    );
+  });
+
   const filteredTx = transactions.filter(t => {
-    const matchesSearch =
-      t.ref.toLowerCase().includes(txSearch.toLowerCase()) ||
-      t.user.toLowerCase().includes(txSearch.toLowerCase()) ||
-      t.creator.toLowerCase().includes(txSearch.toLowerCase());
+    const ref = (t.transactionReference || '').toLowerCase();
+    const user = (t.userName || '').toLowerCase();
+    const creator = (t.creatorName || '').toLowerCase();
+    const q = txSearch.toLowerCase();
+    const matchesSearch = ref.includes(q) || user.includes(q) || creator.includes(q);
     const matchesType = txTypeFilter === 'ALL' || t.type === txTypeFilter;
     return matchesSearch && matchesType;
   });
+
+  const formatDate = (iso: string) => {
+    if (!iso) return 'Recently';
+    try {
+      return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch {
+      return iso;
+    }
+  };
 
   const getTabTitle = () => {
     switch (activeTab) {
@@ -283,7 +307,7 @@ export default function AdminPanelPage() {
       case 'users':
         return 'User Accounts & Access Permissions';
       case 'transactions':
-        return 'Transactions & 85/15 Commission Ledger';
+        return `Transactions & ${creatorCommission}/${platformCommission} Commission Ledger`;
       case 'moderation':
         return 'Content Moderation & Review Queue';
       case 'settings':
@@ -306,6 +330,12 @@ export default function AdminPanelPage() {
         onCloseMobile={() => setMobileSidebarOpen(false)}
         userName={adminUser.name}
         userHandle={adminUser.handle}
+        badges={{
+          creators: String(creators.length),
+          users: String(users.length),
+          transactions: `${creatorCommission}/${platformCommission}`,
+          moderation: String(reports.filter(r => r.status === 'PENDING').length || 0),
+        }}
       />
 
       {/* Main Content Area */}
@@ -314,7 +344,6 @@ export default function AdminPanelPage() {
           sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'
         }`}
       >
-        {/* Panel Header with Mobile Toggle Bar */}
         <PanelHeader
           title={getTabTitle()}
           onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
@@ -322,15 +351,27 @@ export default function AdminPanelPage() {
         />
 
         <main className="flex-1 p-4 sm:p-8 space-y-8 max-w-7xl mx-auto w-full">
-          {/* Segregated Financial & Platform KPI Cards */}
+          {/* Action Toast */}
+          {actionNotice && (
+            <div className="p-3.5 rounded-xl bg-green-950/70 border border-green-500/40 text-green-300 text-xs flex items-center justify-between shadow-lg">
+              <span className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-400" />
+                {actionNotice}
+              </span>
+            </div>
+          )}
+
+          {/* Segregated Live Financial & Platform KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="p-5 rounded-2xl bg-[#101016] border border-[#20202c]">
               <div className="flex justify-between text-xs text-[#7e7e90] mb-2">
                 <span>Total Gross Volume</span>
                 <DollarSign className="w-4 h-4 text-[#d4af37]" />
               </div>
-              <div className="text-2xl font-serif font-bold text-white">${totalGross.toFixed(2)}</div>
-              <div className="text-[10px] text-green-400 mt-1">Platform 15%: ${(totalGross * 0.15).toFixed(2)}</div>
+              <div className="text-2xl font-serif font-bold text-white">${metrics.totalGross.toFixed(2)}</div>
+              <div className="text-[10px] text-green-400 mt-1">
+                Platform {platformCommission}%: ${metrics.totalPlatformCut.toFixed(2)}
+              </div>
             </div>
 
             <div className="p-5 rounded-2xl bg-[#101016] border border-[#20202c]">
@@ -339,9 +380,11 @@ export default function AdminPanelPage() {
                 <Crown className="w-4 h-4 text-[#f5d77f]" />
               </div>
               <div className="text-2xl font-serif font-bold text-[#f5d77f]">
-                ${subscriptionVolume.toFixed(2)}
+                ${metrics.subscriptionVolume.toFixed(2)}
               </div>
-              <div className="text-[10px] text-[#8e8e9e] mt-1">Creator 85%: ${(subscriptionVolume * 0.85).toFixed(2)}</div>
+              <div className="text-[10px] text-[#8e8e9e] mt-1">
+                {metrics.totalCreatorsCount} Creators • {metrics.totalUsersCount} Users
+              </div>
             </div>
 
             <div className="p-5 rounded-2xl bg-[#101016] border border-[#20202c]">
@@ -350,17 +393,19 @@ export default function AdminPanelPage() {
                 <Sparkles className="w-4 h-4 text-purple-400" />
               </div>
               <div className="text-2xl font-serif font-bold text-white">
-                ${ppvContentVolume.toFixed(2)}
+                ${metrics.ppvContentVolume.toFixed(2)}
               </div>
-              <div className="text-[10px] text-purple-400 mt-1">Direct single media sales</div>
+              <div className="text-[10px] text-purple-400 mt-1">
+                Custom Orders: ${metrics.customRequestsVolume.toFixed(2)}
+              </div>
             </div>
 
             <div className="p-5 rounded-2xl bg-[#101016] border border-[#20202c]">
               <div className="flex justify-between text-xs text-[#7e7e90] mb-2">
-                <span>Creator Net Payouts (85%)</span>
+                <span>Creator Net Payouts ({creatorCommission}%)</span>
                 <TrendingUp className="w-4 h-4 text-green-400" />
               </div>
-              <div className="text-2xl font-serif font-bold text-green-400">${metrics.creatorShare.toFixed(2)}</div>
+              <div className="text-2xl font-serif font-bold text-green-400">${metrics.totalCreatorNet.toFixed(2)}</div>
               <div className="text-[10px] text-[#555566] mt-1">Audited real-time split</div>
             </div>
           </div>
@@ -369,57 +414,53 @@ export default function AdminPanelPage() {
           {activeTab === 'overview' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="p-6 rounded-2xl bg-[#111117] border border-[#232330] space-y-4">
-                <h3 className="text-base font-serif font-bold text-white flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-[#f5d77f]" />
-                  Recent Platform Events
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-serif font-bold text-white flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-[#f5d77f]" />
+                    Recent Platform Events
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={loadAdminOverview}
+                    className="text-[11px] text-[#d4af37] hover:underline flex items-center gap-1"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${loadingOverview ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </button>
+                </div>
                 <div className="space-y-3 text-xs">
-                  <div className="p-3 rounded-xl bg-[#161622] flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <Sparkles className="w-4 h-4 text-[#f5d77f]" />
-                      <span>Individual PPV Sale: alexmercer purchased "Private Sunset Mirage #1" ($15.00)</span>
+                  {transactions.slice(0, 5).map((tx) => (
+                    <div key={tx.id} className="p-3 rounded-xl bg-[#161622] flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Sparkles className="w-4 h-4 text-[#f5d77f] flex-shrink-0" />
+                        <span className="truncate">
+                          {tx.type}: <strong>{tx.userName}</strong> → {tx.creatorName || 'Creator'} (${tx.grossAmount.toFixed(2)})
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-[#6e6e80] flex-shrink-0">{formatDate(tx.createdAt)}</span>
                     </div>
-                    <span className="text-[10px] text-[#6e6e80]">2m ago</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-[#161622] flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-green-400" />
-                      <span>New Subscription: alexmercer subscribed to Luna Rae ($9.99/mo)</span>
-                    </div>
-                    <span className="text-[10px] text-[#6e6e80]">12m ago</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-[#161622] flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <Crown className="w-4 h-4 text-[#f5d77f]" />
-                      <span>Custom Content Delivered: Luna Rae delivered order to alexmercer ($45.00)</span>
-                    </div>
-                    <span className="text-[10px] text-[#6e6e80]">1h ago</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-[#161622] flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <Shield className="w-4 h-4 text-blue-400" />
-                      <span>Creator Verification Granted: Luna Rae approved for verified badge</span>
-                    </div>
-                    <span className="text-[10px] text-[#6e6e80]">2h ago</span>
-                  </div>
+                  ))}
+                  {transactions.length === 0 && (
+                    <p className="text-[#717182]">No transactions recorded yet.</p>
+                  )}
                 </div>
               </div>
 
               <div className="p-6 rounded-2xl bg-[#111117] border border-[#232330] space-y-4">
                 <h3 className="text-base font-serif font-bold text-white flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-[#f5d77f]" />
-                  Financial Health & 85/15 Integrity
+                  Financial Health & {creatorCommission}/{platformCommission} Integrity
                 </h3>
                 <p className="text-xs text-[#8c8c9e] leading-relaxed">
-                  The platform operates with automated idempotency checks and zero unauthorized payouts. The 85/15 creator revenue split is audited in real-time across both subscriptions and individual pay-per-view media sales.
+                  All user registrations, creator signups, monthly subscriptions, custom content requests, and PPV purchases sync directly with the persistent backend ledger.
                 </p>
                 <div className="grid grid-cols-2 gap-3 pt-2">
                   <div className="p-3.5 rounded-xl bg-[#161622] text-center">
-                    <div className="text-xl font-bold font-serif text-[#f5d77f]">85.0%</div>
+                    <div className="text-xl font-bold font-serif text-[#f5d77f]">{creatorCommission}.0%</div>
                     <span className="text-[10px] text-[#808092]">Creator Allocation</span>
                   </div>
                   <div className="p-3.5 rounded-xl bg-[#161622] text-center">
-                    <div className="text-xl font-bold font-serif text-white">15.0%</div>
+                    <div className="text-xl font-bold font-serif text-white">{platformCommission}.0%</div>
                     <span className="text-[10px] text-[#808092]">Platform Cut</span>
                   </div>
                 </div>
@@ -432,9 +473,16 @@ export default function AdminPanelPage() {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-base font-serif font-bold text-white">Creator Verification & Status</h3>
-                  <p className="text-xs text-[#8c8c9e]">Grant or revoke official verification checkmarks and inspect creator earnings.</p>
+                  <h3 className="text-base font-serif font-bold text-white">Creator Verification & Status ({creators.length})</h3>
+                  <p className="text-xs text-[#8c8c9e]">Grant or revoke official verification checkmarks and inspect real creator earnings.</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={loadAdminOverview}
+                  className="px-3 py-1.5 rounded-lg bg-[#161622] border border-[#2b2b3a] text-xs text-[#f5d77f] flex items-center gap-1.5"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> Refresh
+                </button>
               </div>
               <div className="bg-[#111117] border border-[#232330] rounded-2xl overflow-x-auto">
                 <table className="w-full text-left text-xs">
@@ -443,8 +491,8 @@ export default function AdminPanelPage() {
                       <th className="py-3 px-4">Creator</th>
                       <th className="py-3 px-4">Handle</th>
                       <th className="py-3 px-4">Monthly Price</th>
-                      <th className="py-3 px-4">Subscribers</th>
-                      <th className="py-3 px-4">Total Earnings</th>
+                      <th className="py-3 px-4">Active Subscribers</th>
+                      <th className="py-3 px-4">Net Earnings</th>
                       <th className="py-3 px-4">Verification</th>
                       <th className="py-3 px-4">Action</th>
                     </tr>
@@ -456,10 +504,10 @@ export default function AdminPanelPage() {
                           {c.name}
                           {c.isVerified && <CheckCircle2 className="w-3.5 h-3.5 fill-[#d4af37] text-black" />}
                         </td>
-                        <td className="py-3.5 px-4 font-mono text-[#94a3b8]">{c.handle}</td>
-                        <td className="py-3.5 px-4">${c.monthlyPrice.toFixed(2)}/mo</td>
-                        <td className="py-3.5 px-4">{c.subscribers}</td>
-                        <td className="py-3.5 px-4 text-[#f5d77f] font-semibold">${c.earnings.toFixed(2)}</td>
+                        <td className="py-3.5 px-4 font-mono text-[#94a3b8]">@{c.handle}</td>
+                        <td className="py-3.5 px-4">${Number(c.monthlyPrice || 0).toFixed(2)}/mo</td>
+                        <td className="py-3.5 px-4">{c.subscribers || 0}</td>
+                        <td className="py-3.5 px-4 text-[#f5d77f] font-semibold">${Number(c.earnings || 0).toFixed(2)}</td>
                         <td className="py-3.5 px-4">
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                             c.isVerified
@@ -471,6 +519,7 @@ export default function AdminPanelPage() {
                         </td>
                         <td className="py-3.5 px-4">
                           <button
+                            type="button"
                             onClick={() => handleToggleVerification(c.id)}
                             className="px-3 py-1 rounded-lg bg-[#181824] hover:bg-[#202030] text-[11px] text-[#cbd5e1] border border-[#2f2f40]"
                           >
@@ -499,7 +548,6 @@ export default function AdminPanelPage() {
                   </p>
                 </div>
 
-                {/* Filters */}
                 <div className="flex items-center gap-2 bg-[#12121a] p-1.5 rounded-xl border border-[#222230] text-xs">
                   <select
                     value={catalogStatusFilter}
@@ -606,6 +654,7 @@ export default function AdminPanelPage() {
                             <div className="flex items-center gap-1.5">
                               {post.status !== 'PUBLISHED' && (
                                 <button
+                                  type="button"
                                   onClick={() => handleUpdatePostStatus(post.id, 'PUBLISHED')}
                                   className="px-2 py-1 rounded bg-[#181824] hover:bg-[#202030] text-[10px] text-green-400 border border-green-500/30 font-semibold"
                                 >
@@ -614,6 +663,7 @@ export default function AdminPanelPage() {
                               )}
                               {post.status !== 'ARCHIVED' && (
                                 <button
+                                  type="button"
                                   onClick={() => handleUpdatePostStatus(post.id, 'ARCHIVED')}
                                   className="px-2 py-1 rounded bg-[#201c18] hover:bg-[#2c241c] text-[10px] text-yellow-400 border border-yellow-500/30 font-semibold"
                                 >
@@ -621,12 +671,9 @@ export default function AdminPanelPage() {
                                 </button>
                               )}
                               <button
-                                onClick={() => {
-                                  if (confirm(`Takedown post "${post.title}"?`)) {
-                                    handleUpdatePostStatus(post.id, 'ARCHIVED');
-                                  }
-                                }}
-                                className="px-2 py-1 rounded bg-[#251515] hover:bg-[#321818] text-[10px] text-red-400 border border-red-500/30 font-semibold"
+                                type="button"
+                                onClick={() => handleUpdatePostStatus(post.id, 'ARCHIVED')}
+                                className="px-2 py-1 rounded bg-[#251515] hover:bg-[#321b1b] text-[10px] text-red-400 border border-red-500/30 font-semibold"
                               >
                                 Takedown
                               </button>
@@ -641,13 +688,40 @@ export default function AdminPanelPage() {
             </div>
           )}
 
-          {/* Tab 3: User Management */}
+          {/* Tab 3: Real Registered User Accounts */}
           {activeTab === 'users' && (
             <div className="space-y-4">
-              <div>
-                <h3 className="text-base font-serif font-bold text-white">Registered User Accounts</h3>
-                <p className="text-xs text-[#8c8c9e]">Manage access status, suspend violators, and monitor account registration details.</p>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                  <h3 className="text-base font-serif font-bold text-white">
+                    Registered User Accounts ({users.length})
+                  </h3>
+                  <p className="text-xs text-[#8c8c9e]">
+                    Live registry of all registered Subscribers, Creators, and Admins.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <div className="relative flex-1 sm:w-64">
+                    <Search className="w-3.5 h-3.5 text-[#666677] absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      placeholder="Search name, email, role..."
+                      className="w-full pl-8 pr-3 py-1.5 bg-[#161622] border border-[#282838] rounded-xl text-xs text-white"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={loadAdminOverview}
+                    className="px-3 py-1.5 rounded-xl bg-[#161622] border border-[#282838] text-xs text-[#f5d77f] flex items-center gap-1"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
+
               <div className="bg-[#111117] border border-[#232330] rounded-2xl overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-[#161622] text-[#8e8e9e] border-b border-[#232330]">
@@ -661,9 +735,12 @@ export default function AdminPanelPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#1e1e28] text-white">
-                    {users.map((u) => (
+                    {filteredUsers.map((u) => (
                       <tr key={u.id} className="hover:bg-[#161622]/40">
-                        <td className="py-3.5 px-4 font-bold">{u.name}</td>
+                        <td className="py-3.5 px-4 font-bold">
+                          <div>{u.name}</div>
+                          <div className="text-[10px] font-mono text-[#717182]">@{u.username}</div>
+                        </td>
                         <td className="py-3.5 px-4 text-[#8a8a9e]">{u.email}</td>
                         <td className="py-3.5 px-4">
                           <span className="px-2 py-0.5 rounded-full bg-[#181826] text-[#d4af37] border border-[#d4af37]/20 text-[10px]">
@@ -677,14 +754,19 @@ export default function AdminPanelPage() {
                             {u.status}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 text-[#717182]">{u.joined}</td>
+                        <td className="py-3.5 px-4 text-[#717182]">{formatDate(u.createdAt)}</td>
                         <td className="py-3.5 px-4">
-                          <button
-                            onClick={() => handleToggleUserStatus(u.id)}
-                            className="px-3 py-1 rounded-lg bg-[#181824] hover:bg-[#202030] text-[11px] text-[#cbd5e1] border border-[#2f2f40]"
-                          >
-                            {u.status === 'ACTIVE' ? 'Suspend' : 'Reactivate'}
-                          </button>
+                          {u.role !== 'ADMIN' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleUserStatus(u.id)}
+                              className="px-3 py-1 rounded-lg bg-[#181824] hover:bg-[#202030] text-[11px] text-[#cbd5e1] border border-[#2f2f40]"
+                            >
+                              {u.status === 'ACTIVE' ? 'Suspend' : 'Reactivate'}
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-[#5c5c70]">Protected</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -694,17 +776,20 @@ export default function AdminPanelPage() {
             </div>
           )}
 
-          {/* Tab 4: Transactions Ledger & Refund Admin */}
+          {/* Tab 4: Real Transactions Ledger & Refund Admin */}
           {activeTab === 'transactions' && (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
-                  <h3 className="text-base font-serif font-bold text-white">Financial Transactions & Audit Ledger</h3>
-                  <p className="text-xs text-[#8c8c9e]">Inspect real-time 85/15 commission cuts and issue administrative refunds.</p>
+                  <h3 className="text-base font-serif font-bold text-white">
+                    Financial Transactions & Audit Ledger ({filteredTx.length})
+                  </h3>
+                  <p className="text-xs text-[#8c8c9e]">
+                    Inspect real-time {creatorCommission}/{platformCommission} commission cuts and issue administrative refunds.
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                  {/* Transaction Type Filter */}
                   <select
                     value={txTypeFilter}
                     onChange={(e) => setTxTypeFilter(e.target.value)}
@@ -738,8 +823,8 @@ export default function AdminPanelPage() {
                       <th className="py-3 px-4">Creator</th>
                       <th className="py-3 px-4">Type</th>
                       <th className="py-3 px-4">Gross</th>
-                      <th className="py-3 px-4">Creator 85%</th>
-                      <th className="py-3 px-4">Platform 15%</th>
+                      <th className="py-3 px-4">Creator Net</th>
+                      <th className="py-3 px-4">Platform Cut</th>
                       <th className="py-3 px-4">Status</th>
                       <th className="py-3 px-4">Action</th>
                     </tr>
@@ -747,9 +832,9 @@ export default function AdminPanelPage() {
                   <tbody className="divide-y divide-[#1e1e28] text-white">
                     {filteredTx.map((tx) => (
                       <tr key={tx.id} className="hover:bg-[#161622]/40">
-                        <td className="py-3.5 px-4 font-mono text-[#a0a0b2]">{tx.ref}</td>
-                        <td className="py-3.5 px-4 font-medium">{tx.user}</td>
-                        <td className="py-3.5 px-4 text-[#f5d77f] font-semibold">{tx.creator}</td>
+                        <td className="py-3.5 px-4 font-mono text-[#a0a0b2]">{tx.transactionReference}</td>
+                        <td className="py-3.5 px-4 font-medium">{tx.userName}</td>
+                        <td className="py-3.5 px-4 text-[#f5d77f] font-semibold">{tx.creatorName || 'Creator'}</td>
                         <td className="py-3.5 px-4">
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
                             tx.type === 'INDIVIDUAL_CONTENT'
@@ -761,9 +846,9 @@ export default function AdminPanelPage() {
                             {tx.type}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 font-bold">${tx.amount.toFixed(2)}</td>
-                        <td className="py-3.5 px-4 text-green-400 font-semibold">${tx.creatorShare.toFixed(2)}</td>
-                        <td className="py-3.5 px-4 text-[#a0a0b2]">${tx.platformShare.toFixed(2)}</td>
+                        <td className="py-3.5 px-4 font-bold">${Number(tx.grossAmount).toFixed(2)}</td>
+                        <td className="py-3.5 px-4 text-green-400 font-semibold">${Number(tx.creatorShare).toFixed(2)}</td>
+                        <td className="py-3.5 px-4 text-[#a0a0b2]">${Number(tx.platformShare).toFixed(2)}</td>
                         <td className="py-3.5 px-4">
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                             tx.status === 'SUCCESS' ? 'text-green-400 bg-green-950/60' : 'text-red-400 bg-red-950/60'
@@ -773,13 +858,33 @@ export default function AdminPanelPage() {
                         </td>
                         <td className="py-3.5 px-4">
                           {tx.status === 'SUCCESS' ? (
-                            <button
-                              onClick={() => handleIssueRefund(tx.id)}
-                              className="px-2.5 py-1 rounded bg-[#251515] hover:bg-[#301818] text-red-400 border border-red-500/30 text-[10px] font-bold flex items-center gap-1"
-                            >
-                              <RotateCcw className="w-3 h-3" />
-                              Refund
-                            </button>
+                            confirmRefundTxId === tx.id ? (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleIssueRefund(tx.id)}
+                                  className="px-2 py-1 rounded bg-red-600 text-white text-[10px] font-bold"
+                                >
+                                  Confirm
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmRefundTxId(null)}
+                                  className="px-2 py-1 rounded bg-[#222230] text-[#94a3b8] text-[10px]"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setConfirmRefundTxId(tx.id)}
+                                className="px-2.5 py-1 rounded bg-[#251515] hover:bg-[#301818] text-red-400 border border-red-500/30 text-[10px] font-bold flex items-center gap-1"
+                              >
+                                <RotateCcw className="w-3 h-3" />
+                                Refund
+                              </button>
+                            )
                           ) : (
                             <span className="text-[10px] text-[#606070]">Refunded</span>
                           )}
@@ -796,7 +901,7 @@ export default function AdminPanelPage() {
           {activeTab === 'moderation' && (
             <div className="space-y-4">
               <div>
-                <h3 className="text-base font-serif font-bold text-white">Reported Content Queue</h3>
+                <h3 className="text-base font-serif font-bold text-white">Reported Content Queue ({reports.length})</h3>
                 <p className="text-xs text-[#8c8c9e]">Review copyright, consent, or violation reports submitted by users or automated gates.</p>
               </div>
               <div className="bg-[#111117] border border-[#232330] rounded-2xl overflow-x-auto">
@@ -815,28 +920,24 @@ export default function AdminPanelPage() {
                     {reports.map((r) => (
                       <tr key={r.id} className="hover:bg-[#161622]/40">
                         <td className="py-3.5 px-4 font-mono text-[#94a3b8]">{r.id}</td>
-                        <td className="py-3.5 px-4 font-medium">{r.reporter}</td>
-                        <td className="py-3.5 px-4">{r.post}</td>
+                        <td className="py-3.5 px-4 font-medium">{r.reporterName}</td>
+                        <td className="py-3.5 px-4">{r.postTitle}</td>
                         <td className="py-3.5 px-4 text-yellow-400">{r.reason}</td>
                         <td className="py-3.5 px-4 font-bold">{r.status}</td>
                         <td className="py-3.5 px-4 flex gap-2">
                           <button
-                            onClick={() => {
-                              setReports(prev => prev.filter(item => item.id !== r.id));
-                              alert('Post approved & report dismissed');
-                            }}
+                            type="button"
+                            onClick={() => handleReportDecision(r.id, 'RESOLVED')}
                             className="px-2.5 py-1 rounded bg-[#181824] text-[10px] text-green-400 border border-green-500/30"
                           >
                             Approve Post
                           </button>
                           <button
-                            onClick={() => {
-                              setReports(prev => prev.filter(item => item.id !== r.id));
-                              alert('Post removed for policy violation');
-                            }}
+                            type="button"
+                            onClick={() => handleReportDecision(r.id, 'DISMISSED')}
                             className="px-2.5 py-1 rounded bg-[#251515] text-[10px] text-red-400 border border-red-500/30"
                           >
-                            Remove Post
+                            Dismiss / Remove
                           </button>
                         </td>
                       </tr>
@@ -855,8 +956,7 @@ export default function AdminPanelPage() {
                 Platform Commission Rules (Requirement 2 & 17)
               </h3>
               <p className="text-xs text-[#8c8c9e] leading-relaxed">
-                Configure the platform revenue distribution dynamically. Default is established at{' '}
-                <span className="text-[#f5d77f] font-semibold">85% Creator / 15% Platform</span>. This applies across subscriptions, custom content, and individual paid images and videos.
+                Configure the live platform revenue distribution dynamically. This persists on the backend and applies to every new subscription, custom order, and PPV sale.
               </p>
 
               <form onSubmit={handleSaveSettings} className="space-y-4">
@@ -916,7 +1016,7 @@ export default function AdminPanelPage() {
                 {savedSuccess && (
                   <div className="p-3 rounded-xl bg-green-950/60 border border-green-500/40 text-green-400 text-xs text-center flex items-center justify-center gap-2">
                     <CheckCircle2 className="w-4 h-4" />
-                    Commission configuration successfully saved & broadcast!
+                    Commission configuration successfully saved & persisted to backend!
                   </div>
                 )}
               </form>

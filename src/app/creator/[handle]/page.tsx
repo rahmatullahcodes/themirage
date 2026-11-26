@@ -386,7 +386,9 @@ function CreatorProfileContent() {
   const [activeLightboxPhoto, setActiveLightboxPhoto] = useState<PreviewPhotoItem | null>(null);
   const [activeVideoPreview, setActiveVideoPreview] = useState<PreviewVideoItem | null>(null);
 
-  // Dynamic creator metadata
+  const [liveCreatorMeta, setLiveCreatorMeta] = useState<any>(null);
+
+  // Dynamic creator metadata (merged with live backend record if available)
   const baseCreator = CREATOR_DATA[cleanHandle] || {
     name: cleanHandle.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
     handle: `@${cleanHandle}`,
@@ -403,9 +405,21 @@ function CreatorProfileContent() {
   };
 
   const creator = {
-    id: `creator-${cleanHandle}`,
+    id: liveCreatorMeta?.id || `creator-${cleanHandle}`,
     ...baseCreator,
-    isVerified: true,
+    ...(liveCreatorMeta
+      ? {
+          name: liveCreatorMeta.name,
+          handle: `@${liveCreatorMeta.handle}`,
+          avatar: liveCreatorMeta.avatar || baseCreator.avatar,
+          banner: liveCreatorMeta.banner || baseCreator.banner,
+          bio: liveCreatorMeta.bio || baseCreator.bio,
+          monthlyPrice: liveCreatorMeta.monthlyPrice ?? baseCreator.monthlyPrice,
+          followersCount: liveCreatorMeta.followers || baseCreator.followersCount,
+          category: liveCreatorMeta.category || baseCreator.category,
+          isVerified: Boolean(liveCreatorMeta.isVerified),
+        }
+      : { isVerified: true }),
   };
 
   // Up to 3 Photo Previews state
@@ -418,54 +432,76 @@ function CreatorProfileContent() {
     baseCreator.videoPreviews || CREATOR_DATA['luna-rae'].videoPreviews
   );
 
-  // Check if current user is following or subscribed to this creator
+  // Load live creator profile, follow status, and active subscription status from backend
   useEffect(() => {
+    let activeUserId = 'usr-1';
     try {
-      const stored = localStorage.getItem('mirage_followed_creators');
-      if (stored) {
-        const list: any[] = JSON.parse(stored);
-        const match = list.some(c => c.handle.replace(/^@/, '').toLowerCase() === cleanHandle);
-        setIsFollowing(match);
+      const storedUser = localStorage.getItem('mirage_user');
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        if (parsed?.id) activeUserId = parsed.id;
       }
     } catch (e) {}
 
-    try {
-      const storedSubs = localStorage.getItem('mirage_subscriptions');
-      if (storedSubs) {
-        const list: any[] = JSON.parse(storedSubs);
-        const matchSub = list.some(s => s.creatorHandle.replace(/^@/, '').toLowerCase() === cleanHandle && s.status === 'ACTIVE');
-        if (matchSub) setIsSubscribed(true);
-      }
-    } catch (e) {}
+    async function syncCreatorAndUserState() {
+      try {
+        const [crRes, folRes, subRes] = await Promise.all([
+          fetch(`/api/creators?handle=${encodeURIComponent(cleanHandle)}`, { cache: 'no-store' }),
+          fetch(`/api/user/follows?userId=${encodeURIComponent(activeUserId)}`, { cache: 'no-store' }),
+          fetch(`/api/user/subscriptions?userId=${encodeURIComponent(activeUserId)}`, { cache: 'no-store' }),
+        ]);
+
+        if (crRes.ok) {
+          const crData = await crRes.json();
+          if (crData?.creators?.length > 0) {
+            setLiveCreatorMeta(crData.creators[0]);
+          }
+        }
+        if (folRes.ok) {
+          const folData = await folRes.json();
+          if (Array.isArray(folData?.follows)) {
+            setIsFollowing(folData.follows.some((f: any) => f.creatorHandle.toLowerCase() === cleanHandle));
+          }
+        }
+        if (subRes.ok) {
+          const subData = await subRes.json();
+          if (Array.isArray(subData?.subscriptions)) {
+            setIsSubscribed(
+              subData.subscriptions.some(
+                (s: any) => s.creatorHandle.toLowerCase() === cleanHandle && s.status === 'ACTIVE'
+              )
+            );
+          }
+        }
+      } catch (e) {}
+    }
+
+    syncCreatorAndUserState();
   }, [cleanHandle]);
 
-  const handleToggleFollow = () => {
+  const handleToggleFollow = async () => {
+    let activeUserId = 'usr-1';
     try {
-      const stored = localStorage.getItem('mirage_followed_creators');
-      let list: any[] = stored ? JSON.parse(stored) : [
-        { id: 'f1', name: 'Mia Carter', handle: 'mia-carter', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80', price: 7.99 },
-        { id: 'f2', name: 'Zara Khan', handle: 'zara-khan', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80', price: 12.99 },
-      ];
-      const nextState = !isFollowing;
-      setIsFollowing(nextState);
+      const storedUser = localStorage.getItem('mirage_user');
+      if (storedUser) activeUserId = JSON.parse(storedUser)?.id || 'usr-1';
+    } catch (e) {}
 
+    const nextState = !isFollowing;
+    setIsFollowing(nextState);
+
+    try {
       if (nextState) {
-        if (!list.some(c => c.handle.replace(/^@/, '').toLowerCase() === cleanHandle)) {
-          list.push({
-            id: `f-${cleanHandle}`,
-            name: creator.name,
-            handle: cleanHandle,
-            avatar: creator.avatar,
-            price: creator.monthlyPrice,
-          });
-        }
+        await fetch('/api/user/follows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: activeUserId, handle: cleanHandle }),
+        });
       } else {
-        list = list.filter(c => c.handle.replace(/^@/, '').toLowerCase() !== cleanHandle);
+        await fetch(`/api/user/follows?userId=${encodeURIComponent(activeUserId)}&handle=${encodeURIComponent(cleanHandle)}`, {
+          method: 'DELETE',
+        });
       }
-      localStorage.setItem('mirage_followed_creators', JSON.stringify(list));
-    } catch (e) {
-      setIsFollowing(!isFollowing);
-    }
+    } catch (e) {}
   };
 
   // Synchronize state if cleanHandle changes
@@ -627,41 +663,45 @@ function CreatorProfileContent() {
     }
   }, [searchParams]);
 
-  const handleSubscribeSuccess = () => {
+  const handleSubscribeSuccess = async () => {
     setIsSubscribed(true);
     try {
-      const storedSubs = localStorage.getItem('mirage_subscriptions');
-      let subsList: any[] = storedSubs ? JSON.parse(storedSubs) : [
-        {
-          id: 'sub-1',
-          creatorName: 'Luna Rae',
-          creatorHandle: 'luna-rae',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-          price: 9.99,
-          status: 'ACTIVE',
-          nextBilling: 'November 21, 2026',
-        },
-        {
-          id: 'sub-2',
-          creatorName: 'Sophie Lee',
-          creatorHandle: 'sophie-lee',
-          avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
-          price: 9.99,
-          status: 'ACTIVE',
-          nextBilling: 'November 18, 2026',
-        },
-      ];
-      if (!subsList.some(s => s.creatorHandle.replace(/^@/, '').toLowerCase() === cleanHandle)) {
-        subsList.push({
-          id: `sub-${Date.now()}`,
-          creatorName: creator.name,
-          creatorHandle: cleanHandle,
-          avatar: creator.avatar,
-          price: creator.monthlyPrice,
-          status: 'ACTIVE',
-          nextBilling: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-        });
-        localStorage.setItem('mirage_subscriptions', JSON.stringify(subsList));
+      const token = localStorage.getItem('mirage_token');
+      const rawUser = localStorage.getItem('mirage_user');
+      const currentUserId = rawUser ? JSON.parse(rawUser)?.id : null;
+      const feedUrl = currentUserId
+        ? `/api/content/posts?handle=${cleanHandle}&userId=${encodeURIComponent(currentUserId)}`
+        : `/api/content/posts?handle=${cleanHandle}`;
+      const feedRes = await fetch(feedUrl, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        cache: 'no-store',
+      });
+      if (feedRes.ok) {
+        const feedJson = await feedRes.json();
+        if (feedJson?.posts && Array.isArray(feedJson.posts)) {
+          const mappedPosts: PostItem[] = feedJson.posts
+            .filter((p: any) => !p.isPublicPreview)
+            .map((p: any) => ({
+              id: p.id,
+              type: p.mediaType === 'VIDEO' ? 'video' : 'image',
+              mediaUrl: p.mediaUrl,
+              thumbnailUrl: p.thumbnailUrl,
+              previewUrl: p.previewUrl,
+              videoDuration: p.videoDuration,
+              title: p.title,
+              caption: p.caption,
+              visibility: p.visibility,
+              price: p.price || 0,
+              isLocked: p.visibility !== 'PUBLIC' && !p.mediaUrl,
+              hasPurchased: false,
+              likes: p.likeCount || 100,
+              date: 'Recently',
+            }));
+          if (mappedPosts.length > 0) {
+            setPosts(mappedPosts);
+            return;
+          }
+        }
       }
     } catch (e) {}
 

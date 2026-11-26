@@ -45,6 +45,7 @@ interface PanelSidebarProps {
   onCloseMobile: () => void;
   userName?: string;
   userHandle?: string;
+  badges?: Partial<Record<string, string>>;
 }
 
 export default function PanelSidebar({
@@ -57,34 +58,35 @@ export default function PanelSidebar({
   onCloseMobile,
   userName = 'User',
   userHandle = '@user',
+  badges = {},
 }: PanelSidebarProps) {
   const router = useRouter();
 
   // Navigation menus based on user role
   const adminNav: NavItem[] = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'creators', label: 'Creators & Verification', icon: Crown, badge: '4', badgeColor: 'bg-[#d4af37]/20 text-[#f5d77f]' },
-    { id: 'catalog', label: 'Content Catalog', icon: Grid, badge: 'PPV', badgeColor: 'bg-[#d4af37]/20 text-[#f5d77f]' },
-    { id: 'users', label: 'User Accounts', icon: Users, badge: 'Active', badgeColor: 'bg-green-950/60 text-green-400' },
-    { id: 'transactions', label: 'Transactions & Split', icon: CreditCard, badge: '85/15', badgeColor: 'bg-[#181826] text-[#cbd5e1]' },
-    { id: 'moderation', label: 'Content Moderation', icon: AlertTriangle, badge: '2', badgeColor: 'bg-yellow-950/60 text-yellow-400' },
+    { id: 'creators', label: 'Creators & Verification', icon: Crown, badge: badges.creators, badgeColor: 'bg-[#d4af37]/20 text-[#f5d77f]' },
+    { id: 'catalog', label: 'Content Catalog', icon: Grid, badge: badges.catalog || 'PPV', badgeColor: 'bg-[#d4af37]/20 text-[#f5d77f]' },
+    { id: 'users', label: 'User Accounts', icon: Users, badge: badges.users, badgeColor: 'bg-green-950/60 text-green-400' },
+    { id: 'transactions', label: 'Transactions & Split', icon: CreditCard, badge: badges.transactions, badgeColor: 'bg-[#181826] text-[#cbd5e1]' },
+    { id: 'moderation', label: 'Content Moderation', icon: AlertTriangle, badge: badges.moderation, badgeColor: 'bg-yellow-950/60 text-yellow-400' },
     { id: 'settings', label: 'Commission Config', icon: Sliders },
   ];
 
   const creatorNav: NavItem[] = [
     { id: 'overview', label: 'Studio Overview', icon: LayoutDashboard },
     { id: 'upload', label: 'Publish New Post', icon: Upload, badge: 'New', badgeColor: 'bg-[#d4af37]/20 text-[#f5d77f]' },
-    { id: 'orders', label: 'Custom Requests', icon: Sparkles, badge: 'Pending', badgeColor: 'bg-yellow-950/60 text-yellow-400' },
-    { id: 'feed', label: 'Content Manager', icon: Grid },
-    { id: 'earnings', label: '85% Earnings & Reports', icon: DollarSign, badge: '$3,638', badgeColor: 'bg-green-950/60 text-green-400' },
-    { id: 'subscribers', label: 'Subscribers & Fans', icon: Users, badge: '428', badgeColor: 'bg-[#181826] text-white' },
+    { id: 'orders', label: 'Custom Requests', icon: Sparkles, badge: badges.orders, badgeColor: 'bg-yellow-950/60 text-yellow-400' },
+    { id: 'feed', label: 'Content Manager', icon: Grid, badge: badges.feed },
+    { id: 'earnings', label: 'Earnings & Reports', icon: DollarSign, badge: badges.earnings, badgeColor: 'bg-green-950/60 text-green-400' },
+    { id: 'subscribers', label: 'Subscribers & Fans', icon: Users, badge: badges.subscribers, badgeColor: 'bg-[#181826] text-white' },
     { id: 'settings', label: 'Subscription Price', icon: Settings },
   ];
 
   const subscriberNav: NavItem[] = [
-    { id: 'subscriptions', label: 'My Subscriptions', icon: Crown, badge: '2 Active', badgeColor: 'bg-green-950/60 text-green-400' },
-    { id: 'purchases', label: 'Private Content Vault', icon: Lock, badge: 'Protected', badgeColor: 'bg-[#d4af37]/20 text-[#f5d77f]' },
-    { id: 'followed', label: 'Followed Creators', icon: Heart },
+    { id: 'subscriptions', label: 'My Subscriptions', icon: Crown, badge: badges.subscriptions, badgeColor: 'bg-green-950/60 text-green-400' },
+    { id: 'purchases', label: 'Private Content Vault', icon: Lock, badge: badges.purchases || 'Vault', badgeColor: 'bg-[#d4af37]/20 text-[#f5d77f]' },
+    { id: 'followed', label: 'Followed Creators', icon: Heart, badge: badges.followed },
     { id: 'transactions', label: 'Billing & Invoices', icon: CreditCard },
     { id: 'settings', label: 'Account Settings', icon: Settings },
   ];

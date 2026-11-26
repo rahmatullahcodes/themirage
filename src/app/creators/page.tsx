@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Search, Crown, CheckCircle2, SlidersHorizontal } from 'lucide-react';
 import FeaturedCreatorCard from '@/components/FeaturedCreatorCard';
@@ -60,8 +60,31 @@ const ALL_CREATORS = [
 
 export default function CreatorsDirectoryPage() {
   const [search, setSearch] = useState('');
+  const [creatorsList, setCreatorsList] = useState(ALL_CREATORS);
 
-  const filtered = ALL_CREATORS.filter(c =>
+  useEffect(() => {
+    fetch('/api/creators', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.success && Array.isArray(data.creators) && data.creators.length > 0) {
+          setCreatorsList(
+            data.creators.map((c: any) => ({
+              id: c.id,
+              name: c.name,
+              handle: c.handle,
+              followers: c.followers || '0',
+              price: Number(c.monthlyPrice) || 9.99,
+              image: c.avatar,
+              category: c.category || 'Popular',
+              isVerified: Boolean(c.isVerified),
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const filtered = creatorsList.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.handle.toLowerCase().includes(search.toLowerCase())
   );
