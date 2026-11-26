@@ -936,6 +936,152 @@ const SEED_POSTS: PostItem[] = [
     createdAt: '2026-10-24T07:30:00Z',
     updatedAt: '2026-10-24T07:30:00Z',
   },
+  // Ellie (c9, ellie): 3 Public Photo Previews, 2 Public Video Previews & Paid Feed
+  {
+    id: 'post-ellie-prev-img-1',
+    creatorId: 'c9',
+    creatorHandle: 'ellie',
+    creatorName: 'Ellie',
+    creatorAvatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+    title: 'After Dark Lace & Velvet Preview',
+    caption: 'Exclusive twilight studio editorial preview. Unlock the complete private collection.',
+    mediaType: 'IMAGE',
+    mediaUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1600&q=90',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80',
+    visibility: 'PUBLIC',
+    isPublicPreview: true,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 1620,
+    salesCount: 0,
+    createdAt: '2026-10-28T15:00:00Z',
+    updatedAt: '2026-10-28T15:00:00Z',
+  },
+  {
+    id: 'post-ellie-prev-img-2',
+    creatorId: 'c9',
+    creatorHandle: 'ellie',
+    creatorName: 'Ellie',
+    creatorAvatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+    title: 'Midnight Mirror Silhouette',
+    caption: 'Intimate studio mood lighting portrait from my private fetish & glamour set.',
+    mediaType: 'IMAGE',
+    mediaUrl: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=1600&q=90',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=800&q=80',
+    visibility: 'PUBLIC',
+    isPublicPreview: true,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 1410,
+    salesCount: 0,
+    createdAt: '2026-10-27T18:00:00Z',
+    updatedAt: '2026-10-27T18:00:00Z',
+  },
+  {
+    id: 'post-ellie-prev-img-3',
+    creatorId: 'c9',
+    creatorHandle: 'ellie',
+    creatorName: 'Ellie',
+    creatorAvatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+    title: 'Black & Gold Penthouse Suite',
+    caption: 'VIP backstage preview shot before tonight’s live fan request stream.',
+    mediaType: 'IMAGE',
+    mediaUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1600&q=90',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80',
+    visibility: 'PUBLIC',
+    isPublicPreview: true,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 1890,
+    salesCount: 0,
+    createdAt: '2026-10-26T20:00:00Z',
+    updatedAt: '2026-10-26T20:00:00Z',
+  },
+  {
+    id: 'post-ellie-prev-vid-1',
+    creatorId: 'c9',
+    creatorHandle: 'ellie',
+    creatorName: 'Ellie',
+    creatorAvatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+    title: 'Ellie Studio Teaser Clip',
+    caption: 'First 45 seconds of my exclusive VIP studio shoot.',
+    mediaType: 'VIDEO',
+    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80',
+    previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    videoDuration: '0:45',
+    visibility: 'PUBLIC',
+    isPublicPreview: true,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 2450,
+    salesCount: 0,
+    createdAt: '2026-10-28T19:00:00Z',
+    updatedAt: '2026-10-28T19:00:00Z',
+  },
+  {
+    id: 'post-ellie-prev-vid-2',
+    creatorId: 'c9',
+    creatorHandle: 'ellie',
+    creatorName: 'Ellie',
+    creatorAvatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+    title: 'Late Night Custom Prep Preview',
+    caption: 'Getting ready for custom subscriber requests — DM me yours!',
+    mediaType: 'VIDEO',
+    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=800&q=80',
+    previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    videoDuration: '1:05',
+    visibility: 'PUBLIC',
+    isPublicPreview: true,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 2110,
+    salesCount: 0,
+    createdAt: '2026-10-27T21:00:00Z',
+    updatedAt: '2026-10-27T21:00:00Z',
+  },
+  {
+    id: 'post-ellie-ppv-1',
+    creatorId: 'c9',
+    creatorHandle: 'ellie',
+    creatorName: 'Ellie',
+    creatorAvatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+    title: 'Ellie VIP Velvet Uncut 4K Collection',
+    caption: 'Complete 20-minute uncut 4K private room shoot.',
+    mediaType: 'VIDEO',
+    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=70',
+    videoDuration: '20:10',
+    visibility: 'PURCHASE_ONLY',
+    isPublicPreview: false,
+    status: 'PUBLISHED',
+    price: 19.99,
+    likeCount: 412,
+    salesCount: 14,
+    createdAt: '2026-10-26T18:00:00Z',
+    updatedAt: '2026-10-26T18:00:00Z',
+  },
+  {
+    id: 'post-ellie-sub-1',
+    creatorId: 'c9',
+    creatorHandle: 'ellie',
+    creatorName: 'Ellie',
+    creatorAvatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+    title: 'Subscribers Only: Private Satin Gallery',
+    caption: 'Full uncensored photo set exclusively for active subscribers.',
+    mediaType: 'IMAGE',
+    mediaUrl: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=1600&q=95',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=600&q=70',
+    visibility: 'SUBSCRIBER_ONLY',
+    isPublicPreview: false,
+    status: 'PUBLISHED',
+    price: 0,
+    likeCount: 318,
+    salesCount: 0,
+    createdAt: '2026-10-25T12:00:00Z',
+    updatedAt: '2026-10-25T12:00:00Z',
+  },
 ];
 
 export interface MirageDbState {
@@ -1023,6 +1169,18 @@ const SEED_USERS: UserRecord[] = [
     bio: 'Athletic conditioning coach & creator.',
     ageVerified: true,
     createdAt: '2026-10-15T10:00:00Z',
+  },
+  {
+    id: 'c9',
+    name: 'Ellie',
+    username: 'ellie',
+    email: 'ellie@themirage.vip',
+    role: 'CREATOR',
+    status: 'ACTIVE',
+    avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+    bio: 'Exclusive fetish & glamour creator sharing private sets and custom video moments.',
+    ageVerified: true,
+    createdAt: '2026-10-18T12:00:00Z',
   },
   {
     id: 'usr-1',
@@ -1123,8 +1281,8 @@ const SEED_CREATORS: CreatorRecord[] = [
     handle: 'zara-khan',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=80',
     banner: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1400&q=80',
-    bio: 'Luxury travel filmmaker & resort editorial creator. Unlock private travel diaries, 4K sunset shoots, and behind-the-scenes clips from Dubai to Amalfi.',
-    category: 'Travel',
+    bio: 'Luxury fetish & editorial creator. Unlock private after-dark galleries, 4K sunset shoots, and behind-the-scenes clips.',
+    category: 'Fetish',
     monthlyPrice: 12.99,
     isVerified: true,
     followersCount: 210000,
@@ -1195,6 +1353,22 @@ const SEED_CREATORS: CreatorRecord[] = [
     likesCount: 495000,
     status: 'ACTIVE',
     createdAt: '2026-10-18T10:00:00Z',
+  },
+  {
+    id: 'c9',
+    userId: 'c9',
+    name: 'Ellie',
+    handle: 'ellie',
+    avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
+    banner: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1400&q=80',
+    bio: 'Welcome to Ellie’s world on The Mirage. Unlock exclusive after-dark glamour, fetish editorial sets, 4K clips, and custom private chat.',
+    category: 'Fetish',
+    monthlyPrice: 9.99,
+    isVerified: true,
+    followersCount: 165000,
+    likesCount: 380000,
+    status: 'ACTIVE',
+    createdAt: '2026-10-18T12:00:00Z',
   },
 ];
 
@@ -1535,6 +1709,38 @@ function getDb(): MirageDbState {
         reports: Array.isArray(parsed.reports) ? parsed.reports : base.reports,
         settings: parsed.settings || base.settings,
       };
+
+      // Auto-migrate existing persisted DB: ensure Travel -> Fetish and ensure Ellie ('c9') exists
+      let migrated = false;
+      hydrated.creators.forEach(c => {
+        if (c.category === 'Travel') {
+          c.category = 'Fetish';
+          migrated = true;
+        }
+      });
+      if (!hydrated.users.some(u => u.username === 'ellie' || u.id === 'c9')) {
+        const ellieUser = base.users.find(u => u.id === 'c9');
+        if (ellieUser) {
+          hydrated.users.unshift(ellieUser);
+          migrated = true;
+        }
+      }
+      if (!hydrated.creators.some(c => c.handle === 'ellie' || c.id === 'c9')) {
+        const ellieCreator = base.creators.find(c => c.id === 'c9');
+        if (ellieCreator) {
+          hydrated.creators.unshift(ellieCreator);
+          migrated = true;
+        }
+      }
+      const elliePosts = base.posts.filter(p => p.creatorId === 'c9');
+      elliePosts.forEach(ep => {
+        if (!hydrated.posts.some(p => p.id === ep.id)) {
+          hydrated.posts.push(ep);
+          migrated = true;
+        }
+      });
+      if (migrated) saveDb(hydrated);
+
       globalThis.__mirageDb = hydrated;
       return hydrated;
     } catch (err) {
@@ -1557,6 +1763,7 @@ const HANDLE_TO_CREATOR_ID: Record<string, string> = {
   'aria-vance': 'c6',
   'chloe-bennett': 'c7',
   'elena-rostova': 'c8',
+  'ellie': 'c9',
 };
 
 export function resolveCreatorId(creatorIdOrHandle: string): string {
@@ -1565,7 +1772,10 @@ export function resolveCreatorId(creatorIdOrHandle: string): string {
   if (HANDLE_TO_CREATOR_ID[cleaned]) return HANDLE_TO_CREATOR_ID[cleaned];
   const db = getDb();
   const match = db.creators.find(
-    c => c.id.toLowerCase() === cleaned || c.handle.toLowerCase() === cleaned
+    c =>
+      c.id.toLowerCase() === cleaned ||
+      c.handle.toLowerCase() === cleaned ||
+      c.userId.toLowerCase() === cleaned
   );
   return match ? match.id : creatorIdOrHandle;
 }
@@ -1756,7 +1966,7 @@ export function toggleCreatorVerificationAdmin(creatorId: string): { success: bo
 
 export function updateCreatorProfileSettings(
   creatorIdOrHandle: string,
-  updates: { monthlyPrice?: number; bio?: string; category?: string; name?: string }
+  updates: { monthlyPrice?: number; bio?: string; category?: string; name?: string; avatar?: string; banner?: string }
 ): { success: boolean; creator?: CreatorRecord; error?: string } {
   const db = getDb();
   const resolved = resolveCreatorId(creatorIdOrHandle);
@@ -1772,6 +1982,8 @@ export function updateCreatorProfileSettings(
   if (updates.bio !== undefined) creator.bio = updates.bio;
   if (updates.category !== undefined) creator.category = updates.category;
   if (updates.name !== undefined && updates.name.trim()) creator.name = updates.name.trim();
+  if (updates.avatar !== undefined && updates.avatar.trim()) creator.avatar = updates.avatar.trim();
+  if (updates.banner !== undefined && updates.banner.trim()) creator.banner = updates.banner.trim();
   saveDb(db);
   return { success: true, creator };
 }
@@ -2343,9 +2555,17 @@ export function createCreatorPost(data: {
 }): PostItem {
   const isPreview = !!data.isPublicPreview;
   const db = getDb();
+  const cleanHandle = (data.creatorHandle || '').toLowerCase();
+  const creator = db.creators.find(
+    c =>
+      c.id === data.creatorId ||
+      c.userId === data.creatorId ||
+      (cleanHandle && c.handle.toLowerCase() === cleanHandle)
+  );
+  const resolvedCreatorId = creator?.id || data.creatorHandle || data.creatorId;
 
   if (isPreview) {
-    const counts = getCreatorPreviewCounts(data.creatorId);
+    const counts = getCreatorPreviewCounts(resolvedCreatorId);
     if (data.mediaType === 'IMAGE' && !counts.canAddPhoto) {
       throw new Error('Maximum of 3 public preview photos allowed per creator. Please unmark an existing preview photo first.');
     }
@@ -2355,7 +2575,6 @@ export function createCreatorPost(data: {
   }
 
   const visibility = isPreview ? 'PUBLIC' : data.visibility;
-  const creator = db.creators.find(c => c.id === data.creatorId || c.handle === data.creatorHandle);
 
   const newPost: PostItem = {
     id: `post-${Date.now()}`,

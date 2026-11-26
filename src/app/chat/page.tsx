@@ -69,6 +69,11 @@ function ChatContent() {
       avatar: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=200&q=80',
       handle: '@emily-rose',
     },
+    'ellie': {
+      name: 'Ellie',
+      avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80',
+      handle: '@ellie',
+    },
   };
 
   const activeCreator = CONVERSATION_CREATORS[activeConversation] || {

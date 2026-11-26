@@ -26,15 +26,22 @@ import {
   Filter,
   Check,
   AlertCircle,
+  Loader2,
+  ExternalLink,
+  X,
+  UserCheck,
 } from 'lucide-react';
 import { calculateCommission } from '@/lib/commission';
 import PanelSidebar from '@/components/PanelSidebar';
 import PanelHeader from '@/components/PanelHeader';
 
+const CREATOR_CATEGORIES = ['Popular', 'New', 'Nearby', 'Fitness', 'Lifestyle', 'Fetish', 'Cosplay', 'Mature'];
+
 export default function CreatorStudioPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [creatorsList, setCreatorsList] = useState<any[]>([]);
   const [creatorUser, setCreatorUser] = useState({
     id: 'c1',
     name: 'Luna Rae',
@@ -48,19 +55,43 @@ export default function CreatorStudioPage() {
   };
 
   useEffect(() => {
+    let preferredHandle = '';
     try {
-      const stored = localStorage.getItem('mirage_user');
-      if (stored) {
-        const u = JSON.parse(stored);
-        if (u.name && u.role === 'CREATOR') {
-          setCreatorUser({
-            id: u.id || 'c1',
-            name: u.name,
-            username: u.username || u.name.toLowerCase().replace(/\s+/g, '-'),
-          });
+      const params = new URLSearchParams(window.location.search);
+      const qCreator = params.get('creator');
+      if (qCreator) preferredHandle = qCreator.toLowerCase();
+
+      if (!preferredHandle) {
+        const stored = localStorage.getItem('mirage_user');
+        if (stored) {
+          const u = JSON.parse(stored);
+          if (u.name && u.role === 'CREATOR') {
+            setCreatorUser({
+              id: u.id || 'c1',
+              name: u.name,
+              username: u.username || u.name.toLowerCase().replace(/\s+/g, '-'),
+            });
+          }
         }
       }
     } catch (e) {}
+
+    fetch('/api/creators', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data?.creators)) {
+          setCreatorsList(data.creators);
+          if (preferredHandle) {
+            const matched = data.creators.find(
+              (c: any) => c.handle?.toLowerCase() === preferredHandle || c.id?.toLowerCase() === preferredHandle
+            );
+            if (matched) {
+              setCreatorUser({ id: matched.id, name: matched.name, username: matched.handle });
+            }
+          }
+        }
+      })
+      .catch((err) => console.error('Failed to load creators:', err));
   }, []);
 
   // Upload Form State (Section 2 & 3 Requirements)
@@ -76,12 +107,18 @@ export default function CreatorStudioPage() {
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [uploadingSlot, setUploadingSlot] = useState<string | null>(null);
 
   // Editing existing post price/status
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [editPriceInput, setEditPriceInput] = useState('');
 
-  // Monthly Price state
+  // Profile & Monthly Subscription Settings state
+  const [profileName, setProfileName] = useState('Luna Rae');
+  const [profileCategory, setProfileCategory] = useState('Popular');
+  const [profileBio, setProfileBio] = useState('');
+  const [profileAvatar, setProfileAvatar] = useState('');
+  const [profileBanner, setProfileBanner] = useState('');
   const [monthlyPrice, setMonthlyPrice] = useState('9.99');
   const [priceSaveSuccess, setPriceSaveSuccess] = useState(false);
 
@@ -90,6 +127,35 @@ export default function CreatorStudioPage() {
 
   const [deliveringOrderId, setDeliveringOrderId] = useState<string | null>(null);
   const [deliveryFileUrl, setDeliveryFileUrl] = useState('');
+
+  const uploadMediaFile = async (
+    file: File,
+    slot: 'media' | 'thumbnail' | 'delivery' | 'avatar' | 'banner'
+  ): Promise<{ url: string; mediaType: 'IMAGE' | 'VIDEO'; originalName: string } | null> => {
+    setUploadingSlot(slot);
+    if (slot === 'media') setUploadError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok || !data?.success || !data?.url) {
+        const msg = data?.message || 'File upload failed. Supported: JPG, PNG, WEBP, GIF, MP4, MOV, WEBM.';
+        if (slot === 'media') setUploadError(msg);
+        else showToast(msg);
+        return null;
+      }
+      showToast(`${data.originalName || 'File'} uploaded successfully!`);
+      return data;
+    } catch (err) {
+      const msg = 'Upload failed. Check file size (max 100MB) and try again.';
+      if (slot === 'media') setUploadError(msg);
+      else showToast(msg);
+      return null;
+    } finally {
+      setUploadingSlot(null);
+    }
+  };
 
   // Feed posts (loaded from /api/content/posts?studio=true)
   interface CreatorFeedPost {
@@ -188,6 +254,20 @@ export default function CreatorStudioPage() {
     loadAllStudioData(creatorUser.username);
   }, [creatorUser.username]);
 
+  useEffect(() => {
+    const activeCreator = creatorsList.find(
+      (c) => c.handle?.toLowerCase() === creatorUser.username?.toLowerCase() || c.id === creatorUser.id
+    );
+    if (activeCreator) {
+      setProfileName(activeCreator.name || creatorUser.name);
+      setProfileCategory(activeCreator.category === 'Travel' ? 'Fetish' : activeCreator.category || 'Popular');
+      setProfileBio(activeCreator.bio || '');
+      setProfileAvatar(activeCreator.avatar || '');
+      setProfileBanner(activeCreator.banner || '');
+      if (activeCreator.monthlyPrice) setMonthlyPrice(String(activeCreator.monthlyPrice));
+    }
+  }, [creatorsList, creatorUser.username, creatorUser.id, creatorUser.name]);
+
   const subscriptionGross = earningsSummary.subscriptions.grossAmount;
   const individualContentGross = earningsSummary.individualContent.grossAmount;
   const customOrdersGross = earningsSummary.customRequests.grossAmount;
@@ -246,8 +326,8 @@ export default function CreatorStudioPage() {
     e.preventDefault();
     setUploadError('');
 
-    if (!mediaUrl) {
-      setUploadError('Please provide a media URL');
+    if (!mediaUrl.trim()) {
+      setUploadError('Please upload a photo/video from your device or enter a media URL.');
       return;
     }
     if (!rightsConfirmed) {
@@ -496,6 +576,72 @@ export default function CreatorStudioPage() {
               <span>{studioNotice}</span>
             </div>
           )}
+
+          {/* Active Creator Profile Switcher Bar */}
+          <div className="p-4 rounded-2xl bg-[#111118] border border-[#262638] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              {profileAvatar ? (
+                <img
+                  src={profileAvatar}
+                  alt={creatorUser.name}
+                  className="w-10 h-10 rounded-full object-cover border border-[#d4af37]/60 flex-shrink-0"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 flex items-center justify-center text-sm font-bold text-[#f5d77f] flex-shrink-0">
+                  {creatorUser.name.charAt(0)}
+                </div>
+              )}
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-[#f5d77f] font-bold">
+                  <UserCheck className="w-3.5 h-3.5" />
+                  <span>Managing Creator Studio</span>
+                </div>
+                <p className="text-sm font-serif font-bold text-white truncate">
+                  {creatorUser.name} <span className="text-xs font-sans font-normal text-[#8d8ea0]">(@{creatorUser.username})</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              {creatorsList.length > 0 && (
+                <select
+                  aria-label="Switch Creator Profile"
+                  value={creatorUser.username}
+                  onChange={(e) => {
+                    const selected = creatorsList.find((c) => c.handle === e.target.value);
+                    if (selected) {
+                      setCreatorUser({ id: selected.id, name: selected.name, username: selected.handle });
+                      showToast(`Switched Creator Studio to ${selected.name} (@${selected.handle})`);
+                    }
+                  }}
+                  className="px-3 py-2 rounded-xl bg-[#161622] border border-[#2d2d40] text-xs font-semibold text-white focus:outline-none focus:border-[#d4af37]"
+                >
+                  {creatorsList.map((c) => (
+                    <option key={c.id} value={c.handle}>
+                      {c.name} (@{c.handle}) — {c.category}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('upload')}
+                className="px-3.5 py-2 rounded-xl gold-button text-xs font-bold flex items-center gap-1.5"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                Upload Media
+              </button>
+
+              <Link
+                href={`/creator/${creatorUser.username}`}
+                className="px-3 py-2 rounded-xl bg-[#161622] hover:bg-[#1e1e2e] border border-[#2d2d40] text-xs font-semibold text-[#cbd5e1] flex items-center gap-1.5 transition-colors"
+              >
+                <span>View Profile</span>
+                <ExternalLink className="w-3.5 h-3.5 text-[#f5d77f]" />
+              </Link>
+            </div>
+          </div>
 
           {/* 4 Financial & Engagement KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -749,42 +895,133 @@ export default function CreatorStudioPage() {
                     required
                     value={postTitle}
                     onChange={(e) => setPostTitle(e.target.value)}
-                    placeholder="e.g. Monaco Sunset Villa Exclusive Photoshoot"
+                    placeholder="e.g. Behind the Scenes Midnight Shoot"
                     className="w-full px-4 py-2.5 bg-[#161622] border border-[#2b2b3c] rounded-xl text-sm text-white focus:outline-none focus:border-[#d4af37]"
                   />
                 </div>
 
-                {/* Media URL */}
-                <div>
-                  <label className="block text-xs font-semibold text-[#9da3af] mb-1.5">
-                    Original High-Resolution Media File URL (Protected)
+                {/* Direct Device Upload + Optional URL Fallback */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-[#9da3af]">
+                      3. Upload Photo or Video File
+                    </label>
+                    {mediaUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setMediaUrl('')}
+                        className="text-[11px] text-red-400 hover:text-red-300 flex items-center gap-1"
+                      >
+                        <X className="w-3.5 h-3.5" /> Clear File
+                      </button>
+                    )}
+                  </div>
+
+                  <label className="block cursor-pointer rounded-2xl bg-[#161622] hover:bg-[#1b1b29] border-2 border-dashed border-[#d4af37]/45 hover:border-[#d4af37] p-5 text-center transition-colors">
+                    <input
+                      type="file"
+                      accept="image/*,video/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = '';
+                        if (!file) return;
+                        const uploaded = await uploadMediaFile(file, 'media');
+                        if (uploaded) {
+                          setMediaUrl(uploaded.url);
+                          setMediaType(uploaded.mediaType);
+                          if (!postTitle.trim()) {
+                            const cleanTitle = uploaded.originalName.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').trim();
+                            if (cleanTitle) setPostTitle(cleanTitle);
+                          }
+                        }
+                      }}
+                    />
+                    <div className="flex flex-col items-center gap-2">
+                      {uploadingSlot === 'media' ? (
+                        <>
+                          <Loader2 className="w-7 h-7 text-[#f5d77f] animate-spin" />
+                          <span className="text-xs font-bold text-[#f5d77f]">Uploading media to vault...</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-11 h-11 rounded-full bg-[#d4af37]/15 border border-[#d4af37]/40 flex items-center justify-center">
+                            <Upload className="w-5 h-5 text-[#f5d77f]" />
+                          </div>
+                          <span className="text-sm font-bold text-white">
+                            {mediaUrl ? 'Tap to Replace Uploaded Photo / Video' : 'Tap to Choose Photo or Video from Device'}
+                          </span>
+                          <span className="text-[11px] text-[#8d8ea0]">
+                            Supports Phone Gallery / Camera / Files • JPG, PNG, WEBP, GIF, MP4, MOV, WEBM (Max 100MB)
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </label>
-                  <input
-                    type="url"
-                    required
-                    value={mediaUrl}
-                    onChange={(e) => setMediaUrl(e.target.value)}
-                    placeholder="https://images.unsplash.com/... or S3 Bucket Object URL"
-                    className="w-full px-4 py-2.5 bg-[#161622] border border-[#2b2b3c] rounded-xl text-sm text-white focus:outline-none focus:border-[#d4af37]"
-                  />
-                  <p className="text-[10px] text-[#717182] mt-1">
-                    Non-buyers will never receive this URL directly; only buyers are authorized by the backend.
+
+                  {/* Live Uploaded Media Preview */}
+                  {mediaUrl && (
+                    <div className="rounded-2xl overflow-hidden bg-black border border-[#2b2b3c]">
+                      {mediaType === 'VIDEO' ? (
+                        <video src={mediaUrl} controls playsInline muted className="w-full max-h-64 object-contain bg-black" />
+                      ) : (
+                        <img src={mediaUrl} alt="Uploaded preview" className="w-full max-h-64 object-contain bg-black" />
+                      )}
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-[11px] font-medium text-[#7e7e90] mb-1">
+                      Or Paste Direct Media URL (Optional if uploaded above)
+                    </label>
+                    <input
+                      type="text"
+                      value={mediaUrl}
+                      onChange={(e) => setMediaUrl(e.target.value)}
+                      placeholder="/api/uploads/... or https://..."
+                      className="w-full px-4 py-2.5 bg-[#161622] border border-[#2b2b3c] rounded-xl text-sm text-white focus:outline-none focus:border-[#d4af37]"
+                    />
+                  </div>
+                  <p className="text-[10px] text-[#717182]">
+                    Non-buyers will never receive protected media URLs directly; only buyers are authorized by the backend.
                   </p>
                 </div>
 
                 {/* Video Thumbnail (Optional / for Videos) */}
                 {mediaType === 'VIDEO' && (
-                  <div>
-                    <label className="block text-xs font-semibold text-[#9da3af] mb-1.5">
-                      Video Poster / Thumbnail Preview URL
+                  <div className="space-y-2">
+                    <label className="block text-xs font-semibold text-[#9da3af]">
+                      Video Poster / Thumbnail Preview (Optional)
                     </label>
-                    <input
-                      type="url"
-                      value={thumbnailUrl}
-                      onChange={(e) => setThumbnailUrl(e.target.value)}
-                      placeholder="https://images.unsplash.com/... poster thumbnail"
-                      className="w-full px-4 py-2.5 bg-[#161622] border border-[#2b2b3c] rounded-xl text-sm text-white focus:outline-none focus:border-[#d4af37]"
-                    />
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <label className="cursor-pointer px-4 py-2.5 rounded-xl bg-[#181824] hover:bg-[#222232] border border-[#d4af37]/40 text-xs font-bold text-[#f5d77f] flex items-center justify-center gap-1.5 flex-shrink-0">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = '';
+                            if (!file) return;
+                            const uploaded = await uploadMediaFile(file, 'thumbnail');
+                            if (uploaded) setThumbnailUrl(uploaded.url);
+                          }}
+                        />
+                        {uploadingSlot === 'thumbnail' ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <ImageIcon className="w-3.5 h-3.5" />
+                        )}
+                        Upload Thumbnail
+                      </label>
+                      <input
+                        type="text"
+                        value={thumbnailUrl}
+                        onChange={(e) => setThumbnailUrl(e.target.value)}
+                        placeholder="Optional image URL or /api/uploads/..."
+                        className="flex-1 px-4 py-2.5 bg-[#161622] border border-[#2b2b3c] rounded-xl text-sm text-white focus:outline-none focus:border-[#d4af37]"
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -921,12 +1158,32 @@ export default function CreatorStudioPage() {
                       ) : (
                         <div className="flex flex-col gap-2">
                           {deliveringOrderId === order.id ? (
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <label className="cursor-pointer px-2.5 py-1.5 rounded-lg bg-[#181824] hover:bg-[#222232] border border-[#d4af37]/40 text-[11px] font-bold text-[#f5d77f] flex items-center gap-1">
+                                <input
+                                  type="file"
+                                  accept="image/*,video/*"
+                                  className="hidden"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    e.target.value = '';
+                                    if (!file) return;
+                                    const uploaded = await uploadMediaFile(file, 'delivery');
+                                    if (uploaded) setDeliveryFileUrl(uploaded.url);
+                                  }}
+                                />
+                                {uploadingSlot === 'delivery' ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Upload className="w-3.5 h-3.5" />
+                                )}
+                                Upload
+                              </label>
                               <input
-                                type="url"
+                                type="text"
                                 value={deliveryFileUrl}
                                 onChange={(e) => setDeliveryFileUrl(e.target.value)}
-                                placeholder="Private file URL..."
+                                placeholder="Upload file or paste URL..."
                                 className="px-3 py-1.5 bg-[#181824] border border-[#2e2e3e] rounded-lg text-xs text-white"
                               />
                               <button
@@ -946,7 +1203,7 @@ export default function CreatorStudioPage() {
                             <button
                               onClick={() => {
                                 setDeliveringOrderId(order.id);
-                                setDeliveryFileUrl('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80');
+                                setDeliveryFileUrl('');
                               }}
                               className="px-4 py-2 rounded-xl gold-button text-xs font-bold shadow-gold-sm flex items-center gap-1.5"
                             >
@@ -1287,20 +1544,20 @@ export default function CreatorStudioPage() {
             </div>
           )}
 
-          {/* Tab 7: Monthly Subscription Pricing & Settings */}
+          {/* Tab 7: Creator Profile & Subscription Settings */}
           {activeTab === 'settings' && (
             <div className="max-w-xl mx-auto p-6 sm:p-8 rounded-3xl bg-[#111118] border border-[#252536] space-y-6">
               <div>
-                <h3 className="text-lg font-serif font-bold text-white">Subscription Pricing</h3>
+                <h3 className="text-lg font-serif font-bold text-white">Creator Profile & Subscription Pricing</h3>
                 <p className="text-xs text-[#8c8c9e]">
-                  Configure your non-tiered monthly subscription price. Standard pricing ranges between $4.99 and $49.99/mo.
+                  Update display name, category, bio, profile photos, and non-tiered monthly pricing for @{creatorUser.username}.
                 </p>
               </div>
 
               {priceSaveSuccess && (
                 <div className="p-3.5 rounded-xl bg-green-950/60 border border-green-500/40 text-green-300 text-xs flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                  <span>Monthly price updated successfully!</span>
+                  <span>Creator profile & pricing updated successfully!</span>
                 </div>
               )}
 
@@ -1313,20 +1570,136 @@ export default function CreatorStudioPage() {
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
                         handle: creatorUser.username,
+                        name: profileName.trim(),
+                        category: profileCategory,
+                        bio: profileBio.trim(),
+                        avatar: profileAvatar.trim(),
+                        banner: profileBanner.trim(),
                         monthlyPrice: parseFloat(monthlyPrice),
                       }),
                     });
-                    if (res.ok) {
+                    const data = await res.json();
+                    if (res.ok && data?.creator) {
+                      setCreatorUser((prev) => ({ ...prev, name: data.creator.name }));
+                      setCreatorsList((prev) =>
+                        prev.map((c) => (c.handle === data.creator.handle ? { ...c, ...data.creator } : c))
+                      );
                       setPriceSaveSuccess(true);
                       setTimeout(() => setPriceSaveSuccess(false), 2500);
-                      showToast(`Monthly price updated to $${parseFloat(monthlyPrice).toFixed(2)}/mo`);
+                      showToast(`Profile saved for ${data.creator.name} ($${parseFloat(monthlyPrice).toFixed(2)}/mo)`);
                     }
                   } catch (err) {
-                    console.error('Failed to update price:', err);
+                    console.error('Failed to update profile settings:', err);
                   }
                 }}
                 className="space-y-4"
               >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#9da3af] mb-1.5">
+                      Display Name
+                    </label>
+                    <input
+                      type="text"
+                      value={profileName}
+                      onChange={(e) => setProfileName(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-[#161622] border border-[#2b2b3c] rounded-xl text-sm text-white focus:outline-none focus:border-[#d4af37]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#9da3af] mb-1.5">
+                      Profile Category
+                    </label>
+                    <select
+                      value={profileCategory}
+                      onChange={(e) => setProfileCategory(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-[#161622] border border-[#2b2b3c] rounded-xl text-sm text-white focus:outline-none focus:border-[#d4af37]"
+                    >
+                      {CREATOR_CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#9da3af] mb-1.5">
+                    Bio / Tagline
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={profileBio}
+                    onChange={(e) => setProfileBio(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-[#161622] border border-[#2b2b3c] rounded-xl text-sm text-white focus:outline-none focus:border-[#d4af37]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-[#9da3af]">
+                      Profile Photo (Avatar)
+                    </label>
+                    <div className="flex gap-2">
+                      <label className="cursor-pointer px-3 py-2 rounded-xl bg-[#181824] hover:bg-[#222232] border border-[#d4af37]/40 text-xs font-bold text-[#f5d77f] flex items-center gap-1.5 flex-shrink-0">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = '';
+                            if (!file) return;
+                            const uploaded = await uploadMediaFile(file, 'avatar');
+                            if (uploaded) setProfileAvatar(uploaded.url);
+                          }}
+                        />
+                        {uploadingSlot === 'avatar' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                        Upload
+                      </label>
+                      <input
+                        type="text"
+                        value={profileAvatar}
+                        onChange={(e) => setProfileAvatar(e.target.value)}
+                        placeholder="/api/uploads/..."
+                        className="flex-1 min-w-0 px-3 py-2 bg-[#161622] border border-[#2b2b3c] rounded-xl text-xs text-white focus:outline-none focus:border-[#d4af37]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-[#9da3af]">
+                      Cover Banner Image
+                    </label>
+                    <div className="flex gap-2">
+                      <label className="cursor-pointer px-3 py-2 rounded-xl bg-[#181824] hover:bg-[#222232] border border-[#d4af37]/40 text-xs font-bold text-[#f5d77f] flex items-center gap-1.5 flex-shrink-0">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = '';
+                            if (!file) return;
+                            const uploaded = await uploadMediaFile(file, 'banner');
+                            if (uploaded) setProfileBanner(uploaded.url);
+                          }}
+                        />
+                        {uploadingSlot === 'banner' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                        Upload
+                      </label>
+                      <input
+                        type="text"
+                        value={profileBanner}
+                        onChange={(e) => setProfileBanner(e.target.value)}
+                        placeholder="/api/uploads/..."
+                        className="flex-1 min-w-0 px-3 py-2 bg-[#161622] border border-[#2b2b3c] rounded-xl text-xs text-white focus:outline-none focus:border-[#d4af37]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-[#9da3af] mb-1.5">
                     Monthly Subscription Price (USD)
@@ -1364,7 +1737,7 @@ export default function CreatorStudioPage() {
                   type="submit"
                   className="w-full py-3 rounded-xl gold-button text-xs font-bold shadow-gold-sm"
                 >
-                  Save Subscription Price
+                  Save Profile & Pricing
                 </button>
               </form>
             </div>

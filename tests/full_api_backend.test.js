@@ -4,6 +4,8 @@
  */
 
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const http = require('http');
 const { spawn } = require('child_process');
 
@@ -334,6 +336,83 @@ async function runTests() {
   assert.strictEqual(adminOverviewRes.status, 200);
   assert.ok(adminOverviewRes.data.metrics.totalGross > 0);
   console.log('✓ Test 19: Follows, Custom Request Delivery -> Vault, & Admin Live Overview verified');
+  passed++;
+
+  // 20. Ellie Creator Profile, Fetish Category Replacement, & Direct File Upload (/api/upload -> /api/uploads/[filename])
+  const allCreatorsRes = await request('GET', '/api/creators');
+  assert.strictEqual(allCreatorsRes.status, 200);
+  assert.ok(
+    !allCreatorsRes.data.creators.some((c) => c.category === 'Travel'),
+    'No creator should remain in Travel category'
+  );
+  assert.ok(
+    allCreatorsRes.data.creators.some((c) => c.category === 'Fetish'),
+    'Fetish category must be present'
+  );
+
+  const ellieCreatorRes = await request('GET', '/api/creators?handle=ellie');
+  assert.strictEqual(ellieCreatorRes.status, 200);
+  assert.strictEqual(ellieCreatorRes.data.creators[0].handle, 'ellie');
+  assert.strictEqual(ellieCreatorRes.data.creators[0].category, 'Fetish');
+
+  const elliePreviewsRes = await request('GET', '/api/content/posts?handle=ellie&previews=true');
+  assert.strictEqual(elliePreviewsRes.status, 200);
+  assert.strictEqual(elliePreviewsRes.data.counts.photos, 3, 'Ellie must have 3 preview photos');
+  assert.strictEqual(elliePreviewsRes.data.counts.videos, 2, 'Ellie must have 2 preview videos');
+
+  const uploadRes = await new Promise((resolve, reject) => {
+    const boundary = `----MirageBoundary${Date.now()}`;
+    const tinyPng = Buffer.from(
+      '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c63000100000500010d0a2db40000000049454e44ae426082',
+      'hex'
+    );
+    const headerPart = Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="ellie-test.png"\r\nContent-Type: image/png\r\n\r\n`
+    );
+    const footerPart = Buffer.from(`\r\n--${boundary}--\r\n`);
+    const multipartBody = Buffer.concat([headerPart, tinyPng, footerPart]);
+
+    const req = http.request(
+      {
+        hostname: 'localhost',
+        port: PORT,
+        path: '/api/upload',
+        method: 'POST',
+        headers: {
+          'Content-Type': `multipart/form-data; boundary=${boundary}`,
+          'Content-Length': multipartBody.length,
+        },
+      },
+      (res) => {
+        let raw = '';
+        res.on('data', (chunk) => (raw += chunk));
+        res.on('end', () => resolve({ status: res.statusCode, data: JSON.parse(raw) }));
+      }
+    );
+    req.on('error', reject);
+    req.write(multipartBody);
+    req.end();
+  });
+
+  assert.strictEqual(uploadRes.status, 200, 'POST /api/upload must succeed');
+  assert.strictEqual(uploadRes.data.success, true);
+  assert.ok(uploadRes.data.url.startsWith('/api/uploads/'), 'Upload URL must be served from /api/uploads/');
+
+  const servedStatus = await new Promise((resolve, reject) => {
+    http
+      .get(`http://localhost:${PORT}${uploadRes.data.url}`, (res) => {
+        res.resume();
+        res.on('end', () => resolve({ status: res.statusCode, contentType: res.headers['content-type'] }));
+      })
+      .on('error', reject);
+  });
+  assert.strictEqual(servedStatus.status, 200, 'Uploaded image must immediately stream back');
+  assert.ok(servedStatus.contentType.includes('image/png'));
+
+  const uploadedDiskPath = path.join(process.cwd(), 'data', 'uploads', uploadRes.data.filename);
+  if (fs.existsSync(uploadedDiskPath)) fs.unlinkSync(uploadedDiskPath);
+
+  console.log('✓ Test 20: Ellie Creator Profile, Fetish Category, & Multipart File Upload/Serve verified');
   passed++;
 
   console.log('\n================================================================');

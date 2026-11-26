@@ -255,7 +255,7 @@ const CREATOR_DATA: Record<string, any> = {
     followersCount: '210K',
     postsCount: 54,
     likesCount: '480K',
-    category: 'Travel',
+    category: 'Fetish',
     photoPreviews: [
       {
         id: 'post-zara-prev-img-1',
@@ -364,6 +364,20 @@ const CREATOR_DATA: Record<string, any> = {
         likes: 2840,
       },
     ],
+  },
+  'ellie': {
+    name: 'Ellie',
+    handle: '@ellie',
+    avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
+    banner: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1400&q=80',
+    bio: 'Welcome to Ellie’s world on The Mirage. Unlock exclusive after-dark glamour, fetish editorial sets, 4K clips, and custom private chat.',
+    monthlyPrice: 9.99,
+    followersCount: '165K',
+    postsCount: 44,
+    likesCount: '380K',
+    category: 'Fetish',
+    photoPreviews: [],
+    videoPreviews: [],
   },
 };
 
@@ -579,15 +593,15 @@ function CreatorProfileContent() {
   useEffect(() => {
     async function loadBackendData() {
       try {
-        const previewRes = await fetch(`/api/content/posts?handle=${cleanHandle}&previews=true`);
+        const previewRes = await fetch(`/api/content/posts?handle=${cleanHandle}&previews=true`, { cache: 'no-store' });
         if (previewRes.ok) {
           const previewJson = await previewRes.json();
           if (previewJson?.previews) {
-            if (previewJson.previews.photos?.length > 0) {
-              setPhotoPreviews(previewJson.previews.photos.slice(0, 3));
+            if (previewJson.previews.photos?.length > 0 || !CREATOR_DATA[cleanHandle]) {
+              setPhotoPreviews((previewJson.previews.photos || []).slice(0, 3));
             }
-            if (previewJson.previews.videos?.length > 0) {
-              setVideoPreviews(previewJson.previews.videos.slice(0, 2));
+            if (previewJson.previews.videos?.length > 0 || !CREATOR_DATA[cleanHandle]) {
+              setVideoPreviews((previewJson.previews.videos || []).slice(0, 2));
             }
           }
         }

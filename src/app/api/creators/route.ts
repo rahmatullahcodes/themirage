@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listAllCreators, updateCreatorProfileSettings } from '@/lib/contentStore';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl?.searchParams || new URL(req.url, 'http://localhost:3000').searchParams;
@@ -26,14 +28,14 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { creatorId, handle, monthlyPrice, bio, category, name } = body || {};
+    const { creatorId, handle, monthlyPrice, bio, category, name, avatar, banner } = body || {};
     const target = handle || creatorId;
 
     if (!target) {
       return NextResponse.json({ success: false, message: 'creatorId or handle is required' }, { status: 400 });
     }
 
-    const result = updateCreatorProfileSettings(target, { monthlyPrice, bio, category, name });
+    const result = updateCreatorProfileSettings(target, { monthlyPrice, bio, category, name, avatar, banner });
     if (!result.success) {
       return NextResponse.json({ success: false, message: result.error }, { status: 400 });
     }

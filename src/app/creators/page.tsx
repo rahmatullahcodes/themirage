@@ -43,7 +43,17 @@ const ALL_CREATORS = [
     followers: '210K',
     price: 12.99,
     image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=80',
-    category: 'Travel',
+    category: 'Fetish',
+    isVerified: true,
+  },
+  {
+    id: 'c9',
+    name: 'Ellie',
+    handle: 'ellie',
+    followers: '165K',
+    price: 9.99,
+    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
+    category: 'Fetish',
     isVerified: true,
   },
   {
