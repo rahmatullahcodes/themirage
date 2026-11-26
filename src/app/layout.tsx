@@ -1,7 +1,13 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import AgeGateModal from '@/components/AgeGateModal';
 import AppLayoutWrapper from '@/components/AppLayoutWrapper';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
 
 export const metadata: Metadata = {
   title: 'The Mirage | Real People. Exclusive Content. Your World.',
@@ -30,7 +36,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="bg-[#08080a] text-[#f8f9fa] min-h-screen flex flex-col antialiased selection:bg-[#d4af37]/30 selection:text-white bg-black">
+      <body className="bg-[#08080a] text-[#f8f9fa] min-h-screen flex flex-col antialiased selection:bg-[#d4af37]/30 selection:text-white">
         <AgeGateModal />
         <AppLayoutWrapper>{children}</AppLayoutWrapper>
       </body>

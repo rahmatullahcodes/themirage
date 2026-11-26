@@ -346,7 +346,7 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {CATEGORIES.map((cat) => {
                 const IconComponent = cat.icon;
                 return (

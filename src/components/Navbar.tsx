@@ -29,6 +29,11 @@ export default function Navbar() {
   const notificationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    setMobileMenuOpen(false);
+    setShowNotifications(false);
+  }, [pathname]);
+
+  useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (notificationRef.current && !notificationRef.current.contains(e.target as Node)) {
         setShowNotifications(false);
@@ -37,9 +42,10 @@ export default function Navbar() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setShowNotifications(false);
+        setMobileMenuOpen(false);
       }
     };
-    if (showNotifications) {
+    if (showNotifications || mobileMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       window.addEventListener('keydown', handleKeyDown);
     }
@@ -47,7 +53,7 @@ export default function Navbar() {
       document.removeEventListener('mousedown', handleClickOutside);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showNotifications]);
+  }, [showNotifications, mobileMenuOpen]);
 
   useEffect(() => {
     const syncUser = () => {
@@ -170,7 +176,7 @@ export default function Navbar() {
         </form>
 
         {/* Right CTA / Auth Controls */}
-        <div className="hidden sm:flex items-center gap-3">
+        <div className="hidden lg:flex items-center gap-3">
           {user ? (
             <div className="flex items-center gap-3 relative">
               {/* Notification Bell */}
@@ -290,8 +296,19 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Mobile Hamburger Button */}
-        <div className="flex lg:hidden items-center">
+        {/* Mobile & Tablet Quick Controls + Hamburger */}
+        <div className="flex lg:hidden items-center gap-2">
+          {user && (
+            <Link
+              href="/chat"
+              className="p-2 rounded-full bg-[#14141a] border border-[#2a2a36] text-[#94a3b8] hover:text-[#f5d77f] hover:border-[#d4af37]/40 transition-colors relative"
+              title="Direct Messages"
+              aria-label="Direct Messages"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-[#d4af37] rounded-full animate-pulse"></span>
+            </Link>
+          )}
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -354,6 +371,19 @@ export default function Navbar() {
           <div className="pt-4 border-t border-[#20202a] flex flex-col gap-2">
             {user ? (
               <>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-[#14141d] border border-[#262636] mb-1">
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.name} className="w-9 h-9 rounded-full object-cover border border-[#d4af37]/40 flex-shrink-0" />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/40 flex items-center justify-center text-xs font-bold text-[#f5d77f] flex-shrink-0">
+                      {user.name?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-bold text-white truncate">{user.name}</div>
+                    <div className="text-[11px] text-[#8c8c9e] truncate">@{user.username} • {user.role}</div>
+                  </div>
+                </div>
                 <Link
                   href="/chat"
                   onClick={() => setMobileMenuOpen(false)}

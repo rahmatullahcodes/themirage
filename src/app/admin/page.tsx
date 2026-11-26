@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import PanelSidebar from '@/components/PanelSidebar';
 import PanelHeader from '@/components/PanelHeader';
-import { ActionIconBtn, PanelModal, ConfirmActionModal } from '@/components/PanelUi';
+import { ActionIconBtn, PanelModal, ConfirmActionModal, MediaThumb } from '@/components/PanelUi';
 
 const CREATOR_CATEGORIES = ['Popular', 'New', 'Nearby', 'Fitness', 'Lifestyle', 'Fetish', 'Cosplay', 'Mature'];
 
@@ -845,8 +845,10 @@ export default function AdminPanelPage() {
                         <tr key={post.id} className="hover:bg-[#161622]/40">
                           <td className="py-3 px-4">
                             <div className="w-14 h-10 rounded-lg overflow-hidden bg-black/60 relative border border-[#2b2b3a]">
-                              <img
-                                src={post.thumbnailUrl || post.mediaUrl}
+                              <MediaThumb
+                                src={post.thumbnailUrl}
+                                fallbackSrc={post.mediaUrl}
+                                mediaType={post.mediaType}
                                 alt={post.title}
                                 className="w-full h-full object-cover"
                               />
@@ -1356,7 +1358,7 @@ export default function AdminPanelPage() {
                 <div className="text-[#8e8e9e]">{viewCreator.bio || 'No bio entered yet.'}</div>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <div className="p-3 rounded-xl bg-[#161622] text-center">
                 <div className="text-[#f5d77f] font-bold">${Number(viewCreator.monthlyPrice || 0).toFixed(2)}</div>
                 <div className="text-[10px] text-[#717182]">Monthly Price</div>
@@ -1370,7 +1372,7 @@ export default function AdminPanelPage() {
                 <div className="text-[10px] text-[#717182]">Net Earnings</div>
               </div>
             </div>
-            <div className="flex gap-2 pt-2 border-t border-[#1c1c28]">
+            <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-[#1c1c28]">
               <Link
                 href={`/creator/${viewCreator.handle}`}
                 className="flex-1 py-2.5 rounded-xl gold-button text-center font-bold flex items-center justify-center gap-1.5"
@@ -1396,7 +1398,7 @@ export default function AdminPanelPage() {
       >
         {editCreatorForm && (
           <form onSubmit={handleSaveCreator} className="space-y-3 text-xs">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[#8e8e9e] mb-1">Display Name</label>
                 <input
@@ -1418,7 +1420,7 @@ export default function AdminPanelPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[#8e8e9e] mb-1">Category</label>
                 <select
@@ -1533,7 +1535,7 @@ export default function AdminPanelPage() {
                 className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
               />
             </div>
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <div>
                 <label className="block text-[#8e8e9e] mb-1">Visibility</label>
                 <select
@@ -1587,10 +1589,10 @@ export default function AdminPanelPage() {
       >
         {viewUser && (
           <div className="space-y-3 text-xs">
-            <div className="grid grid-cols-2 gap-2.5 p-3.5 rounded-2xl bg-[#161622]">
-              <div><span className="text-[#717182] block">Email</span><span className="text-white font-medium">{viewUser.email}</span></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3.5 rounded-2xl bg-[#161622]">
+              <div><span className="text-[#717182] block">Email</span><span className="text-white font-medium break-all">{viewUser.email}</span></div>
               <div><span className="text-[#717182] block">Account Status</span><span className={viewUser.status === 'ACTIVE' ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>{viewUser.status}</span></div>
-              <div><span className="text-[#717182] block">User ID</span><span className="font-mono text-[#cbd5e1]">{viewUser.id}</span></div>
+              <div><span className="text-[#717182] block">User ID</span><span className="font-mono text-[#cbd5e1] break-all">{viewUser.id}</span></div>
               <div><span className="text-[#717182] block">Joined</span><span className="text-[#cbd5e1]">{formatDate(viewUser.createdAt)}</span></div>
             </div>
             <div className="p-3 rounded-xl bg-[#161622]">
@@ -1609,7 +1611,7 @@ export default function AdminPanelPage() {
       >
         {editUserForm && (
           <form onSubmit={handleSaveUser} className="space-y-3 text-xs">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[#8e8e9e] mb-1">Name</label>
                 <input
@@ -1641,7 +1643,7 @@ export default function AdminPanelPage() {
                 className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[#8e8e9e] mb-1">Role</label>
                 <select

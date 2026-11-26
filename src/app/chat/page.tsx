@@ -477,7 +477,7 @@ function ChatContent() {
   });
 
   return (
-    <div className="h-screen bg-[#08080a] text-white flex overflow-hidden">
+    <div className="h-screen h-[100dvh] bg-[#08080a] text-white flex overflow-hidden">
       {/* Conversations Sidebar */}
       <div
         className={`w-full md:w-80 bg-[#0d0d12] border-r border-[#1e1e28] flex flex-col ${
@@ -488,9 +488,23 @@ function ChatContent() {
           <Link href="/" className="inline-flex items-center">
             <img src="/assets/the_mirage_logo.png" alt="The Mirage" className="h-6 w-auto object-contain" />
           </Link>
-          <span className="text-[10px] text-[#f5d77f] bg-[#181611] px-2 py-0.5 rounded-full border border-[#d4af37]/30 font-semibold">
-            {chatMode === 'creator' ? `Creator: @${myCreatorHandle}` : '1-on-1 Chat'}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-[#f5d77f] bg-[#181611] px-2 py-0.5 rounded-full border border-[#d4af37]/30 font-semibold">
+              {chatMode === 'creator' ? `Creator: @${myCreatorHandle}` : '1-on-1 Chat'}
+            </span>
+            <Link
+              href={
+                currentUser.role === 'CREATOR'
+                  ? '/creator-studio'
+                  : currentUser.role === 'ADMIN'
+                  ? '/admin'
+                  : '/dashboard'
+              }
+              className="text-[10px] px-2 py-0.5 rounded-full bg-[#151520] hover:bg-[#1e1e2e] border border-[#29293a] text-[#94a3b8] hover:text-white transition-colors"
+            >
+              Portal
+            </Link>
+          </div>
         </div>
 
         {/* Mode Switcher & Search */}
@@ -771,7 +785,7 @@ function ChatContent() {
         {/* Message & Media Composer */}
         <form
           onSubmit={handleSendMessage}
-          className="p-3 sm:p-4 bg-[#0e0e14] border-t border-[#1c1c28] flex items-center gap-2 sm:gap-3"
+          className="p-3 sm:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-[#0e0e14] border-t border-[#1c1c28] flex items-center gap-2 sm:gap-3"
         >
           <label
             className="cursor-pointer p-2.5 sm:p-3 rounded-xl bg-[#151520] hover:bg-[#1e1e2e] border border-[#29293a] text-[#d4af37] flex-shrink-0 transition-colors"

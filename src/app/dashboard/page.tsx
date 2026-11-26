@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import PanelSidebar from '@/components/PanelSidebar';
 import PanelHeader from '@/components/PanelHeader';
-import { ActionIconBtn, PanelModal, ConfirmActionModal } from '@/components/PanelUi';
+import { ActionIconBtn, PanelModal, ConfirmActionModal, MediaThumb } from '@/components/PanelUi';
 
 interface PurchasedItem {
   id: string;
@@ -412,7 +412,7 @@ export default function UserDashboard() {
                   {subscriptions.map((sub) => (
                     <div
                       key={sub.id}
-                      className="p-5 rounded-2xl bg-[#111117] border border-[#232330] flex items-center justify-between gap-4"
+                      className="p-4 sm:p-5 rounded-2xl bg-[#111117] border border-[#232330] flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <img
@@ -553,8 +553,10 @@ export default function UserDashboard() {
                     >
                       {/* Media Thumbnail Container */}
                       <div className="relative aspect-video w-full bg-[#181824] overflow-hidden">
-                        <img
+                        <MediaThumb
                           src={item.thumbnailUrl}
+                          fallbackSrc={item.accessUrl}
+                          mediaType={item.mediaType}
                           alt={item.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
@@ -677,7 +679,7 @@ export default function UserDashboard() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {followed.map((c) => (
-                    <div key={c.id} className="p-4 rounded-2xl bg-[#111117] border border-[#232330] flex items-center justify-between">
+                    <div key={c.id} className="p-4 rounded-2xl bg-[#111117] border border-[#232330] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <img src={c.avatar} alt={c.name} className="w-12 h-12 rounded-full object-cover" />
                         <div>
@@ -975,7 +977,7 @@ export default function UserDashboard() {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 border-t border-[#1c1c28] flex items-center justify-between text-xs text-[#8c8c9e] bg-[#12121a]">
+            <div className="p-4 border-t border-[#1c1c28] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#8c8c9e] bg-[#12121a]">
               <span>Purchased on {new Date(activeMediaModal.purchasedAt).toLocaleDateString()}</span>
               <a
                 href={activeMediaModal.accessUrl}

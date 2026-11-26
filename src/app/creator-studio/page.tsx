@@ -36,7 +36,7 @@ import {
 import { calculateCommission } from '@/lib/commission';
 import PanelSidebar from '@/components/PanelSidebar';
 import PanelHeader from '@/components/PanelHeader';
-import { ActionIconBtn, PanelModal, ConfirmActionModal } from '@/components/PanelUi';
+import { ActionIconBtn, PanelModal, ConfirmActionModal, MediaThumb } from '@/components/PanelUi';
 
 const CREATOR_CATEGORIES = ['Popular', 'New', 'Nearby', 'Fitness', 'Lifestyle', 'Fetish', 'Cosplay', 'Mature'];
 
@@ -981,7 +981,7 @@ export default function CreatorStudioPage() {
                   <label className="block text-xs font-semibold text-[#9da3af] mb-1.5">
                     2. Monetization & Access Model
                   </label>
-                  <div className="grid grid-cols-3 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                     <button
                       type="button"
                       onClick={() => setPostVisibility('PURCHASE_ONLY')}
@@ -1134,7 +1134,7 @@ export default function CreatorStudioPage() {
                       {mediaType === 'VIDEO' ? (
                         <video src={mediaUrl} controls playsInline muted className="w-full max-h-64 object-contain bg-black" />
                       ) : (
-                        <img src={mediaUrl} alt="Uploaded preview" className="w-full max-h-64 object-contain bg-black" />
+                        <MediaThumb src={mediaUrl} alt="Uploaded preview" className="w-full max-h-64 object-contain bg-black" />
                       )}
                     </div>
                   )}
@@ -1385,7 +1385,7 @@ export default function CreatorStudioPage() {
                                 value={deliveryFileUrl}
                                 onChange={(e) => setDeliveryFileUrl(e.target.value)}
                                 placeholder="Upload file or paste URL..."
-                                className="px-3 py-1.5 bg-[#181824] border border-[#2e2e3e] rounded-lg text-xs text-white"
+                                className="flex-1 min-w-[160px] px-3 py-1.5 bg-[#181824] border border-[#2e2e3e] rounded-lg text-xs text-white"
                               />
                               <button
                                 onClick={() => handleDeliverOrder(order.id)}
@@ -1441,8 +1441,14 @@ export default function CreatorStudioPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {feedPosts.map((post) => (
                   <div key={post.id} className="p-4 rounded-2xl bg-[#111117] border border-[#22222e] flex flex-col justify-between gap-3 shadow-lg">
-                    <div className="flex gap-4">
-                      <img src={post.url} alt={post.title} className="w-24 h-24 rounded-xl object-cover flex-shrink-0 bg-black" />
+                    <div className="flex gap-3 sm:gap-4">
+                      <MediaThumb
+                        src={post.thumbnailUrl || post.url}
+                        fallbackSrc={post.mediaUrl || post.url}
+                        mediaType={post.type}
+                        alt={post.title}
+                        className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover flex-shrink-0 bg-black"
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
                           {post.isPublicPreview && (
@@ -2070,7 +2076,7 @@ export default function CreatorStudioPage() {
               )}
             </div>
             <p className="text-[#cbd5e1]">{viewPostModal.caption || 'No caption'}</p>
-            <div className="grid grid-cols-3 gap-2.5 p-3 rounded-xl bg-[#161622] text-center">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-[#161622] text-center">
               <div><span className="text-[#717182] block">Visibility</span><strong className="text-white">{viewPostModal.visibility}</strong></div>
               <div><span className="text-[#717182] block">Price</span><strong className="text-[#f5d77f]">{viewPostModal.price > 0 ? `$${viewPostModal.price.toFixed(2)}` : 'Included'}</strong></div>
               <div><span className="text-[#717182] block">Sales</span><strong className="text-green-400">{viewPostModal.salesCount || 0}</strong></div>
@@ -2106,7 +2112,7 @@ export default function CreatorStudioPage() {
                 className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
               />
             </div>
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <div>
                 <label className="block text-[#8e8e9e] mb-1">Access Model</label>
                 <select

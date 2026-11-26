@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   LogIn,
 } from 'lucide-react';
+import { MediaThumb } from './PanelUi';
 
 interface PurchaseContentModalProps {
   content: {
@@ -169,8 +170,9 @@ export default function PurchaseContentModal({
             {/* Content Preview Snapshot */}
             <div className="flex gap-4 items-center p-3 rounded-2xl bg-[#14141e] border border-[#262638]">
               <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-black flex-shrink-0">
-                <img
+                <MediaThumb
                   src={content.thumbnailUrl}
+                  mediaType={content.mediaType}
                   alt={content.title}
                   className="w-full h-full object-cover filter blur-[2px] opacity-80"
                 />

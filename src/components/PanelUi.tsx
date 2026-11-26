@@ -196,3 +196,54 @@ export function ConfirmActionModal({
     </PanelModal>
   );
 }
+
+const VIDEO_EXT_REGEX = /\.(mp4|mov|m4v|webm|ogg)(\?|#|$)/i;
+
+export function isVideoMediaUrl(url?: string | null): boolean {
+  return Boolean(url && VIDEO_EXT_REGEX.test(url.trim()));
+}
+
+interface MediaThumbProps {
+  src?: string | null;
+  fallbackSrc?: string | null;
+  mediaType?: string;
+  alt: string;
+  className?: string;
+}
+
+/** Renders an image or silent first-frame video preview when media is a video URL. */
+export function MediaThumb({
+  src,
+  fallbackSrc,
+  mediaType,
+  alt,
+  className = 'w-full h-full object-cover',
+}: MediaThumbProps) {
+  const primary = (src || '').trim();
+  const secondary = (fallbackSrc || '').trim();
+  const resolved = primary || secondary;
+
+  if (!resolved) {
+    return <div className={`bg-[#14141e] ${className}`} aria-label={alt} />;
+  }
+
+  const useVideoTag =
+    isVideoMediaUrl(resolved) ||
+    (mediaType?.toUpperCase() === 'VIDEO' && !primary && Boolean(secondary));
+
+  if (useVideoTag) {
+    const videoSrc = resolved.includes('#') ? resolved : `${resolved}#t=0.1`;
+    return (
+      <video
+        src={videoSrc}
+        muted
+        playsInline
+        preload="metadata"
+        aria-label={alt}
+        className={className}
+      />
+    );
+  }
+
+  return <img src={resolved} alt={alt} className={className} />;
+}

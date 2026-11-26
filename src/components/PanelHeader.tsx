@@ -20,33 +20,33 @@ export default function PanelHeader({
   statusLabel,
 }: PanelHeaderProps) {
   return (
-    <header className="sticky top-0 z-30 h-20 bg-[#08080a]/90 backdrop-blur-md border-b border-[#1c1c28] px-4 sm:px-8 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-30 min-h-[4.5rem] py-2.5 bg-[#08080a]/90 backdrop-blur-md border-b border-[#1c1c28] px-3 sm:px-8 flex items-center justify-between gap-3 sm:gap-4">
       {/* Left: Mobile Toggle Bar & Breadcrumb Title */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
         {/* Toggle Bar Button for Mobile */}
         <button
           onClick={onOpenMobileSidebar}
-          className="lg:hidden p-2 rounded-xl bg-[#14141e] border border-[#272738] text-[#94a3b8] hover:text-white"
+          className="lg:hidden p-2 rounded-xl bg-[#14141e] border border-[#272738] text-[#94a3b8] hover:text-white flex-shrink-0"
           aria-label="Toggle Navigation Sidebar"
         >
           <Menu className="w-5 h-5" />
         </button>
 
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 text-[11px] text-[#717182] font-medium">
-            <Link href="/" className="inline-flex items-center">
+            <Link href="/" className="inline-flex items-center flex-shrink-0">
               <img
                 src="/assets/the_mirage_logo.png"
                 alt="The Mirage"
                 className="h-4 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
               />
             </Link>
-            <ChevronRight className="w-3 h-3 text-[#555568]" />
-            <span className="text-[#d4af37] font-semibold">
+            <ChevronRight className="w-3 h-3 text-[#555568] flex-shrink-0" />
+            <span className="text-[#d4af37] font-semibold truncate">
               {role === 'ADMIN' ? 'Administration' : role === 'CREATOR' ? 'Creator Studio' : 'Subscriber Portal'}
             </span>
           </div>
-          <h1 className="text-lg sm:text-xl font-serif font-bold text-white tracking-wide">
+          <h1 className="text-sm sm:text-xl font-serif font-bold text-white tracking-wide truncate">
             {title}
           </h1>
         </div>

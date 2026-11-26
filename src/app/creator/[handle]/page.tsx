@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import SubscribeModal from '@/components/SubscribeModal';
 import PurchaseContentModal from '@/components/PurchaseContentModal';
+import { MediaThumb } from '@/components/PanelUi';
 
 export interface PostItem {
   id: string;
@@ -618,8 +619,8 @@ function CreatorProfileContent() {
           </div>
 
           {/* Social Stats & Primary Actions */}
-          <div className="flex flex-col sm:flex-row items-center gap-4">
-            <div className="flex items-center gap-6 px-4 py-2.5 rounded-2xl bg-[#111118] border border-[#22222e]">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full md:w-auto">
+            <div className="flex items-center justify-around sm:justify-start gap-4 sm:gap-6 px-4 py-2.5 rounded-2xl bg-[#111118] border border-[#22222e] w-full sm:w-auto">
               <div className="text-center">
                 <div className="text-sm font-bold text-white">{creator.followersCount}</div>
                 <div className="text-[10px] text-[#717182] uppercase tracking-wider">Fans</div>
@@ -762,9 +763,11 @@ function CreatorProfileContent() {
                   onClick={() => setActiveVideoPreview(vid)}
                   className="group relative aspect-video rounded-2xl overflow-hidden bg-[#15151e] border border-[#242436] hover:border-[#d4af37]/60 cursor-pointer transition-all duration-300 hover:shadow-gold-sm hover:-translate-y-1"
                 >
-                  <img
-                    src={vid.thumbnailUrl || 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80'}
-                    alt={vid.title}
+                  <MediaThumb
+                    src={vid.thumbnailUrl}
+                    fallbackSrc={vid.mediaUrl || 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80'}
+                    mediaType="VIDEO"
+                    alt={vid.title || 'Video preview'}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/20 group-hover:bg-black/30 transition-colors" />
@@ -950,13 +953,19 @@ function CreatorProfileContent() {
                     className="rounded-2xl bg-[#101016] border border-[#20202a] overflow-hidden shadow-xl"
                   >
                     {/* Post Top Bar with Badges */}
-                    <div className="p-4 flex items-center justify-between">
+                    <div className="p-4 flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-3">
-                        <img
-                          src={creator.avatar}
-                          alt={creator.name}
-                          className="w-10 h-10 rounded-full object-cover border border-[#d4af37]/40"
-                        />
+                        {creator.avatar ? (
+                          <img
+                            src={creator.avatar}
+                            alt={creator.name}
+                            className="w-10 h-10 rounded-full object-cover border border-[#d4af37]/40"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-[#12121a] border border-[#d4af37]/40 flex items-center justify-center text-xs font-serif font-bold text-[#f5d77f]">
+                            {creator.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
                         <div>
                           <div className="text-sm font-bold text-white flex items-center gap-1">
                             {creator.name}
@@ -997,8 +1006,10 @@ function CreatorProfileContent() {
                           className="w-full h-full object-contain bg-black"
                         />
                       ) : (
-                        <img
+                        <MediaThumb
                           src={post.isLocked && post.thumbnailUrl ? post.thumbnailUrl : post.mediaUrl}
+                          fallbackSrc={post.mediaUrl}
+                          mediaType={post.type}
                           alt={post.title || 'Content Media'}
                           className={`w-full h-full object-cover transition-all ${
                             post.isLocked ? 'blur-2xl scale-110 opacity-30 pointer-events-none' : ''

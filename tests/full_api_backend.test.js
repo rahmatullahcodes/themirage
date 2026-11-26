@@ -264,15 +264,43 @@ async function runTests() {
   console.log('✓ Test 16: Admin Catalog GET & PATCH passed (Moderation verified)');
   passed++;
 
-  // 17. Frontend Routes Verification: /creator/mia-carter and /creators/mia-carter
-  const creatorRouteRes = await request('GET', '/creator/mia-carter');
-  assert.strictEqual(creatorRouteRes.status, 200);
-  assert.ok(typeof creatorRouteRes.data === 'string' && creatorRouteRes.data.includes('Mia Carter'));
+  // 17. Frontend Routes Verification across all public & panel pages
+  const routesToVerify = [
+    '/',
+    '/explore',
+    '/creators',
+    '/pricing',
+    '/about',
+    '/login',
+    '/register',
+    '/forgot-password',
+    '/dashboard',
+    '/creator-studio',
+    '/admin',
+    '/chat',
+    '/creator/luna-rae',
+    '/creator/ellie',
+    '/creator/mia-carter',
+    '/creators/mia-carter',
+    '/terms',
+    '/privacy',
+    '/content-policy',
+  ];
 
-  const creatorsRouteRes = await request('GET', '/creators/mia-carter');
-  assert.strictEqual(creatorsRouteRes.status, 200);
-  assert.ok(typeof creatorsRouteRes.data === 'string' && creatorsRouteRes.data.includes('Mia Carter'));
-  console.log('✓ Test 17: Creator Profile Pages (/creator and /creators) return 200 OK');
+  for (const route of routesToVerify) {
+    const pageRes = await request('GET', route);
+    assert.strictEqual(pageRes.status, 200, `Route ${route} must return 200 OK`);
+    assert.ok(
+      typeof pageRes.data === 'string' && !pageRes.data.includes('Application error'),
+      `Route ${route} must render without Next.js application errors`
+    );
+  }
+
+  const creatorRouteRes = await request('GET', '/creator/mia-carter');
+  assert.ok(typeof creatorRouteRes.data === 'string' && creatorRouteRes.data.includes('Mia Carter'));
+  const ellieRouteRes = await request('GET', '/creator/ellie');
+  assert.ok(typeof ellieRouteRes.data === 'string' && ellieRouteRes.data.includes('Ellie'));
+  console.log(`✓ Test 17: All ${routesToVerify.length} Frontend Routes returned 200 OK without errors`);
   passed++;
 
   // 18. Real User Registration -> Admin User Accounts & Creators Sync
