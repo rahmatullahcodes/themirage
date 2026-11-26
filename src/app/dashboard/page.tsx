@@ -172,6 +172,14 @@ export default function UserDashboard() {
     } catch (e) {}
   };
 
+  const handleCancelSubscription = (subId: string) => {
+    const updated = subscriptions.filter(s => s.id !== subId);
+    setSubscriptions(updated);
+    try {
+      localStorage.setItem('mirage_subscriptions', JSON.stringify(updated));
+    } catch (e) {}
+  };
+
   // Transaction history with PPV Individual content
   const transactions = [
     {
@@ -302,43 +310,66 @@ export default function UserDashboard() {
                 <p className="text-xs text-[#8c8c9e]">Enjoy unrestricted access to all subscriber-only posts, photos, and live chat.</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {subscriptions.map((sub) => (
-                  <div
-                    key={sub.id}
-                    className="p-5 rounded-2xl bg-[#111117] border border-[#232330] flex items-center justify-between gap-4"
+              {subscriptions.length === 0 ? (
+                <div className="p-10 text-center rounded-2xl bg-[#111117] border border-[#232330] space-y-3">
+                  <Crown className="w-8 h-8 text-[#d4af37]/60 mx-auto" />
+                  <h4 className="text-sm font-bold text-white">No Active Subscriptions</h4>
+                  <p className="text-xs text-[#7e7e90] max-w-sm mx-auto">
+                    You don&apos;t have any active monthly memberships yet. Discover creators and unlock exclusive subscriber feeds.
+                  </p>
+                  <Link
+                    href="/explore"
+                    className="inline-block mt-2 px-5 py-2 rounded-full gold-button text-xs font-bold shadow-gold-sm"
                   >
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={sub.avatar}
-                        alt={sub.creatorName}
-                        className="w-12 h-12 rounded-full object-cover border border-[#d4af37]/40 flex-shrink-0"
-                      />
-                      <div>
-                        <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
-                          {sub.creatorName}
-                          <CheckCircle2 className="w-3.5 h-3.5 fill-[#d4af37] text-black" />
-                        </h4>
-                        <p className="text-xs text-[#7e7e90]">
-                          ${sub.price.toFixed(2)} / month • <span className="text-green-400 font-medium">Active</span>
-                        </p>
-                        <p className="text-[10px] text-[#555566] mt-0.5">
-                          Renews on {sub.nextBilling}
-                        </p>
+                    Explore Creators
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {subscriptions.map((sub) => (
+                    <div
+                      key={sub.id}
+                      className="p-5 rounded-2xl bg-[#111117] border border-[#232330] flex items-center justify-between gap-4"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <img
+                          src={sub.avatar}
+                          alt={sub.creatorName}
+                          className="w-12 h-12 rounded-full object-cover border border-[#d4af37]/40 flex-shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-bold text-white flex items-center gap-1.5 truncate">
+                            {sub.creatorName}
+                            <CheckCircle2 className="w-3.5 h-3.5 fill-[#d4af37] text-black flex-shrink-0" />
+                          </h4>
+                          <p className="text-xs text-[#7e7e90]">
+                            ${sub.price.toFixed(2)} / month • <span className="text-green-400 font-medium">Active</span>
+                          </p>
+                          <p className="text-[10px] text-[#555566] mt-0.5">
+                            Renews on {sub.nextBilling}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleCancelSubscription(sub.id)}
+                          className="px-3 py-1.5 rounded-lg bg-[#191924] hover:bg-red-950/40 text-xs text-[#8c8c9e] hover:text-red-400 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <Link
+                          href={`/creator/${sub.creatorHandle}`}
+                          className="px-3.5 py-1.5 rounded-lg bg-[#181822] border border-[#2b2b3a] text-xs font-semibold text-white hover:border-[#d4af37]"
+                        >
+                          View Feed
+                        </Link>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/creator/${sub.creatorHandle}`}
-                        className="px-3.5 py-1.5 rounded-lg bg-[#181822] border border-[#2b2b3a] text-xs font-semibold text-white hover:border-[#d4af37]"
-                      >
-                        View Feed
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -514,34 +545,50 @@ export default function UserDashboard() {
                 <p className="text-xs text-[#8c8c9e]">Creators you are following for free updates and announcements.</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {followed.map((c) => (
-                  <div key={c.id} className="p-4 rounded-2xl bg-[#111117] border border-[#232330] flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <img src={c.avatar} alt={c.name} className="w-12 h-12 rounded-full object-cover" />
-                      <div>
-                        <div className="text-xs font-bold text-white">{c.name}</div>
-                        <div className="text-[11px] text-[#717182]">${c.price.toFixed(2)} / mo</div>
+              {followed.length === 0 ? (
+                <div className="p-10 text-center rounded-2xl bg-[#111117] border border-[#232330] space-y-3">
+                  <Heart className="w-8 h-8 text-[#d4af37]/60 mx-auto" />
+                  <h4 className="text-sm font-bold text-white">No Followed Creators</h4>
+                  <p className="text-xs text-[#7e7e90] max-w-sm mx-auto">
+                    You aren&apos;t following any creators yet. Follow creators you like to save them here.
+                  </p>
+                  <Link
+                    href="/explore"
+                    className="inline-block mt-2 px-5 py-2 rounded-full gold-button text-xs font-bold shadow-gold-sm"
+                  >
+                    Discover Creators
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {followed.map((c) => (
+                    <div key={c.id} className="p-4 rounded-2xl bg-[#111117] border border-[#232330] flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <img src={c.avatar} alt={c.name} className="w-12 h-12 rounded-full object-cover" />
+                        <div>
+                          <div className="text-xs font-bold text-white">{c.name}</div>
+                          <div className="text-[11px] text-[#717182]">${c.price.toFixed(2)} / mo</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleUnfollow(c.handle)}
+                          className="px-3 py-1.5 rounded-lg bg-[#191924] hover:bg-[#222232] text-xs text-[#8c8c9e] hover:text-red-400 transition-colors"
+                        >
+                          Unfollow
+                        </button>
+                        <Link
+                          href={`/creator/${c.handle}`}
+                          className="px-3 py-1.5 rounded-lg gold-button text-xs font-bold shadow-gold-sm"
+                        >
+                          Subscribe
+                        </Link>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleUnfollow(c.handle)}
-                        className="px-3 py-1.5 rounded-lg bg-[#191924] hover:bg-[#222232] text-xs text-[#8c8c9e] hover:text-red-400 transition-colors"
-                      >
-                        Unfollow
-                      </button>
-                      <Link
-                        href={`/creator/${c.handle}`}
-                        className="px-3 py-1.5 rounded-lg gold-button text-xs font-bold shadow-gold-sm"
-                      >
-                        Subscribe
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

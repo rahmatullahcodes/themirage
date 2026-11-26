@@ -22,10 +22,21 @@ export async function GET(req: NextRequest) {
   }
 }
 
+const ALLOWED_STATUSES: PostStatus[] = ['DRAFT', 'PUBLISHED', 'ARCHIVED'];
+
 export async function PATCH(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { postId, status } = body;
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, message: 'Invalid JSON request body' },
+        { status: 400 }
+      );
+    }
+
+    const { postId, status } = body || {};
 
     if (!postId || !status) {
       return NextResponse.json(
@@ -34,12 +45,19 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    if (!ALLOWED_STATUSES.includes(status as PostStatus)) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid status. Allowed values: DRAFT, PUBLISHED, ARCHIVED' },
+        { status: 400 }
+      );
+    }
+
     const result = setPostStatusAdmin(postId, status as PostStatus);
 
     if (!result.success) {
       return NextResponse.json(
-        { success: false, message: 'Failed to update post status' },
-        { status: 400 }
+        { success: false, message: 'Post not found' },
+        { status: 404 }
       );
     }
 

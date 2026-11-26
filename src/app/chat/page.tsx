@@ -148,6 +148,18 @@ function ChatContent() {
   const [customTitle, setCustomTitle] = useState('');
   const [customPrice, setCustomPrice] = useState('35.00');
 
+  // Synchronize URL query parameters (?creator=...&requestCustom=true) when navigating while already mounted
+  useEffect(() => {
+    const c = searchParams?.get('creator');
+    if (c) {
+      setActiveConversation(c.replace(/^@/, '').toLowerCase());
+      setMobileView('chat');
+    }
+    if (searchParams?.get('requestCustom') === 'true') {
+      setShowCustomModal(true);
+    }
+  }, [searchParams]);
+
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim()) return;
@@ -273,60 +285,41 @@ function ChatContent() {
         </div>
 
         <div className="flex-1 overflow-y-auto divide-y divide-[#151520]">
-          <div
-            onClick={() => {
-              setActiveConversation('luna-rae');
-              setMobileView('chat');
-            }}
-            className={`p-4 flex items-center gap-3 cursor-pointer transition-colors ${
-              activeConversation === 'luna-rae' ? 'bg-[#151520] border-l-2 border-[#d4af37]' : 'hover:bg-[#12121a]'
-            }`}
-          >
-            <div className="relative">
-              <img
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"
-                alt="Luna Rae"
-                className="w-12 h-12 rounded-full object-cover border border-[#d4af37]/40"
-              />
-              <span className="w-3 h-3 bg-green-500 rounded-full border-2 border-[#0d0d12] absolute bottom-0 right-0"></span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex justify-between items-center mb-0.5">
-                <span className="text-xs font-bold text-white truncate">Luna Rae</span>
-                <span className="text-[10px] text-[#636375]">11:46 AM</span>
+          {Object.entries(CONVERSATION_CREATORS).map(([slug, creatorInfo]) => {
+            const thread = messagesByCreator[slug] || [];
+            const lastMsg = thread[thread.length - 1];
+            const isSelected = activeConversation === slug;
+            return (
+              <div
+                key={slug}
+                onClick={() => {
+                  setActiveConversation(slug);
+                  setMobileView('chat');
+                }}
+                className={`p-4 flex items-center gap-3 cursor-pointer transition-colors ${
+                  isSelected ? 'bg-[#151520] border-l-2 border-[#d4af37]' : 'hover:bg-[#12121a]'
+                }`}
+              >
+                <div className="relative flex-shrink-0">
+                  <img
+                    src={creatorInfo.avatar}
+                    alt={creatorInfo.name}
+                    className={`w-12 h-12 rounded-full object-cover ${isSelected ? 'border border-[#d4af37]/40' : ''}`}
+                  />
+                  <span className="w-3 h-3 bg-green-500 rounded-full border-2 border-[#0d0d12] absolute bottom-0 right-0"></span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center mb-0.5">
+                    <span className="text-xs font-bold text-white truncate">{creatorInfo.name}</span>
+                    <span className="text-[10px] text-[#636375]">{lastMsg?.time || 'Online'}</span>
+                  </div>
+                  <p className="text-[11px] text-[#88889a] truncate">
+                    {lastMsg?.text || `Direct chat with ${creatorInfo.name}`}
+                  </p>
+                </div>
               </div>
-              <p className="text-[11px] text-[#88889a] truncate">
-                Working on that for you right away 🖤
-              </p>
-            </div>
-          </div>
-
-          <div
-            onClick={() => {
-              setActiveConversation('mia-carter');
-              setMobileView('chat');
-            }}
-            className={`p-4 flex items-center gap-3 cursor-pointer transition-colors ${
-              activeConversation === 'mia-carter' ? 'bg-[#151520] border-l-2 border-[#d4af37]' : 'hover:bg-[#12121a]'
-            }`}
-          >
-            <div className="relative">
-              <img
-                src="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80"
-                alt="Mia Carter"
-                className="w-12 h-12 rounded-full object-cover"
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex justify-between items-center mb-0.5">
-                <span className="text-xs font-bold text-white truncate">Mia Carter</span>
-                <span className="text-[10px] text-[#636375]">Yesterday</span>
-              </div>
-              <p className="text-[11px] text-[#88889a] truncate">
-                Thank you for the tip! New video coming Friday.
-              </p>
-            </div>
-          </div>
+            );
+          })}
         </div>
       </div>
 

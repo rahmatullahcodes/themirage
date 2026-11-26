@@ -1,26 +1,45 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert, CheckCircle2, XCircle } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, XCircle, X } from 'lucide-react';
 
 export default function AgeGateModal() {
   const [isOpen, setIsOpen] = useState(false);
+  const [canDismiss, setCanDismiss] = useState(false);
 
   useEffect(() => {
     // Check if user has already verified age
     const ageVerified = localStorage.getItem('mirage_age_verified');
     if (!ageVerified) {
       setIsOpen(true);
+      setCanDismiss(false);
+    } else {
+      setCanDismiss(true);
     }
 
     // Allow reopening via event or footer click
-    const handleReopen = () => setIsOpen(true);
+    const handleReopen = () => {
+      setCanDismiss(localStorage.getItem('mirage_age_verified') === 'true');
+      setIsOpen(true);
+    };
     window.addEventListener('open_age_gate', handleReopen);
     return () => window.removeEventListener('open_age_gate', handleReopen);
   }, []);
 
+  useEffect(() => {
+    if (!isOpen || !canDismiss) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, canDismiss]);
+
   const handleConfirmAge = () => {
     localStorage.setItem('mirage_age_verified', 'true');
+    setCanDismiss(true);
     setIsOpen(false);
   };
 
@@ -32,8 +51,28 @@ export default function AgeGateModal() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
-      <div className="relative w-full max-w-md p-8 bg-[#0f0f15] border border-[#d4af37]/30 rounded-2xl shadow-2xl shadow-black text-center">
+    <div
+      onClick={(e) => {
+        if (canDismiss && e.target === e.currentTarget) {
+          setIsOpen(false);
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-md p-8 bg-[#0f0f15] border border-[#d4af37]/30 rounded-2xl shadow-2xl shadow-black text-center"
+      >
+        {canDismiss && (
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            className="absolute top-4 right-4 p-1.5 rounded-full bg-[#181822] text-[#8e8e9e] hover:text-white transition-colors"
+            aria-label="Close Age Verification"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
         {/* Official Brand Logo */}
         <div className="mb-4">
           <img

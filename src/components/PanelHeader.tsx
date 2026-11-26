@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Menu, ChevronRight, Bell, Shield, Sparkles, Crown } from 'lucide-react';
+import { Menu, ChevronRight, MessageSquare } from 'lucide-react';
 
 interface PanelHeaderProps {
   title: string;
@@ -71,7 +71,7 @@ export default function PanelHeader({
           title="Direct Chat"
         >
           <span className="w-2 h-2 bg-[#d4af37] rounded-full absolute top-1.5 right-1.5"></span>
-          <Bell className="w-4 h-4" />
+          <MessageSquare className="w-4 h-4" />
         </Link>
       </div>
     </header>

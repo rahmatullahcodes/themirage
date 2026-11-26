@@ -3,10 +3,25 @@ import { signToken } from '@/lib/auth';
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { name, username, email, password, role, monthlyPrice } = body;
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON request body' }, { status: 400 });
+    }
 
-    if (!name || !username || !email || !password) {
+    const { name, username, email, password, role, monthlyPrice } = body || {};
+
+    if (
+      !name ||
+      !username ||
+      !email ||
+      !password ||
+      typeof name !== 'string' ||
+      typeof username !== 'string' ||
+      typeof email !== 'string' ||
+      typeof password !== 'string'
+    ) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
     }
 
@@ -14,11 +29,11 @@ export async function POST(req: Request) {
 
     const user = {
       id: `usr_${Date.now()}`,
-      name,
-      username: username.toLowerCase(),
-      email: email.toLowerCase(),
+      name: name.trim(),
+      username: username.trim().toLowerCase(),
+      email: email.trim().toLowerCase(),
       role: assignedRole,
-      monthlyPrice: assignedRole === 'CREATOR' ? (monthlyPrice || 9.99) : undefined,
+      monthlyPrice: assignedRole === 'CREATOR' ? (Number(monthlyPrice) || 9.99) : undefined,
     };
 
     const token = signToken({

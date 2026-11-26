@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Search, Crown, CheckCircle2, SlidersHorizontal } from 'lucide-react';
 import FeaturedCreatorCard from '@/components/FeaturedCreatorCard';
-import SubscribeModal from '@/components/SubscribeModal';
 
 const ALL_CREATORS = [
   {
@@ -18,7 +17,7 @@ const ALL_CREATORS = [
     isVerified: true,
   },
   {
-    id: 'c2',
+    id: 'c3',
     name: 'Mia Carter',
     handle: 'mia-carter',
     followers: '95K',
@@ -28,7 +27,7 @@ const ALL_CREATORS = [
     isVerified: true,
   },
   {
-    id: 'c3',
+    id: 'c2',
     name: 'Sophie Lee',
     handle: 'sophie-lee',
     followers: '180K',
@@ -61,12 +60,6 @@ const ALL_CREATORS = [
 
 export default function CreatorsDirectoryPage() {
   const [search, setSearch] = useState('');
-  const [selectedCreator, setSelectedCreator] = useState<{
-    id: string;
-    name: string;
-    handle: string;
-    price: number;
-  } | null>(null);
 
   const filtered = ALL_CREATORS.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -75,13 +68,6 @@ export default function CreatorsDirectoryPage() {
 
   return (
     <div className="min-h-screen bg-[#08080a] text-white py-12">
-      {selectedCreator && (
-        <SubscribeModal
-          creator={selectedCreator}
-          isOpen={!!selectedCreator}
-          onClose={() => setSelectedCreator(null)}
-        />
-      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -106,14 +92,27 @@ export default function CreatorsDirectoryPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {filtered.map((creator) => (
-            <FeaturedCreatorCard
-              key={creator.id}
-              {...creator}
-            />
-          ))}
-        </div>
+        {filtered.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {filtered.map((creator) => (
+              <FeaturedCreatorCard
+                key={creator.id}
+                {...creator}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="py-20 text-center text-[#717182]">
+            <p className="text-base">No creators found matching &quot;{search}&quot;.</p>
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="mt-3 text-xs text-[#d4af37] underline cursor-pointer"
+            >
+              Reset Search
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getUserFromAuthHeader } from '@/lib/auth';
 import {
   getFeedForUser,
   getCreatorStudioPosts,
@@ -15,7 +16,8 @@ export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl?.searchParams || (req.url.startsWith('http') ? new URL(req.url).searchParams : new URL(req.url, 'http://localhost:3000').searchParams);
     const handle = searchParams.get('handle') || undefined;
-    const userId = searchParams.get('userId') || null;
+    const tokenUser = getUserFromAuthHeader(req.headers.get('Authorization'));
+    const userId = tokenUser?.userId || searchParams.get('userId') || null;
     const previewsOnly = searchParams.get('previews') === 'true';
     const isStudio = searchParams.get('studio') === 'true';
 
@@ -129,9 +131,15 @@ export async function PATCH(req: NextRequest) {
     const result = updatePostDetails(postId, creatorId, updates);
 
     if (!result.success) {
+      const status =
+        result.error === 'Post not found'
+          ? 404
+          : result.error?.startsWith('Unauthorized')
+          ? 403
+          : 400;
       return NextResponse.json(
         { success: false, message: result.error },
-        { status: 400 }
+        { status }
       );
     }
 

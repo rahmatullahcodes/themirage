@@ -26,7 +26,6 @@ import {
   Send,
 } from 'lucide-react';
 import FeaturedCreatorCard from '@/components/FeaturedCreatorCard';
-import SubscribeModal from '@/components/SubscribeModal';
 
 // High quality, stylish model images for featured creators and hero
 const HERO_CREATOR_IMG = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=80';
@@ -45,7 +44,7 @@ const FEATURED_CREATORS = [
     isVerified: true,
   },
   {
-    id: 'c2',
+    id: 'c3',
     name: 'Mia Carter',
     handle: 'mia-carter',
     followers: '95K',
@@ -55,7 +54,7 @@ const FEATURED_CREATORS = [
     isVerified: true,
   },
   {
-    id: 'c3',
+    id: 'c2',
     name: 'Sophie Lee',
     handle: 'sophie-lee',
     followers: '180K',
@@ -99,23 +98,8 @@ const CATEGORIES = [
 ];
 
 export default function HomePage() {
-  const [selectedCreator, setSelectedCreator] = useState<{
-    id: string;
-    name: string;
-    handle: string;
-    price: number;
-  } | null>(null);
-
   return (
     <div className="min-h-screen bg-[#08080a] text-white">
-      {/* Subscribe Checkout Modal */}
-      {selectedCreator && (
-        <SubscribeModal
-          creator={selectedCreator}
-          isOpen={!!selectedCreator}
-          onClose={() => setSelectedCreator(null)}
-        />
-      )}
 
       {/* ========================================================
           1. HERO SECTION (Exactly Matching Screenshot)

@@ -4,7 +4,6 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Search, SlidersHorizontal, Flame, Star, MapPin, Dumbbell, Coffee, Plane, Sparkles, Grid } from 'lucide-react';
 import FeaturedCreatorCard from '@/components/FeaturedCreatorCard';
-import SubscribeModal from '@/components/SubscribeModal';
 
 const ALL_CREATORS = [
   {
@@ -18,7 +17,7 @@ const ALL_CREATORS = [
     isVerified: true,
   },
   {
-    id: 'c2',
+    id: 'c3',
     name: 'Mia Carter',
     handle: 'mia-carter',
     followers: '95K',
@@ -28,7 +27,7 @@ const ALL_CREATORS = [
     isVerified: true,
   },
   {
-    id: 'c3',
+    id: 'c2',
     name: 'Sophie Lee',
     handle: 'sophie-lee',
     followers: '180K',
@@ -111,12 +110,6 @@ function ExploreContent() {
   );
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [sortBy, setSortBy] = useState('popular');
-  const [selectedCreator, setSelectedCreator] = useState<{
-    id: string;
-    name: string;
-    handle: string;
-    price: number;
-  } | null>(null);
 
   useEffect(() => {
     const cat = searchParams?.get('category');
@@ -153,13 +146,6 @@ function ExploreContent() {
 
   return (
     <div className="min-h-screen bg-[#08080a] text-white py-10">
-      {selectedCreator && (
-        <SubscribeModal
-          creator={selectedCreator}
-          isOpen={!!selectedCreator}
-          onClose={() => setSelectedCreator(null)}
-        />
-      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div>

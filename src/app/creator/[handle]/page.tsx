@@ -556,7 +556,22 @@ function CreatorProfileContent() {
           }
         }
 
-        const feedRes = await fetch(`/api/content/posts?handle=${cleanHandle}`);
+        let token: string | null = null;
+        let currentUserId: string | null = null;
+        try {
+          token = localStorage.getItem('mirage_token');
+          const rawUser = localStorage.getItem('mirage_user');
+          if (rawUser) {
+            currentUserId = JSON.parse(rawUser)?.id || null;
+          }
+        } catch (e) {}
+
+        const feedUrl = currentUserId
+          ? `/api/content/posts?handle=${cleanHandle}&userId=${encodeURIComponent(currentUserId)}`
+          : `/api/content/posts?handle=${cleanHandle}`;
+        const feedRes = await fetch(feedUrl, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
         if (feedRes.ok) {
           const feedJson = await feedRes.json();
           if (feedJson?.posts && Array.isArray(feedJson.posts)) {
@@ -957,10 +972,10 @@ function CreatorProfileContent() {
               </button>
               <button
                 type="button"
-                onClick={() => setShowSubscribeModal(true)}
+                onClick={() => (isSubscribed ? router.push('/dashboard') : setShowSubscribeModal(true))}
                 className="flex-1 sm:flex-none px-7 py-2.5 rounded-full gold-button text-xs font-bold shadow-gold-sm"
               >
-                {isSubscribed ? 'Subscribed' : `Subscribe $${creator.monthlyPrice.toFixed(2)}/mo`}
+                {isSubscribed ? 'Subscribed ✓' : `Subscribe $${creator.monthlyPrice.toFixed(2)}/mo`}
               </button>
             </div>
           </div>
@@ -1417,7 +1432,7 @@ function CreatorProfileContent() {
               </ul>
               <button
                 type="button"
-                onClick={() => setShowSubscribeModal(true)}
+                onClick={() => (isSubscribed ? router.push('/dashboard') : setShowSubscribeModal(true))}
                 className="w-full py-3 rounded-xl gold-button text-xs font-bold shadow-gold-sm cursor-pointer"
               >
                 {isSubscribed ? 'Manage Subscription' : `Subscribe for $${creator.monthlyPrice.toFixed(2)}`}

@@ -190,13 +190,18 @@ export default function Navbar() {
 
                     <div className="space-y-2.5 max-h-64 overflow-y-auto">
                       {notifications.map((n) => (
-                        <div key={n.id} className="p-2.5 rounded-xl bg-[#171722] hover:bg-[#1d1d2b] transition-colors">
+                        <Link
+                          key={n.id}
+                          href={n.type === 'chat' ? '/chat' : '/dashboard'}
+                          onClick={() => setShowNotifications(false)}
+                          className="block p-2.5 rounded-xl bg-[#171722] hover:bg-[#1d1d2b] transition-colors"
+                        >
                           <div className="flex justify-between items-center mb-0.5">
                             <span className="text-xs font-bold text-white">{n.title}</span>
                             <span className="text-[10px] text-[#717182]">{n.time}</span>
                           </div>
                           <p className="text-[11px] text-[#94a3b8]">{n.desc}</p>
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   </div>
@@ -332,6 +337,31 @@ export default function Navbar() {
           <div className="pt-4 border-t border-[#20202a] flex flex-col gap-2">
             {user ? (
               <>
+                <Link
+                  href="/chat"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="px-4 py-2 text-center text-sm font-semibold rounded-lg bg-[#161622] border border-[#2a2a38] text-[#f5d77f]"
+                >
+                  Direct Messages
+                </Link>
+                {user.role === 'CREATOR' && (
+                  <Link
+                    href="/creator-studio"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="px-4 py-2 text-center text-sm font-semibold rounded-lg bg-[#1b1b24] border border-[#d4af37]/40 text-[#f5d77f]"
+                  >
+                    Creator Studio
+                  </Link>
+                )}
+                {user.role === 'ADMIN' && (
+                  <Link
+                    href="/admin"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="px-4 py-2 text-center text-sm font-semibold rounded-lg bg-[#201515] border border-red-500/40 text-red-400"
+                  >
+                    Admin Panel
+                  </Link>
+                )}
                 <Link
                   href="/dashboard"
                   onClick={() => setMobileMenuOpen(false)}

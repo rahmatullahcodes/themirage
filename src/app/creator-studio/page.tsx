@@ -286,11 +286,16 @@ export default function CreatorStudioPage() {
     { id: 's4', name: 'Liam Vance', handle: '@liamv', status: 'ACTIVE', joined: 'Oct 18, 2026', totalSpent: '$9.99' },
   ];
 
-  // Synchronize creator studio posts from backend API
+  // Synchronize creator studio posts and saved price from backend/storage
   useEffect(() => {
+    try {
+      const savedPrice = localStorage.getItem('mirage_creator_price');
+      if (savedPrice) setMonthlyPrice(savedPrice);
+    } catch (e) {}
+
     async function loadStudioData() {
       try {
-        const res = await fetch('/api/content/posts?handle=luna-rae');
+        const res = await fetch('/api/content/posts?handle=luna-rae&studio=true');
         if (res.ok) {
           const json = await res.json();
           if (json?.posts && Array.isArray(json.posts)) {
@@ -1358,7 +1363,17 @@ export default function CreatorStudioPage() {
                 </div>
               )}
 
-              <form onSubmit={(e) => { e.preventDefault(); setPriceSaveSuccess(true); setTimeout(() => setPriceSaveSuccess(false), 2000); }} className="space-y-4">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  try {
+                    localStorage.setItem('mirage_creator_price', monthlyPrice);
+                  } catch (err) {}
+                  setPriceSaveSuccess(true);
+                  setTimeout(() => setPriceSaveSuccess(false), 2000);
+                }}
+                className="space-y-4"
+              >
                 <div>
                   <label className="block text-xs font-semibold text-[#9da3af] mb-1.5">
                     Monthly Subscription Price (USD)

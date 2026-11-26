@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkMediaAuthorization } from '@/lib/contentStore';
+import { getUserFromAuthHeader } from '@/lib/auth';
 
 export async function GET(
   req: NextRequest,
@@ -12,17 +13,19 @@ export async function GET(
     }
 
     const searchParams = req.nextUrl?.searchParams || (req.url.startsWith('http') ? new URL(req.url).searchParams : new URL(req.url, 'http://localhost:3000').searchParams);
-    const userId = searchParams.get('userId') || 'usr-1';
+    const tokenUser = getUserFromAuthHeader(req.headers.get('Authorization'));
+    const userId = tokenUser?.userId || searchParams.get('userId') || null;
 
     const authResult = checkMediaAuthorization(userId, postId);
 
     if (!authResult.authorized) {
+      const status = authResult.error === 'Post not found' ? 404 : 403;
       return NextResponse.json(
         {
           authorized: false,
           error: authResult.error || 'Access denied. You do not own this media.',
         },
-        { status: 403 }
+        { status }
       );
     }
 

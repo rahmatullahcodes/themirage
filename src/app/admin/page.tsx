@@ -177,6 +177,19 @@ export default function AdminPanelPage() {
   ]);
 
   useEffect(() => {
+    try {
+      const savedRules = localStorage.getItem('mirage_commission_rules');
+      if (savedRules) {
+        const parsed = JSON.parse(savedRules);
+        if (typeof parsed.creatorCommission === 'number') {
+          setCreatorCommission(parsed.creatorCommission);
+          setPlatformCommission(100 - parsed.creatorCommission);
+        }
+      }
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
     fetchCatalog();
   }, [catalogStatusFilter, catalogTypeFilter]);
 
@@ -240,6 +253,12 @@ export default function AdminPanelPage() {
 
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      localStorage.setItem(
+        'mirage_commission_rules',
+        JSON.stringify({ creatorCommission, platformCommission })
+      );
+    } catch (err) {}
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2000);
   };

@@ -1,4 +1,6 @@
 // In-memory persistent content & transactions store for The Mirage Phase 1 PPV & Subscriptions
+import { calculateCommission } from './commission';
+
 export type MediaType = 'IMAGE' | 'VIDEO' | 'AUDIO';
 export type Visibility = 'PUBLIC' | 'SUBSCRIBER_ONLY' | 'PURCHASE_ONLY';
 export type PostStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
@@ -923,8 +925,29 @@ const HANDLE_TO_CREATOR_ID: Record<string, string> = {
 };
 
 export function resolveCreatorId(creatorIdOrHandle: string): string {
+  if (!creatorIdOrHandle || typeof creatorIdOrHandle !== 'string') return '';
   const cleaned = creatorIdOrHandle.replace(/^creator-/, '').replace(/^@/, '').toLowerCase();
   return HANDLE_TO_CREATOR_ID[cleaned] || creatorIdOrHandle;
+}
+
+export function getCreatorNameById(creatorIdOrHandle: string): string {
+  const resolved = resolveCreatorId(creatorIdOrHandle);
+  const match = posts.find(p => p.creatorId === resolved);
+  if (match) return match.creatorName;
+  const map: Record<string, string> = {
+    c1: 'Luna Rae',
+    c2: 'Sophie Lee',
+    c3: 'Mia Carter',
+    c4: 'Zara Khan',
+    c5: 'Emily Rose',
+  };
+  return map[resolved] || 'The Mirage Creator';
+}
+
+export function recordTransaction(tx: TransactionRecord): void {
+  if (tx && tx.id) {
+    transactions.unshift(tx);
+  }
 }
 
 export function subscribeUserToCreator(userId: string, creatorIdOrHandle: string): void {
@@ -1074,9 +1097,10 @@ export function purchaseIndividualContent(params: {
     return { success: false, error: 'Invalid price for paid content.' };
   }
 
-  // Calculate 85% creator / 15% platform split
-  const creatorShare = Number((grossAmount * 0.85).toFixed(2));
-  const platformShare = Number((grossAmount * 0.15).toFixed(2));
+  // Calculate unified creator / platform split
+  const split = calculateCommission(grossAmount);
+  const creatorShare = split.creatorShare;
+  const platformShare = split.platformShare;
   const now = new Date().toISOString();
   const txRef = `MIRAGE_PPV_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
@@ -1277,6 +1301,15 @@ export function updatePostDetails(
     post.price = Number(updates.price);
   }
   if (updates.status !== undefined) {
+    if (updates.status === 'PUBLISHED' && post.status !== 'PUBLISHED' && post.isPublicPreview) {
+      const counts = getCreatorPreviewCounts(creatorId);
+      if (post.mediaType === 'IMAGE' && !counts.canAddPhoto) {
+        return { success: false, error: 'Maximum of 3 public preview photos allowed per creator. Please unmark an existing preview photo first.' };
+      }
+      if (post.mediaType === 'VIDEO' && !counts.canAddVideo) {
+        return { success: false, error: 'Maximum of 2 public preview videos allowed per creator. Please unmark an existing preview video first.' };
+      }
+    }
     post.status = updates.status;
   }
   if (updates.title !== undefined) {
@@ -1295,7 +1328,8 @@ export function updatePostDetails(
 
 // Creator Segregated Earnings
 export function getCreatorSegregatedEarnings(creatorId: string) {
-  const creatorTxs = transactions.filter(t => t.creatorId === creatorId && t.status === 'SUCCESS');
+  const resolvedId = resolveCreatorId(creatorId);
+  const creatorTxs = transactions.filter(t => (t.creatorId === creatorId || t.creatorId === resolvedId) && t.status === 'SUCCESS');
 
   // Subscriptions
   const subTxs = creatorTxs.filter(t => t.type === 'SUBSCRIPTION');
