@@ -1898,6 +1898,63 @@ export function updateUserStatusAdmin(userId: string, status: AccountStatus): { 
   return { success: true, user };
 }
 
+export function updateUserAdmin(
+  userId: string,
+  updates: { name?: string; username?: string; email?: string; role?: UserRole; status?: AccountStatus; bio?: string }
+): { success: boolean; user?: UserRecord; error?: string } {
+  const db = getDb();
+  const user = db.users.find(u => u.id === userId);
+  if (!user) return { success: false, error: 'User not found' };
+
+  if (updates.email !== undefined) {
+    const cleanEmail = updates.email.trim().toLowerCase();
+    if (!cleanEmail) return { success: false, error: 'Email cannot be empty' };
+    const dup = db.users.find(u => u.id !== userId && u.email.toLowerCase() === cleanEmail);
+    if (dup) return { success: false, error: 'Email is already registered to another user' };
+    user.email = cleanEmail;
+  }
+  if (updates.name !== undefined && updates.name.trim()) user.name = updates.name.trim();
+  if (updates.username !== undefined && updates.username.trim()) {
+    user.username = updates.username.trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_-]/g, '') || user.username;
+  }
+  if (updates.role && ['ADMIN', 'CREATOR', 'SUBSCRIBER'].includes(updates.role)) {
+    user.role = updates.role;
+  }
+  if (updates.status && (updates.status === 'ACTIVE' || updates.status === 'SUSPENDED')) {
+    user.status = updates.status;
+  }
+  if (updates.bio !== undefined) user.bio = updates.bio;
+
+  const creator = db.creators.find(c => c.id === userId || c.userId === userId);
+  if (creator) {
+    creator.name = user.name;
+    creator.status = user.status;
+  }
+  saveDb(db);
+  return { success: true, user };
+}
+
+export function deleteUserAdmin(userId: string): { success: boolean; error?: string } {
+  const db = getDb();
+  const idx = db.users.findIndex(u => u.id === userId);
+  if (idx === -1) return { success: false, error: 'User not found' };
+  if (db.users[idx].role === 'ADMIN') {
+    return { success: false, error: 'Administrator accounts cannot be deleted.' };
+  }
+  db.users.splice(idx, 1);
+
+  const creatorIdx = db.creators.findIndex(c => c.id === userId || c.userId === userId);
+  if (creatorIdx !== -1) {
+    const removedCreator = db.creators[creatorIdx];
+    db.creators.splice(creatorIdx, 1);
+    db.posts = db.posts.filter(p => p.creatorId !== removedCreator.id);
+  }
+  db.subscriptions = db.subscriptions.filter(s => s.userId !== userId);
+  db.follows = db.follows.filter(f => f.userId !== userId);
+  saveDb(db);
+  return { success: true };
+}
+
 export function updateUserProfile(userId: string, updates: { name?: string; bio?: string }): { success: boolean; user?: UserRecord } {
   const db = getDb();
   const user = db.users.find(u => u.id === userId);
@@ -1964,28 +2021,91 @@ export function toggleCreatorVerificationAdmin(creatorId: string): { success: bo
   return { success: true, creator };
 }
 
-export function updateCreatorProfileSettings(
+export function updateCreatorAdmin(
   creatorIdOrHandle: string,
-  updates: { monthlyPrice?: number; bio?: string; category?: string; name?: string; avatar?: string; banner?: string }
+  updates: {
+    name?: string;
+    handle?: string;
+    category?: string;
+    monthlyPrice?: number;
+    bio?: string;
+    avatar?: string;
+    banner?: string;
+    isVerified?: boolean;
+    status?: AccountStatus;
+  }
 ): { success: boolean; creator?: CreatorRecord; error?: string } {
   const db = getDb();
   const resolved = resolveCreatorId(creatorIdOrHandle);
   const creator = db.creators.find(
-    c => c.id === resolved || c.id === creatorIdOrHandle || c.handle.toLowerCase() === creatorIdOrHandle.replace(/^@/, '').toLowerCase()
+    c =>
+      c.id === resolved ||
+      c.id === creatorIdOrHandle ||
+      c.handle.toLowerCase() === creatorIdOrHandle.replace(/^@/, '').toLowerCase()
   );
   if (!creator) return { success: false, error: 'Creator profile not found' };
+
   if (updates.monthlyPrice !== undefined) {
     const p = Number(updates.monthlyPrice);
     if (!Number.isFinite(p) || p < 1) return { success: false, error: 'Invalid monthly price' };
     creator.monthlyPrice = Number(p.toFixed(2));
   }
+  if (updates.name !== undefined && updates.name.trim()) {
+    creator.name = updates.name.trim();
+  }
+  if (updates.handle !== undefined && updates.handle.trim()) {
+    const cleanHandle = updates.handle.trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_-]/g, '');
+    if (cleanHandle) creator.handle = cleanHandle;
+  }
+  if (updates.category !== undefined && updates.category.trim()) creator.category = updates.category.trim();
   if (updates.bio !== undefined) creator.bio = updates.bio;
-  if (updates.category !== undefined) creator.category = updates.category;
-  if (updates.name !== undefined && updates.name.trim()) creator.name = updates.name.trim();
   if (updates.avatar !== undefined && updates.avatar.trim()) creator.avatar = updates.avatar.trim();
   if (updates.banner !== undefined && updates.banner.trim()) creator.banner = updates.banner.trim();
+  if (updates.isVerified !== undefined) creator.isVerified = Boolean(updates.isVerified);
+  if (updates.status === 'ACTIVE' || updates.status === 'SUSPENDED') {
+    creator.status = updates.status;
+  }
+
+  // Sync linked user & posts metadata
+  const linkedUser = db.users.find(u => u.id === creator.userId || u.id === creator.id);
+  if (linkedUser) {
+    linkedUser.name = creator.name;
+    linkedUser.status = creator.status;
+  }
+  db.posts.forEach(p => {
+    if (p.creatorId === creator.id) {
+      p.creatorName = creator.name;
+      p.creatorHandle = creator.handle;
+    }
+  });
+
   saveDb(db);
   return { success: true, creator };
+}
+
+export function deleteCreatorAdmin(creatorIdOrHandle: string): { success: boolean; error?: string } {
+  const db = getDb();
+  const resolved = resolveCreatorId(creatorIdOrHandle);
+  const idx = db.creators.findIndex(
+    c =>
+      c.id === creatorIdOrHandle ||
+      c.id === resolved ||
+      c.handle.toLowerCase() === creatorIdOrHandle.replace(/^@/, '').toLowerCase()
+  );
+  if (idx === -1) return { success: false, error: 'Creator not found' };
+  const [removed] = db.creators.splice(idx, 1);
+  db.posts = db.posts.filter(p => p.creatorId !== removed.id);
+  db.subscriptions = db.subscriptions.filter(s => s.creatorId !== removed.id);
+  db.follows = db.follows.filter(f => f.creatorId !== removed.id);
+  saveDb(db);
+  return { success: true };
+}
+
+export function updateCreatorProfileSettings(
+  creatorIdOrHandle: string,
+  updates: { monthlyPrice?: number; bio?: string; category?: string; name?: string; avatar?: string; banner?: string }
+): { success: boolean; creator?: CreatorRecord; error?: string } {
+  return updateCreatorAdmin(creatorIdOrHandle, updates);
 }
 
 // ======================= TRANSACTIONS & SUBSCRIPTIONS =======================
@@ -2283,6 +2403,7 @@ export function deliverCustomRequest(
   const existingVault = db.purchases.find(p => p.customRequestId === reqItem.id);
   if (!existingVault) {
     const isVideo = /\.(mp4|mov|webm)(\?|$)/i.test(reqItem.deliveredMediaUrl);
+    const creator = db.creators.find(c => c.id === reqItem.creatorId || c.handle === reqItem.creatorHandle);
     db.purchases.unshift({
       id: `pur-cust-${Date.now()}`,
       userId: reqItem.customerId,
@@ -2294,7 +2415,7 @@ export function deliverCustomRequest(
       mediaType: isVideo ? 'VIDEO' : 'IMAGE',
       accessUrl: reqItem.deliveredMediaUrl,
       thumbnailUrl: isVideo
-        ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80'
+        ? creator?.avatar || reqItem.deliveredMediaUrl
         : reqItem.deliveredMediaUrl,
       price: reqItem.price,
       purchasedAt: now,
@@ -2303,6 +2424,34 @@ export function deliverCustomRequest(
 
   saveDb(db);
   return { success: true, request: reqItem };
+}
+
+export function updateCustomRequest(
+  requestId: string,
+  updates: { title?: string; description?: string; price?: number; status?: CustomRequestRecord['status'] }
+): { success: boolean; request?: CustomRequestRecord; error?: string } {
+  const db = getDb();
+  const reqItem = db.customRequests.find(r => r.id === requestId);
+  if (!reqItem) return { success: false, error: 'Custom order not found' };
+  if (updates.title !== undefined && updates.title.trim()) reqItem.title = updates.title.trim();
+  if (updates.description !== undefined) reqItem.description = updates.description;
+  if (updates.price !== undefined) {
+    const p = Number(updates.price);
+    if (!Number.isFinite(p) || p < 1) return { success: false, error: 'Invalid price' };
+    reqItem.price = Number(p.toFixed(2));
+  }
+  if (updates.status) reqItem.status = updates.status;
+  saveDb(db);
+  return { success: true, request: reqItem };
+}
+
+export function deleteCustomRequest(requestId: string): { success: boolean; error?: string } {
+  const db = getDb();
+  const idx = db.customRequests.findIndex(r => r.id === requestId);
+  if (idx === -1) return { success: false, error: 'Custom order not found' };
+  db.customRequests.splice(idx, 1);
+  saveDb(db);
+  return { success: true };
 }
 
 // ======================= POSTS, MEDIA & PPV VAULT =======================
@@ -2610,7 +2759,7 @@ export function createCreatorPost(data: {
 export function updatePostDetails(
   postId: string,
   creatorId: string,
-  updates: Partial<Pick<PostItem, 'price' | 'status' | 'title' | 'caption' | 'thumbnailUrl' | 'isPublicPreview'>>
+  updates: Partial<Pick<PostItem, 'price' | 'status' | 'title' | 'caption' | 'thumbnailUrl' | 'mediaUrl' | 'mediaType' | 'visibility' | 'isPublicPreview'>>
 ): { success: boolean; post?: PostItem; error?: string } {
   const db = getDb();
   const post = db.posts.find(p => p.id === postId);
@@ -2621,6 +2770,16 @@ export function updatePostDetails(
   const resolvedCreator = resolveCreatorId(creatorId);
   if (post.creatorId !== creatorId && post.creatorId !== resolvedCreator) {
     return { success: false, error: 'Unauthorized to edit this post' };
+  }
+
+  if (updates.visibility !== undefined) {
+    post.visibility = updates.visibility;
+    if (updates.visibility !== 'PURCHASE_ONLY') {
+      post.price = 0;
+    }
+    if (updates.visibility !== 'PUBLIC' && updates.isPublicPreview === undefined) {
+      post.isPublicPreview = false;
+    }
   }
 
   if (updates.isPublicPreview !== undefined && updates.isPublicPreview !== post.isPublicPreview) {
@@ -2634,6 +2793,7 @@ export function updatePostDetails(
       }
       post.isPublicPreview = true;
       post.visibility = 'PUBLIC';
+      post.price = 0;
     } else {
       post.isPublicPreview = false;
     }
@@ -2654,13 +2814,35 @@ export function updatePostDetails(
     }
     post.status = updates.status;
   }
-  if (updates.title !== undefined) post.title = updates.title;
+  if (updates.title !== undefined && updates.title.trim()) post.title = updates.title.trim();
   if (updates.caption !== undefined) post.caption = updates.caption;
-  if (updates.thumbnailUrl !== undefined) post.thumbnailUrl = updates.thumbnailUrl;
+  if (updates.mediaUrl !== undefined && updates.mediaUrl.trim()) post.mediaUrl = updates.mediaUrl.trim();
+  if (updates.thumbnailUrl !== undefined && updates.thumbnailUrl.trim()) post.thumbnailUrl = updates.thumbnailUrl.trim();
+  if (updates.mediaType !== undefined) post.mediaType = updates.mediaType;
   post.updatedAt = new Date().toISOString();
 
   saveDb(db);
   return { success: true, post };
+}
+
+export function deletePost(
+  postId: string,
+  requesterCreatorIdOrAdmin: string,
+  isAdmin = false
+): { success: boolean; error?: string } {
+  const db = getDb();
+  const idx = db.posts.findIndex(p => p.id === postId);
+  if (idx === -1) return { success: false, error: 'Post not found' };
+  const target = db.posts[idx];
+  if (!isAdmin) {
+    const resolvedCreator = resolveCreatorId(requesterCreatorIdOrAdmin);
+    if (target.creatorId !== requesterCreatorIdOrAdmin && target.creatorId !== resolvedCreator) {
+      return { success: false, error: 'Unauthorized to delete this post' };
+    }
+  }
+  db.posts.splice(idx, 1);
+  saveDb(db);
+  return { success: true };
 }
 
 // ======================= CREATOR EARNINGS & ADMIN DASHBOARD =======================
@@ -2763,6 +2945,15 @@ export function setPostStatusAdmin(postId: string, status: PostStatus): { succes
   return { success: true, post };
 }
 
+export function updatePostAdmin(
+  postId: string,
+  updates: Partial<Pick<PostItem, 'price' | 'status' | 'title' | 'caption' | 'thumbnailUrl' | 'mediaUrl' | 'mediaType' | 'visibility' | 'isPublicPreview'>>
+): { success: boolean; post?: PostItem; error?: string } {
+  const post = getDb().posts.find(p => p.id === postId);
+  if (!post) return { success: false, error: 'Post not found' };
+  return updatePostDetails(postId, post.creatorId, updates);
+}
+
 export function getAdminTransactions(filters?: { type?: string; search?: string }) {
   let list = [...getDb().transactions];
   if (filters?.type && filters.type !== 'ALL') {
@@ -2790,20 +2981,46 @@ export function issueRefundAdmin(txId: string): { success: boolean; transaction?
   return { success: true, transaction: tx };
 }
 
+export function deleteTransactionAdmin(txId: string): { success: boolean } {
+  const db = getDb();
+  const idx = db.transactions.findIndex(t => t.id === txId);
+  if (idx === -1) return { success: false };
+  db.transactions.splice(idx, 1);
+  saveDb(db);
+  return { success: true };
+}
+
 export function getAdminReports(): ContentReportRecord[] {
   return [...getDb().reports];
 }
 
 export function updateReportStatusAdmin(
   reportId: string,
-  status: 'PENDING' | 'RESOLVED' | 'DISMISSED'
+  status: 'PENDING' | 'RESOLVED' | 'DISMISSED',
+  postAction?: PostStatus
 ): { success: boolean; report?: ContentReportRecord } {
   const db = getDb();
   const report = db.reports.find(r => r.id === reportId);
   if (!report) return { success: false };
   report.status = status;
+  if (postAction && report.postId) {
+    const post = db.posts.find(p => p.id === report.postId);
+    if (post) {
+      post.status = postAction;
+      post.updatedAt = new Date().toISOString();
+    }
+  }
   saveDb(db);
   return { success: true, report };
+}
+
+export function deleteReportAdmin(reportId: string): { success: boolean } {
+  const db = getDb();
+  const idx = db.reports.findIndex(r => r.id === reportId);
+  if (idx === -1) return { success: false };
+  db.reports.splice(idx, 1);
+  saveDb(db);
+  return { success: true };
 }
 
 export function getAdminOverviewData() {

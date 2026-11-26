@@ -415,6 +415,123 @@ async function runTests() {
   console.log('✓ Test 20: Ellie Creator Profile, Fetish Category, & Multipart File Upload/Serve verified');
   passed++;
 
+  // 21. Full Panel CRUD Actions (Edit & Delete across Admin Users, Creators, Catalog, Creator Posts, Custom Requests)
+  const tempSubRes = await request('POST', '/api/auth/register', {
+    name: 'Temp CRUD Fan',
+    username: `tempfan_${Date.now()}`,
+    email: `tempfan_${Date.now()}@themirage.vip`,
+    password: 'SecretPassword123',
+    role: 'SUBSCRIBER',
+  });
+  assert.strictEqual(tempSubRes.status, 200);
+  const tempUserId = tempSubRes.data.user.id;
+
+  const editUserRes = await request('PATCH', '/api/admin/users', {
+    userId: tempUserId,
+    name: 'Edited CRUD Fan',
+    status: 'SUSPENDED',
+    bio: 'Updated bio from admin panel',
+  });
+  assert.strictEqual(editUserRes.status, 200);
+  assert.strictEqual(editUserRes.data.user.name, 'Edited CRUD Fan');
+  assert.strictEqual(editUserRes.data.user.status, 'SUSPENDED');
+
+  const delUserRes = await request('DELETE', `/api/admin/users?userId=${encodeURIComponent(tempUserId)}`);
+  assert.strictEqual(delUserRes.status, 200);
+  const adminUsersAfterDel = await request('GET', '/api/admin/users');
+  assert.ok(!adminUsersAfterDel.data.users.some((u) => u.id === tempUserId), 'Deleted user must be removed');
+
+  const tempCreatorRes = await request('POST', '/api/auth/register', {
+    name: 'Temp CRUD Creator',
+    username: `tempcreator_${Date.now()}`,
+    email: `tempcreator_${Date.now()}@themirage.vip`,
+    password: 'SecretPassword123',
+    role: 'CREATOR',
+    monthlyPrice: 12.99,
+  });
+  assert.strictEqual(tempCreatorRes.status, 200);
+  const tempCreatorId = tempCreatorRes.data.user.id;
+
+  const adminAccount = adminUsersAfterDel.data.users.find((u) => u.role === 'ADMIN');
+  assert.ok(adminAccount, 'Seeded Admin account must exist');
+  const protectedAdminDel = await request('DELETE', `/api/admin/users?userId=${encodeURIComponent(adminAccount.id)}`);
+  assert.strictEqual(protectedAdminDel.status, 400, 'Admin accounts must be protected from deletion');
+
+  const editCreatorRes = await request('PATCH', '/api/admin/creators', {
+    creatorId: tempCreatorId,
+    name: 'Edited CRUD Creator',
+    category: 'Fetish',
+    monthlyPrice: 24.99,
+    isVerified: true,
+  });
+  assert.strictEqual(editCreatorRes.status, 200);
+  assert.strictEqual(editCreatorRes.data.creator.category, 'Fetish');
+  assert.strictEqual(editCreatorRes.data.creator.monthlyPrice, 24.99);
+  assert.strictEqual(editCreatorRes.data.creator.isVerified, true);
+
+  const delCreatorRes = await request('DELETE', `/api/admin/creators?creatorId=${encodeURIComponent(tempCreatorId)}`);
+  assert.strictEqual(delCreatorRes.status, 200);
+
+  // Studio Post Edit + Delete
+  const studioPostRes = await request('POST', '/api/content/posts', {
+    creatorId: 'c1',
+    creatorHandle: 'luna-rae',
+    creatorName: 'Luna Rae',
+    title: 'Temp Studio Post',
+    caption: 'Initial caption',
+    mediaType: 'IMAGE',
+    mediaUrl: '/api/uploads/sample-test.jpg',
+    visibility: 'PURCHASE_ONLY',
+    price: 19.0,
+  });
+  assert.strictEqual(studioPostRes.status, 200);
+  const tempPostId = studioPostRes.data.post.id;
+
+  const studioEditRes = await request('PATCH', '/api/content/posts', {
+    postId: tempPostId,
+    creatorId: 'c1',
+    updates: { title: 'Edited Studio Post', price: 29.5, status: 'DRAFT' },
+  });
+  assert.strictEqual(studioEditRes.status, 200);
+  assert.strictEqual(studioEditRes.data.post.title, 'Edited Studio Post');
+  assert.strictEqual(studioEditRes.data.post.price, 29.5);
+
+  const adminCatalogEditRes = await request('PATCH', '/api/admin/catalog', {
+    postId: tempPostId,
+    updates: { title: 'Admin Moderated Title', status: 'PUBLISHED', price: 33.0 },
+  });
+  assert.strictEqual(adminCatalogEditRes.status, 200);
+  assert.strictEqual(adminCatalogEditRes.data.post.title, 'Admin Moderated Title');
+
+  const delPostRes = await request('DELETE', `/api/content/posts?postId=${encodeURIComponent(tempPostId)}&creatorId=c1`);
+  assert.strictEqual(delPostRes.status, 200);
+
+  // Custom Order Edit & Delete
+  const crudOrderRes = await request('POST', '/api/custom-requests', {
+    customerId: 'usr-1',
+    creatorHandle: 'ellie',
+    title: 'Temp Custom Order',
+    price: 35.0,
+    paid: false,
+  });
+  assert.strictEqual(crudOrderRes.status, 200);
+  const crudOrderId = crudOrderRes.data.request.id;
+
+  const updateOrderRes = await request('PATCH', '/api/custom-requests', {
+    requestId: crudOrderId,
+    action: 'UPDATE',
+    title: 'Updated Custom Order',
+    price: 55.0,
+  });
+  assert.strictEqual(updateOrderRes.status, 200);
+  assert.strictEqual(updateOrderRes.data.request.price, 55.0);
+
+  const delOrderRes = await request('DELETE', `/api/custom-requests?requestId=${encodeURIComponent(crudOrderId)}`);
+  assert.strictEqual(delOrderRes.status, 200);
+
+  console.log('✓ Test 21: Full Panel CRUD (Edit & Delete across Users, Creators, Catalog, Posts, Custom Orders) verified');
+  passed++;
+
   console.log('\n================================================================');
   console.log(` ALL ${passed}/${passed} FULL-STACK E2E API & BACKEND TESTS PASSED! ✓`);
   console.log('================================================================');

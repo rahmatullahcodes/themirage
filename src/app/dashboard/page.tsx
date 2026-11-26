@@ -25,9 +25,14 @@ import {
   X,
   Eye,
   Filter,
+  Download,
+  UserMinus,
+  Trash2,
+  Info,
 } from 'lucide-react';
 import PanelSidebar from '@/components/PanelSidebar';
 import PanelHeader from '@/components/PanelHeader';
+import { ActionIconBtn, PanelModal, ConfirmActionModal } from '@/components/PanelUi';
 
 interface PurchasedItem {
   id: string;
@@ -47,7 +52,7 @@ export default function UserDashboard() {
   const [activeTab, setActiveTab] = useState('subscriptions');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [user, setUser] = useState<{ id: string; name: string; username: string; email: string; role: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; name: string; username: string; email: string; role: string; ageVerified?: boolean } | null>(null);
 
   // Vault / My Purchases state
   const [vaultItems, setVaultItems] = useState<PurchasedItem[]>([]);
@@ -59,18 +64,39 @@ export default function UserDashboard() {
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [followed, setFollowed] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [txFilter, setTxFilter] = useState<'ALL' | 'SUBSCRIPTION' | 'INDIVIDUAL_CONTENT' | 'CUSTOM_CONTENT'>('ALL');
   const [profileName, setProfileName] = useState('');
   const [profileBio, setProfileBio] = useState('');
+  const [profileAgeVerified, setProfileAgeVerified] = useState(true);
   const [profileSaved, setProfileSaved] = useState(false);
+
+  // Detail & Confirmation Modals
+  const [viewSubModal, setViewSubModal] = useState<any | null>(null);
+  const [viewInvoiceModal, setViewInvoiceModal] = useState<any | null>(null);
+  const [dashboardNotice, setDashboardNotice] = useState<string | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    description: string;
+    confirmLabel: string;
+    confirmTone?: 'danger' | 'gold';
+    onConfirm: () => Promise<void>;
+  } | null>(null);
+
+  const showToast = (msg: string) => {
+    setDashboardNotice(msg);
+    setTimeout(() => setDashboardNotice(null), 3500);
+  };
 
   useEffect(() => {
     const stored = localStorage.getItem('mirage_user');
-    let currentUser = {
+    let currentUser: { id: string; name: string; username: string; email: string; role: string; ageVerified?: boolean } = {
       id: 'usr-1',
-      name: 'Alex Mercer',
-      username: 'alexmercer',
-      email: 'subscriber@themirage.vip',
+      name: 'Member',
+      username: 'member',
+      email: '',
       role: 'SUBSCRIBER',
+      ageVerified: true,
     };
     if (stored) {
       try {
@@ -149,9 +175,16 @@ export default function UserDashboard() {
           setTransactions(
             tData.transactions.map((t: any) => ({
               id: t.transactionReference || t.id,
+              rawId: t.id,
               type: t.type,
+              creatorName: t.creatorName || 'Creator',
+              postTitle: t.postTitle || '',
               description: t.postTitle ? `${t.creatorName || 'Creator'} - ${t.postTitle}` : `${t.creatorName || 'Creator'} - ${t.type}`,
               amount: t.grossAmount,
+              creatorShare: t.creatorShare,
+              platformShare: t.platformShare,
+              paymentGateway: t.paymentGateway || 'MIRAGE_PAY',
+              gatewayReference: t.gatewayReference || '',
               status: t.status,
               date: t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
             }))
@@ -161,8 +194,17 @@ export default function UserDashboard() {
       if (profRes.ok) {
         const pData = await profRes.json();
         if (pData.success && pData.user) {
+          setUser((prev) => ({
+            id: pData.user.id,
+            name: pData.user.name,
+            username: pData.user.username,
+            email: pData.user.email,
+            role: pData.user.role || prev?.role || 'SUBSCRIBER',
+            ageVerified: Boolean(pData.user.ageVerified),
+          }));
           setProfileName(pData.user.name || '');
           setProfileBio(pData.user.bio || '');
+          setProfileAgeVerified(Boolean(pData.user.ageVerified));
         }
       }
     } catch (e) {
@@ -172,16 +214,17 @@ export default function UserDashboard() {
     }
   };
 
-  const handleUnfollow = async (creatorHandle: string) => {
+  const handleUnfollow = async (creatorHandle: string, creatorName?: string) => {
     setFollowed(prev => prev.filter(c => c.handle !== creatorHandle));
     try {
       await fetch(`/api/user/follows?userId=${encodeURIComponent(user?.id || 'usr-1')}&handle=${encodeURIComponent(creatorHandle)}`, {
         method: 'DELETE',
       });
+      showToast(`Unfollowed ${creatorName || creatorHandle}`);
     } catch (e) {}
   };
 
-  const handleCancelSubscription = async (subId: string) => {
+  const handleCancelSubscription = async (subId: string, creatorName?: string) => {
     setSubscriptions(prev => prev.filter(s => s.id !== subId));
     try {
       await fetch('/api/user/subscriptions', {
@@ -193,6 +236,7 @@ export default function UserDashboard() {
           action: 'CANCEL',
         }),
       });
+      showToast(`Subscription to ${creatorName || 'creator'} cancelled`);
     } catch (e) {}
   };
 
@@ -226,6 +270,11 @@ export default function UserDashboard() {
     return item.mediaType === vaultFilter;
   });
 
+  const filteredTransactions = transactions.filter(t => {
+    if (txFilter === 'ALL') return true;
+    return t.type === txFilter;
+  });
+
   const getTabTitle = () => {
     switch (activeTab) {
       case 'subscriptions':
@@ -254,8 +303,8 @@ export default function UserDashboard() {
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         mobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
-        userName={user?.name || 'Alex Mercer'}
-        userHandle={`@${user?.username || 'alexmercer'}`}
+        userName={user?.name || 'Member'}
+        userHandle={`@${user?.username || 'member'}`}
         badges={{
           subscriptions: subscriptions.length > 0 ? `${subscriptions.length} Active` : '0',
           purchases: String(vaultItems.length),
@@ -276,6 +325,13 @@ export default function UserDashboard() {
         />
 
         <main className="flex-1 p-4 sm:p-8 space-y-8 max-w-6xl mx-auto w-full">
+          {dashboardNotice && (
+            <div className="p-3.5 rounded-xl bg-green-950/70 border border-green-500/40 text-green-300 text-xs flex items-center gap-2 shadow-lg">
+              <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+              <span>{dashboardNotice}</span>
+            </div>
+          )}
+
           {/* Welcome User Banner */}
           <div className="p-6 sm:p-8 rounded-3xl bg-[#101016] border border-[#22222e] flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-4 text-center sm:text-left">
@@ -286,7 +342,7 @@ export default function UserDashboard() {
               </div>
               <div>
                 <h2 className="text-xl sm:text-2xl font-serif font-bold text-white">
-                  Welcome back, {user?.name || 'Alex Mercer'}
+                  Welcome back, {user?.name || 'Member'}
                 </h2>
                 <p className="text-xs text-[#8c8c9e] mt-0.5">
                   The Mirage Subscriber Vault | Encrypted Access to Private Feeds & Individual Media
@@ -361,20 +417,39 @@ export default function UserDashboard() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleCancelSubscription(sub.id)}
-                          className="px-3 py-1.5 rounded-lg bg-[#191924] hover:bg-red-950/40 text-xs text-[#8c8c9e] hover:text-red-400 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <Link
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <ActionIconBtn
+                          icon={Info}
+                          label="View Subscription Details"
+                          tone="neutral"
+                          onClick={() => setViewSubModal(sub)}
+                        />
+                        <ActionIconBtn
+                          icon={MessageSquare}
+                          label="Message Creator"
+                          tone="gold"
+                          href={`/chat?creator=${encodeURIComponent(sub.creatorHandle)}`}
+                        />
+                        <ActionIconBtn
+                          icon={Eye}
+                          label="View Creator Feed"
+                          tone="neutral"
                           href={`/creator/${sub.creatorHandle}`}
-                          className="px-3.5 py-1.5 rounded-lg bg-[#181822] border border-[#2b2b3a] text-xs font-semibold text-white hover:border-[#d4af37]"
-                        >
-                          View Feed
-                        </Link>
+                        />
+                        <ActionIconBtn
+                          icon={Trash2}
+                          label="Cancel Subscription"
+                          tone="danger"
+                          onClick={() =>
+                            setConfirmModal({
+                              title: `Cancel Subscription to ${sub.creatorName}?`,
+                              description: `Your $${Number(sub.price || 0).toFixed(2)}/mo recurring membership will be cancelled.`,
+                              confirmLabel: 'Cancel Subscription',
+                              confirmTone: 'danger',
+                              onConfirm: () => handleCancelSubscription(sub.id, sub.creatorName),
+                            })
+                          }
+                        />
                       </div>
                     </div>
                   ))}
@@ -529,15 +604,28 @@ export default function UserDashboard() {
                               </>
                             )}
                           </button>
+                          <ActionIconBtn
+                            icon={User}
+                            label={`Visit ${item.creatorName}`}
+                            tone="neutral"
+                            href={`/creator/${item.creatorHandle}`}
+                          />
                           <a
                             href={item.accessUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-2 rounded-xl bg-[#161622] hover:bg-[#1e1e2d] border border-[#2b2b3a] text-[#8e8e9e] hover:text-white"
-                            title="Open original media URL"
+                            download={item.title}
+                            title="Download Media"
+                            aria-label="Download Media"
+                            className="p-2 rounded-lg bg-[#181824] hover:bg-[#222234] border border-[#2f2f40] text-[#cbd5e1] hover:text-white inline-flex items-center justify-center"
                           >
-                            <ExternalLink className="w-4 h-4" />
+                            <Download className="w-3.5 h-3.5" />
                           </a>
+                          <ActionIconBtn
+                            icon={ExternalLink}
+                            label="Open Original Media URL"
+                            tone="gold"
+                            href={item.accessUrl}
+                            external
+                          />
                         </div>
                       </div>
                     </div>
@@ -580,20 +668,33 @@ export default function UserDashboard() {
                           <div className="text-[11px] text-[#717182]">${c.price.toFixed(2)} / mo</div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleUnfollow(c.handle)}
-                          className="px-3 py-1.5 rounded-lg bg-[#191924] hover:bg-[#222232] text-xs text-[#8c8c9e] hover:text-red-400 transition-colors"
-                        >
-                          Unfollow
-                        </button>
-                        <Link
+                      <div className="flex items-center gap-1.5">
+                        <ActionIconBtn
+                          icon={Eye}
+                          label="View Creator Profile"
+                          tone="neutral"
                           href={`/creator/${c.handle}`}
-                          className="px-3 py-1.5 rounded-lg gold-button text-xs font-bold shadow-gold-sm"
-                        >
-                          Subscribe
-                        </Link>
+                        />
+                        <ActionIconBtn
+                          icon={Crown}
+                          label="Subscribe to Creator"
+                          tone="gold"
+                          href={`/creator/${c.handle}`}
+                        />
+                        <ActionIconBtn
+                          icon={UserMinus}
+                          label="Unfollow Creator"
+                          tone="danger"
+                          onClick={() =>
+                            setConfirmModal({
+                              title: `Unfollow ${c.name}?`,
+                              description: `Remove ${c.name} (@${c.handle}) from your followed creators list.`,
+                              confirmLabel: 'Unfollow',
+                              confirmTone: 'danger',
+                              onConfirm: () => handleUnfollow(c.handle, c.name),
+                            })
+                          }
+                        />
                       </div>
                     </div>
                   ))}
@@ -605,10 +706,28 @@ export default function UserDashboard() {
           {/* Tab 4: Billing & Invoices */}
           {activeTab === 'transactions' && (
             <div className="space-y-4">
-              <div>
-                <h3 className="text-base font-serif font-bold text-white">Billing & Payment Invoices</h3>
-                <p className="text-xs text-[#8c8c9e]">Complete record of all subscriptions, individual PPV media purchases, and custom requests.</p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-serif font-bold text-white">Billing & Payment Invoices ({filteredTransactions.length})</h3>
+                  <p className="text-xs text-[#8c8c9e]">Complete record of all subscriptions, individual PPV media purchases, and custom requests.</p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-[#12121a] border border-[#222230] text-xs">
+                  {(['ALL', 'SUBSCRIPTION', 'INDIVIDUAL_CONTENT', 'CUSTOM_CONTENT'] as const).map((tKey) => (
+                    <button
+                      key={tKey}
+                      type="button"
+                      onClick={() => setTxFilter(tKey)}
+                      className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                        txFilter === tKey ? 'gold-button text-black font-bold' : 'text-[#8c8c9e] hover:text-white'
+                      }`}
+                    >
+                      {tKey === 'ALL' ? 'All' : tKey === 'SUBSCRIPTION' ? 'Subscriptions' : tKey === 'INDIVIDUAL_CONTENT' ? 'PPV Media' : 'Custom Orders'}
+                    </button>
+                  ))}
+                </div>
               </div>
+
               <div className="bg-[#111117] border border-[#232330] rounded-2xl overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-[#161622] text-[#8e8e9e] border-b border-[#232330]">
@@ -619,17 +738,18 @@ export default function UserDashboard() {
                       <th className="py-3 px-4">Amount</th>
                       <th className="py-3 px-4">Status</th>
                       <th className="py-3 px-4">Date</th>
+                      <th className="py-3 px-4">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#1e1e28] text-white">
-                    {transactions.length === 0 && (
+                    {filteredTransactions.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="py-8 text-center text-[#717182]">
-                          No billing invoices found yet.
+                        <td colSpan={7} className="py-8 text-center text-[#717182]">
+                          No billing invoices found in this category.
                         </td>
                       </tr>
                     )}
-                    {transactions.map((tx) => (
+                    {filteredTransactions.map((tx) => (
                       <tr key={tx.id} className="hover:bg-[#161622]/50">
                         <td className="py-3.5 px-4 font-mono text-[#a3a3b5]">{tx.id}</td>
                         <td className="py-3.5 px-4 font-medium">{tx.description}</td>
@@ -646,9 +766,14 @@ export default function UserDashboard() {
                         </td>
                         <td className="py-3.5 px-4 font-bold">${tx.amount.toFixed(2)}</td>
                         <td className="py-3.5 px-4">
-                          <span className="text-green-400 font-semibold">{tx.status}</span>
+                          <span className={tx.status === 'SUCCESS' ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
+                            {tx.status}
+                          </span>
                         </td>
                         <td className="py-3.5 px-4 text-[#777788]">{tx.date}</td>
+                        <td className="py-3.5 px-4">
+                          <ActionIconBtn icon={Eye} label="View Billing Invoice" tone="gold" onClick={() => setViewInvoiceModal(tx)} />
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -687,7 +812,7 @@ export default function UserDashboard() {
                 <div>
                   <label className="text-[#717182] block mb-1">Email Address</label>
                   <div className="p-2.5 rounded-xl bg-[#161622]/70 text-[#94a3b8] font-semibold">
-                    {user?.email || 'subscriber@themirage.vip'}
+                    {user?.email || 'Loading account email...'}
                   </div>
                 </div>
                 <div>
@@ -702,8 +827,11 @@ export default function UserDashboard() {
                 </div>
                 <div>
                   <span className="text-[#717182] block mb-1">Age Verification Status</span>
-                  <div className="p-2.5 rounded-xl bg-[#161622] text-green-400 font-semibold flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> 18+ Verified Consent on File
+                  <div className={`p-2.5 rounded-xl bg-[#161622] font-semibold flex items-center gap-1.5 ${
+                    profileAgeVerified ? 'text-green-400' : 'text-yellow-400'
+                  }`}>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    {profileAgeVerified ? '18+ Verified Consent on File' : 'Age Verification Pending'}
                   </div>
                 </div>
               </div>
@@ -781,6 +909,81 @@ export default function UserDashboard() {
           </div>
         </div>
       )}
+
+      {/* View Subscription Details Modal */}
+      <PanelModal
+        open={Boolean(viewSubModal)}
+        title={viewSubModal?.creatorName || 'Subscription Details'}
+        subtitle={viewSubModal ? `@${viewSubModal.creatorHandle} • Active Membership` : undefined}
+        onClose={() => setViewSubModal(null)}
+      >
+        {viewSubModal && (
+          <div className="space-y-4 text-xs">
+            <div className="p-4 rounded-2xl bg-[#161622] space-y-2 border border-[#2a2a3b]">
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Creator</span><span className="font-bold text-white">{viewSubModal.creatorName}</span></div>
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Monthly Rate</span><span className="font-bold text-[#f5d77f]">${Number(viewSubModal.price || 0).toFixed(2)} / month</span></div>
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Status</span><span className="text-green-400 font-bold">{viewSubModal.status}</span></div>
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Next Billing</span><span className="text-white">{viewSubModal.nextBilling}</span></div>
+            </div>
+            <div className="flex gap-2">
+              <Link
+                href={`/creator/${viewSubModal.creatorHandle}`}
+                className="flex-1 py-2.5 rounded-xl gold-button text-center font-bold"
+              >
+                View Creator Feed
+              </Link>
+              <Link
+                href={`/chat?creator=${encodeURIComponent(viewSubModal.creatorHandle)}`}
+                className="flex-1 py-2.5 rounded-xl bg-[#181824] border border-[#2e2e40] text-center font-semibold text-white"
+              >
+                Message Creator
+              </Link>
+            </div>
+          </div>
+        )}
+      </PanelModal>
+
+      {/* View Billing Invoice Modal */}
+      <PanelModal
+        open={Boolean(viewInvoiceModal)}
+        title="Payment Invoice & Receipt"
+        subtitle={viewInvoiceModal?.id}
+        onClose={() => setViewInvoiceModal(null)}
+      >
+        {viewInvoiceModal && (
+          <div className="p-4 rounded-2xl bg-[#161622] space-y-2 text-xs border border-[#2a2a3b]">
+            <div className="flex justify-between"><span className="text-[#8e8e9e]">Reference</span><span className="font-mono text-[#d4af37]">{viewInvoiceModal.id}</span></div>
+            <div className="flex justify-between"><span className="text-[#8e8e9e]">Type</span><span className="font-bold text-white">{viewInvoiceModal.type}</span></div>
+            <div className="flex justify-between"><span className="text-[#8e8e9e]">Creator</span><span className="text-[#f5d77f] font-semibold">{viewInvoiceModal.creatorName}</span></div>
+            <div className="flex justify-between"><span className="text-[#8e8e9e]">Description</span><span className="text-white">{viewInvoiceModal.description}</span></div>
+            <div className="flex justify-between"><span className="text-[#8e8e9e]">Amount Paid</span><span className="font-bold text-white">${Number(viewInvoiceModal.amount || 0).toFixed(2)}</span></div>
+            <div className="flex justify-between"><span className="text-[#8e8e9e]">Gateway</span><span className="font-mono text-[#94a3b8]">{viewInvoiceModal.paymentGateway}</span></div>
+            <div className="flex justify-between"><span className="text-[#8e8e9e]">Status</span><span className={viewInvoiceModal.status === 'SUCCESS' ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>{viewInvoiceModal.status}</span></div>
+            <div className="flex justify-between"><span className="text-[#8e8e9e]">Date</span><span className="text-[#94a3b8]">{viewInvoiceModal.date}</span></div>
+          </div>
+        )}
+      </PanelModal>
+
+      {/* Shared Confirmation Modal */}
+      <ConfirmActionModal
+        open={Boolean(confirmModal)}
+        title={confirmModal?.title || 'Confirm Action'}
+        description={confirmModal?.description || ''}
+        confirmLabel={confirmModal?.confirmLabel || 'Confirm'}
+        confirmTone={confirmModal?.confirmTone || 'danger'}
+        busy={confirmBusy}
+        onClose={() => !confirmBusy && setConfirmModal(null)}
+        onConfirm={async () => {
+          if (!confirmModal) return;
+          setConfirmBusy(true);
+          try {
+            await confirmModal.onConfirm();
+          } finally {
+            setConfirmBusy(false);
+            setConfirmModal(null);
+          }
+        }}
+      />
     </div>
   );
 }

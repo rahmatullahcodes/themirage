@@ -9,6 +9,7 @@ interface PanelHeaderProps {
   subtitle?: string;
   onOpenMobileSidebar: () => void;
   role: 'ADMIN' | 'CREATOR' | 'SUBSCRIBER';
+  statusLabel?: string;
 }
 
 export default function PanelHeader({
@@ -16,6 +17,7 @@ export default function PanelHeader({
   subtitle,
   onOpenMobileSidebar,
   role,
+  statusLabel,
 }: PanelHeaderProps) {
   return (
     <header className="sticky top-0 z-30 h-20 bg-[#08080a]/90 backdrop-blur-md border-b border-[#1c1c28] px-4 sm:px-8 flex items-center justify-between gap-4">
@@ -52,15 +54,11 @@ export default function PanelHeader({
 
       {/* Right: Status Pill & Controls */}
       <div className="flex items-center gap-3">
-        {role !== 'SUBSCRIBER' && (
+        {role !== 'SUBSCRIBER' && statusLabel && (
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111118] border border-[#232332] text-xs">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
             <span className="text-[#a0a0b2] text-[11px] font-medium">
-              {role === 'ADMIN' ? (
-                <>Commission Rule: <strong className="text-[#f5d77f]">85/15 Active</strong></>
-              ) : (
-                <>Creator Revenue: <strong className="text-[#f5d77f]">85% Active</strong></>
-              )}
+              <strong className="text-[#f5d77f]">{statusLabel}</strong>
             </span>
           </div>
         )}

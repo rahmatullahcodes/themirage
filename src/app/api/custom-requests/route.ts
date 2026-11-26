@@ -5,7 +5,11 @@ import {
   createCustomRequest,
   payCustomRequest,
   deliverCustomRequest,
+  updateCustomRequest,
+  deleteCustomRequest,
 } from '@/lib/contentStore';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
@@ -100,10 +104,47 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: true, request: result.request });
     }
 
+    if (action === 'UPDATE') {
+      const { title, description, price, status } = body || {};
+      const result = updateCustomRequest(requestId, { title, description, price, status });
+      if (!result.success) {
+        return NextResponse.json({ success: false, message: result.error }, { status: 400 });
+      }
+      return NextResponse.json({ success: true, request: result.request });
+    }
+
+    if (action === 'CANCEL') {
+      const result = updateCustomRequest(requestId, { status: 'CANCELLED' });
+      if (!result.success) {
+        return NextResponse.json({ success: false, message: result.error }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, request: result.request });
+    }
+
     return NextResponse.json({ success: false, message: 'Unsupported action' }, { status: 400 });
   } catch (error: any) {
     return NextResponse.json(
       { success: false, message: error?.message || 'Failed to update custom request' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const searchParams = req.nextUrl?.searchParams || new URL(req.url, 'http://localhost:3000').searchParams;
+    const requestId = searchParams.get('requestId');
+    if (!requestId) {
+      return NextResponse.json({ success: false, message: 'requestId is required' }, { status: 400 });
+    }
+    const result = deleteCustomRequest(requestId);
+    if (!result.success) {
+      return NextResponse.json({ success: false, message: result.error || 'Custom order not found' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, message: 'Custom order deleted' });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, message: error?.message || 'Failed to delete custom request' },
       { status: 500 }
     );
   }

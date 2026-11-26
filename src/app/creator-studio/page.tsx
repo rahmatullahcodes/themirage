@@ -30,10 +30,13 @@ import {
   ExternalLink,
   X,
   UserCheck,
+  Trash2,
+  Play,
 } from 'lucide-react';
 import { calculateCommission } from '@/lib/commission';
 import PanelSidebar from '@/components/PanelSidebar';
 import PanelHeader from '@/components/PanelHeader';
+import { ActionIconBtn, PanelModal, ConfirmActionModal } from '@/components/PanelUi';
 
 const CREATOR_CATEGORIES = ['Popular', 'New', 'Nearby', 'Fitness', 'Lifestyle', 'Fetish', 'Cosplay', 'Mature'];
 
@@ -87,6 +90,15 @@ export default function CreatorStudioPage() {
             );
             if (matched) {
               setCreatorUser({ id: matched.id, name: matched.name, username: matched.handle });
+            }
+          } else {
+            const stored = localStorage.getItem('mirage_user');
+            const parsed = stored ? JSON.parse(stored) : null;
+            if (!parsed || parsed.role !== 'CREATOR') {
+              const first = data.creators[0];
+              if (first) {
+                setCreatorUser({ id: first.id, name: first.name, username: first.handle });
+              }
             }
           }
         }
@@ -163,16 +175,49 @@ export default function CreatorStudioPage() {
     type: 'image' | 'video' | 'IMAGE' | 'VIDEO';
     title: string;
     url: string;
+    mediaUrl?: string;
+    thumbnailUrl?: string;
     caption: string;
     visibility: 'PUBLIC' | 'SUBSCRIBER_ONLY' | 'PURCHASE_ONLY';
     isPublicPreview?: boolean;
     price: number;
     status: 'PUBLISHED' | 'DRAFT' | 'ARCHIVED';
     likes: number;
+    salesCount?: number;
     date: string;
   }
 
   const [feedPosts, setFeedPosts] = useState<CreatorFeedPost[]>([]);
+
+  // Studio Action Modals (View / Edit / Delete)
+  const [viewPostModal, setViewPostModal] = useState<CreatorFeedPost | null>(null);
+  const [editPostForm, setEditPostForm] = useState<{
+    id: string;
+    title: string;
+    caption: string;
+    visibility: 'PUBLIC' | 'SUBSCRIBER_ONLY' | 'PURCHASE_ONLY';
+    price: string;
+    status: 'PUBLISHED' | 'DRAFT' | 'ARCHIVED';
+    mediaUrl: string;
+    thumbnailUrl: string;
+  } | null>(null);
+  const [viewOrderModal, setViewOrderModal] = useState<any | null>(null);
+  const [editOrderForm, setEditOrderForm] = useState<{
+    id: string;
+    title: string;
+    description: string;
+    price: string;
+  } | null>(null);
+  const [viewSaleModal, setViewSaleModal] = useState<any | null>(null);
+  const [viewSubscriberModal, setViewSubscriberModal] = useState<any | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    description: string;
+    confirmLabel: string;
+    confirmTone?: 'danger' | 'gold';
+    onConfirm: () => Promise<void>;
+  } | null>(null);
 
   // Live Earnings Breakdown State
   const [revenueFilter, setRevenueFilter] = useState<'ALL' | 'SUBSCRIPTIONS' | 'INDIVIDUAL' | 'CUSTOM'>('ALL');
@@ -204,12 +249,15 @@ export default function CreatorStudioPage() {
               type: p.mediaType,
               title: p.title,
               url: p.thumbnailUrl || p.mediaUrl,
+              mediaUrl: p.mediaUrl || p.thumbnailUrl,
+              thumbnailUrl: p.thumbnailUrl || p.mediaUrl,
               caption: p.caption,
               visibility: p.visibility,
               isPublicPreview: Boolean(p.isPublicPreview),
               price: p.price || 0,
               status: p.status || 'PUBLISHED',
               likes: p.likeCount || 0,
+              salesCount: p.salesCount || 0,
               date: p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Recently',
             }))
           );
@@ -391,12 +439,15 @@ export default function CreatorStudioPage() {
             type: data.post.mediaType,
             title: data.post.title,
             url: data.post.thumbnailUrl || data.post.mediaUrl,
+            mediaUrl: data.post.mediaUrl || data.post.thumbnailUrl,
+            thumbnailUrl: data.post.thumbnailUrl || data.post.mediaUrl,
             caption: data.post.caption,
             visibility: data.post.visibility,
             isPublicPreview: Boolean(data.post.isPublicPreview),
             price: data.post.price || 0,
             status: data.post.status,
             likes: 0,
+            salesCount: 0,
             date: 'Just now',
           },
           ...prev,
@@ -515,6 +566,117 @@ export default function CreatorStudioPage() {
     }).catch(err => console.error('Error updating status:', err));
   };
 
+  const handleSaveEditPost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editPostForm) return;
+    try {
+      const res = await fetch('/api/content/posts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          postId: editPostForm.id,
+          creatorId: creatorUser.id,
+          updates: {
+            title: editPostForm.title.trim(),
+            caption: editPostForm.caption,
+            visibility: editPostForm.visibility,
+            price: editPostForm.visibility === 'PURCHASE_ONLY' ? Number(editPostForm.price || 0) : 0,
+            status: editPostForm.status,
+            mediaUrl: editPostForm.mediaUrl.trim(),
+            thumbnailUrl: editPostForm.thumbnailUrl.trim() || editPostForm.mediaUrl.trim(),
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.post) {
+        setFeedPosts(prev =>
+          prev.map(p =>
+            p.id === editPostForm.id
+              ? {
+                  ...p,
+                  title: data.post.title,
+                  caption: data.post.caption,
+                  visibility: data.post.visibility,
+                  price: data.post.price || 0,
+                  status: data.post.status,
+                  url: data.post.thumbnailUrl || data.post.mediaUrl,
+                  mediaUrl: data.post.mediaUrl,
+                  thumbnailUrl: data.post.thumbnailUrl,
+                }
+              : p
+          )
+        );
+        setEditPostForm(null);
+        showToast(`Post "${data.post.title}" updated successfully!`);
+      } else {
+        showToast(data?.message || 'Failed to update post');
+      }
+    } catch (err) {
+      showToast('Failed to update post');
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    try {
+      const res = await fetch(
+        `/api/content/posts?postId=${encodeURIComponent(postId)}&creatorId=${encodeURIComponent(creatorUser.id)}`,
+        { method: 'DELETE' }
+      );
+      const data = await res.json();
+      if (data.success) {
+        setFeedPosts(prev => prev.filter(p => p.id !== postId));
+        showToast('Post deleted permanently');
+      } else {
+        showToast(data?.message || 'Failed to delete post');
+      }
+    } catch (err) {
+      showToast('Failed to delete post');
+    }
+  };
+
+  const handleSaveEditOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editOrderForm) return;
+    try {
+      const res = await fetch('/api/custom-requests', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: editOrderForm.id,
+          action: 'UPDATE',
+          title: editOrderForm.title.trim(),
+          description: editOrderForm.description.trim(),
+          price: Number(editOrderForm.price),
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.request) {
+        setOrders(prev => prev.map(o => (o.id === editOrderForm.id ? { ...o, ...data.request } : o)));
+        setEditOrderForm(null);
+        showToast(`Custom order "${data.request.title}" updated!`);
+      } else {
+        showToast(data?.message || 'Failed to update order');
+      }
+    } catch (err) {
+      showToast('Failed to update custom order');
+    }
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    try {
+      const res = await fetch(`/api/custom-requests?requestId=${encodeURIComponent(orderId)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setOrders(prev => prev.filter(o => o.id !== orderId));
+        showToast('Custom order removed');
+      } else {
+        showToast(data?.message || 'Failed to delete custom order');
+      }
+    } catch (err) {
+      showToast('Failed to delete custom order');
+    }
+  };
+
   const getTabTitle = () => {
     switch (activeTab) {
       case 'overview':
@@ -526,7 +688,7 @@ export default function CreatorStudioPage() {
       case 'feed':
         return 'Content Feed & Price Manager';
       case 'earnings':
-        return '85% Sales & Earnings Ledger';
+        return `${commissionSplit.creatorPercent}% Sales & Earnings Ledger`;
       case 'subscribers':
         return 'Active Subscribers & Fans';
       case 'settings':
@@ -567,6 +729,7 @@ export default function CreatorStudioPage() {
           title={getTabTitle()}
           onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
           role="CREATOR"
+          statusLabel={`Creator Revenue: ${commissionSplit.creatorPercent}% Active`}
         />
 
         <main className="flex-1 p-4 sm:p-8 space-y-8 max-w-7xl mx-auto w-full">
@@ -731,17 +894,21 @@ export default function CreatorStudioPage() {
               {/* Commission Summary Card */}
               <div className="p-6 rounded-2xl bg-[#111117] border border-[#22222e] space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-base font-serif font-bold text-white">The Mirage 85/15 Agreement</h3>
+                  <h3 className="text-base font-serif font-bold text-white">
+                    The Mirage {commissionSplit.creatorPercent}/{commissionSplit.platformPercent} Agreement
+                  </h3>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-green-400 px-2 py-0.5 rounded-full bg-green-950/40 border border-green-500/30">
                     Active
                   </span>
                 </div>
                 <p className="text-xs text-[#8c8c9e] leading-relaxed">
-                  You earn an industry-leading <strong className="text-white">85% of net revenues</strong> from all individual content purchases, subscriptions, and custom commissions.
+                  You earn an industry-leading <strong className="text-white">{commissionSplit.creatorPercent}% of net revenues</strong> from all individual content purchases, subscriptions, and custom commissions.
                 </p>
                 <div className="p-3.5 rounded-xl bg-[#161622] flex items-center justify-between text-xs">
-                  <span className="text-[#9fa3af]">Next Payout Cycle:</span>
-                  <span className="text-[#f5d77f] font-semibold">Every Friday (Recorded Ledger)</span>
+                  <span className="text-[#9fa3af]">Platform Revenue Cut:</span>
+                  <span className="text-[#f5d77f] font-semibold">
+                    {commissionSplit.platformPercent}% Platform / Weekly Payout Ledger
+                  </span>
                 </div>
               </div>
             </div>
@@ -862,8 +1029,8 @@ export default function CreatorStudioPage() {
                         Individual Content Price (USD)
                       </label>
                       <span className="text-[11px] text-[#f5d77f]">
-                        You receive 85% ($
-                        {((parseFloat(postPrice || '0') * 85) / 100).toFixed(2)})
+                        You receive {commissionSplit.creatorPercent}% ($
+                        {((parseFloat(postPrice || '0') * commissionSplit.creatorPercent) / 100).toFixed(2)})
                       </span>
                     </div>
                     <div className="relative">
@@ -1150,7 +1317,39 @@ export default function CreatorStudioPage() {
                       </p>
                     </div>
 
-                    <div>
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <ActionIconBtn icon={Eye} label="View Order Details" tone="neutral" onClick={() => setViewOrderModal(order)} />
+                        {order.status !== 'DELIVERED' && (
+                          <ActionIconBtn
+                            icon={Edit2}
+                            label="Edit Order Details"
+                            tone="gold"
+                            onClick={() =>
+                              setEditOrderForm({
+                                id: order.id,
+                                title: order.title || '',
+                                description: order.description || '',
+                                price: String(order.price || 35),
+                              })
+                            }
+                          />
+                        )}
+                        <ActionIconBtn
+                          icon={Trash2}
+                          label="Delete Custom Order"
+                          tone="danger"
+                          onClick={() =>
+                            setConfirmModal({
+                              title: `Delete Order "${order.title}"?`,
+                              description: `Remove this custom order from ${order.customerName}.`,
+                              confirmLabel: 'Delete Order',
+                              confirmTone: 'danger',
+                              onConfirm: () => handleDeleteOrder(order.id),
+                            })
+                          }
+                        />
+                      </div>
                       {order.status === 'DELIVERED' ? (
                         <span className="text-xs text-green-400 font-semibold flex items-center gap-1">
                           <CheckCircle2 className="w-4 h-4" /> Completed & Paid
@@ -1307,37 +1506,52 @@ export default function CreatorStudioPage() {
                           </button>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-between w-full">
-                          <div className="flex items-center gap-2">
-                            {post.visibility === 'PURCHASE_ONLY' && (
-                              <button
-                                onClick={() => {
-                                  setEditingPostId(post.id);
-                                  setEditPriceInput(post.price.toString());
-                                }}
-                                className="flex items-center gap-1 text-[11px] text-[#d4af37] hover:underline"
-                              >
-                                <Edit2 className="w-3 h-3" /> Edit Price
-                              </button>
-                            )}
-                            <button
+                        <div className="flex items-center justify-between w-full gap-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <ActionIconBtn icon={Eye} label="Preview Media" tone="neutral" onClick={() => setViewPostModal(post)} />
+                            <ActionIconBtn
+                              icon={Edit2}
+                              label="Edit Post Details & Price"
+                              tone="gold"
+                              onClick={() =>
+                                setEditPostForm({
+                                  id: post.id,
+                                  title: post.title,
+                                  caption: post.caption || '',
+                                  visibility: post.visibility,
+                                  price: String(post.price || 0),
+                                  status: post.status,
+                                  mediaUrl: post.mediaUrl || post.url,
+                                  thumbnailUrl: post.thumbnailUrl || post.url,
+                                })
+                              }
+                            />
+                            <ActionIconBtn
+                              icon={post.status === 'PUBLISHED' ? Archive : CheckCircle2}
+                              label={post.status === 'PUBLISHED' ? 'Set as Draft' : 'Publish Post'}
+                              tone={post.status === 'PUBLISHED' ? 'amber' : 'green'}
                               onClick={() => handleToggleStatus(post.id)}
-                              className="text-[11px] text-[#9fa3af] hover:text-white transition-colors"
-                            >
-                              {post.status === 'PUBLISHED' ? 'Set as Draft' : 'Publish'}
-                            </button>
-                            <button
+                            />
+                            <ActionIconBtn
+                              icon={Sparkles}
+                              label={post.isPublicPreview ? 'Remove from Public Preview' : 'Feature as Public Preview'}
+                              tone={post.isPublicPreview ? 'gold' : 'neutral'}
                               onClick={() => handleTogglePreview(post.id)}
-                              className={`text-[11px] font-semibold flex items-center gap-1 transition-colors ${
-                                post.isPublicPreview
-                                  ? 'text-[#f5d77f] hover:text-white'
-                                  : 'text-[#8e8e9e] hover:text-[#d4af37]'
-                              }`}
-                              title={post.isPublicPreview ? 'Remove from public profile preview' : 'Feature as public profile preview'}
-                            >
-                              <Sparkles className="w-3 h-3" />
-                              {post.isPublicPreview ? 'Preview Active' : 'Make Preview'}
-                            </button>
+                            />
+                            <ActionIconBtn
+                              icon={Trash2}
+                              label="Delete Post"
+                              tone="danger"
+                              onClick={() =>
+                                setConfirmModal({
+                                  title: `Delete "${post.title}"?`,
+                                  description: 'This permanently deletes the media post from your studio and public feed.',
+                                  confirmLabel: 'Delete Post',
+                                  confirmTone: 'danger',
+                                  onConfirm: () => handleDeletePost(post.id),
+                                })
+                              }
+                            />
                           </div>
                           <span className="text-[10px] text-[#555566]">{post.date}</span>
                         </div>
@@ -1349,17 +1563,21 @@ export default function CreatorStudioPage() {
             </div>
           )}
 
-          {/* Tab 5: 85% Earnings & Reports (Section 7 Requirement) */}
+          {/* Tab 5: Earnings & Reports */}
           {activeTab === 'earnings' && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-base font-serif font-bold text-white">85% Revenue Earnings Breakdown</h3>
-                  <p className="text-xs text-[#8c8c9e]">Complete transparency: You receive 85% of net revenues from subscriptions, individual sales, and custom requests.</p>
+                  <h3 className="text-base font-serif font-bold text-white">
+                    {commissionSplit.creatorPercent}% Revenue Earnings Breakdown
+                  </h3>
+                  <p className="text-xs text-[#8c8c9e]">
+                    Complete transparency: You receive {commissionSplit.creatorPercent}% of net revenues from subscriptions, individual sales, and custom requests.
+                  </p>
                 </div>
 
                 {/* Revenue Type Filter */}
-                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#161622] border border-[#2b2b3a] text-xs">
+                <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-[#161622] border border-[#2b2b3a] text-xs">
                   <Filter className="w-3.5 h-3.5 text-[#d4af37] ml-2" />
                   <button
                     onClick={() => setRevenueFilter('ALL')}
@@ -1384,6 +1602,14 @@ export default function CreatorStudioPage() {
                     }`}
                   >
                     Subscriptions
+                  </button>
+                  <button
+                    onClick={() => setRevenueFilter('CUSTOM')}
+                    className={`px-3 py-1 rounded-lg font-semibold transition-colors ${
+                      revenueFilter === 'CUSTOM' ? 'bg-[#d4af37] text-black font-bold' : 'text-[#8e8e9e] hover:text-white'
+                    }`}
+                  >
+                    Custom Orders
                   </button>
                 </div>
               </div>
@@ -1453,6 +1679,7 @@ export default function CreatorStudioPage() {
                         <th className="py-3 px-4">Your {commissionSplit.creatorPercent}% Net</th>
                         <th className="py-3 px-4">Date</th>
                         <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#1e1e28] text-white">
@@ -1476,11 +1703,14 @@ export default function CreatorStudioPage() {
                               {sale.status}
                             </span>
                           </td>
+                          <td className="py-3.5 px-4">
+                            <ActionIconBtn icon={Eye} label="View Sale Receipt" tone="gold" onClick={() => setViewSaleModal(sale)} />
+                          </td>
                         </tr>
                       ))}
                       {filteredLedgerTxs.length === 0 && (
                         <tr>
-                          <td colSpan={8} className="py-8 text-center text-[#717182]">
+                          <td colSpan={9} className="py-8 text-center text-[#717182]">
                             No sales recorded in this category yet.
                           </td>
                         </tr>
@@ -1529,12 +1759,15 @@ export default function CreatorStudioPage() {
                         <td className="py-3.5 px-4 text-[#717182]">{sub.joined}</td>
                         <td className="py-3.5 px-4 font-bold text-[#f5d77f]">{sub.totalSpent}</td>
                         <td className="py-3.5 px-4">
-                          <Link
-                            href={`/chat?creator=${encodeURIComponent(sub.handle)}`}
-                            className="text-xs text-[#d4af37] hover:underline flex items-center gap-1"
-                          >
-                            <MessageSquare className="w-3.5 h-3.5" /> Message
-                          </Link>
+                          <div className="flex items-center gap-1.5">
+                            <ActionIconBtn icon={Eye} label="View Subscriber Details" tone="neutral" onClick={() => setViewSubscriberModal(sub)} />
+                            <ActionIconBtn
+                              icon={MessageSquare}
+                              label="Open Chat Thread"
+                              tone="gold"
+                              href={`/chat?creator=${encodeURIComponent(creatorUser.username)}`}
+                            />
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1724,12 +1957,12 @@ export default function CreatorStudioPage() {
                     <span className="font-bold text-white">${parseFloat(monthlyPrice || '0').toFixed(2)}/mo</span>
                   </div>
                   <div className="flex justify-between text-green-400 font-semibold">
-                    <span>Your 85% Cut:</span>
-                    <span>${((parseFloat(monthlyPrice || '0') * 85) / 100).toFixed(2)}/mo</span>
+                    <span>Your {commissionSplit.creatorPercent}% Cut:</span>
+                    <span>${((parseFloat(monthlyPrice || '0') * commissionSplit.creatorPercent) / 100).toFixed(2)}/mo</span>
                   </div>
                   <div className="flex justify-between text-[#7c7c90]">
-                    <span>Platform 15% Cut:</span>
-                    <span>${((parseFloat(monthlyPrice || '0') * 15) / 100).toFixed(2)}/mo</span>
+                    <span>Platform {commissionSplit.platformPercent}% Cut:</span>
+                    <span>${((parseFloat(monthlyPrice || '0') * commissionSplit.platformPercent) / 100).toFixed(2)}/mo</span>
                   </div>
                 </div>
 
@@ -1744,6 +1977,282 @@ export default function CreatorStudioPage() {
           )}
         </main>
       </div>
+
+      {/* Preview Studio Media Modal */}
+      <PanelModal
+        open={Boolean(viewPostModal)}
+        title={viewPostModal?.title || 'Media Preview'}
+        subtitle={viewPostModal ? `${viewPostModal.type} • ${viewPostModal.status}` : undefined}
+        onClose={() => setViewPostModal(null)}
+        maxWidthClass="max-w-2xl"
+      >
+        {viewPostModal && (
+          <div className="space-y-4 text-xs">
+            <div className="rounded-2xl overflow-hidden bg-black border border-[#2b2b3a]">
+              {(viewPostModal.type === 'VIDEO' || viewPostModal.type === 'video') ? (
+                <video
+                  src={viewPostModal.mediaUrl || viewPostModal.url}
+                  poster={viewPostModal.thumbnailUrl}
+                  controls
+                  playsInline
+                  className="w-full max-h-[55vh] object-contain"
+                />
+              ) : (
+                <img
+                  src={viewPostModal.mediaUrl || viewPostModal.url}
+                  alt={viewPostModal.title}
+                  className="w-full max-h-[55vh] object-contain"
+                />
+              )}
+            </div>
+            <p className="text-[#cbd5e1]">{viewPostModal.caption || 'No caption'}</p>
+            <div className="grid grid-cols-3 gap-2.5 p-3 rounded-xl bg-[#161622] text-center">
+              <div><span className="text-[#717182] block">Visibility</span><strong className="text-white">{viewPostModal.visibility}</strong></div>
+              <div><span className="text-[#717182] block">Price</span><strong className="text-[#f5d77f]">{viewPostModal.price > 0 ? `$${viewPostModal.price.toFixed(2)}` : 'Included'}</strong></div>
+              <div><span className="text-[#717182] block">Sales</span><strong className="text-green-400">{viewPostModal.salesCount || 0}</strong></div>
+            </div>
+          </div>
+        )}
+      </PanelModal>
+
+      {/* Edit Studio Post Modal */}
+      <PanelModal
+        open={Boolean(editPostForm)}
+        title="Edit Content Details"
+        onClose={() => setEditPostForm(null)}
+      >
+        {editPostForm && (
+          <form onSubmit={handleSaveEditPost} className="space-y-3 text-xs">
+            <div>
+              <label className="block text-[#8e8e9e] mb-1">Content Title</label>
+              <input
+                type="text"
+                required
+                value={editPostForm.title}
+                onChange={(e) => setEditPostForm({ ...editPostForm, title: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-[#8e8e9e] mb-1">Caption / Description</label>
+              <textarea
+                rows={2}
+                value={editPostForm.caption}
+                onChange={(e) => setEditPostForm({ ...editPostForm, caption: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2.5">
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Access Model</label>
+                <select
+                  value={editPostForm.visibility}
+                  onChange={(e) => setEditPostForm({ ...editPostForm, visibility: e.target.value as any })}
+                  className="w-full px-2.5 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                >
+                  <option value="PURCHASE_ONLY">Paid PPV</option>
+                  <option value="SUBSCRIBER_ONLY">Subscriber-Only</option>
+                  <option value="PUBLIC">Free Preview</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">PPV Price ($)</label>
+                <input
+                  type="number"
+                  step="0.50"
+                  min="0"
+                  disabled={editPostForm.visibility !== 'PURCHASE_ONLY'}
+                  value={editPostForm.price}
+                  onChange={(e) => setEditPostForm({ ...editPostForm, price: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white disabled:opacity-40"
+                />
+              </div>
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Status</label>
+                <select
+                  value={editPostForm.status}
+                  onChange={(e) => setEditPostForm({ ...editPostForm, status: e.target.value as any })}
+                  className="w-full px-2.5 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                >
+                  <option value="PUBLISHED">PUBLISHED</option>
+                  <option value="DRAFT">DRAFT</option>
+                  <option value="ARCHIVED">ARCHIVED</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-[#8e8e9e] mb-1">Media URL / File</label>
+              <div className="flex gap-2">
+                <label className="cursor-pointer px-3 py-2 rounded-xl bg-[#181824] border border-[#d4af37]/40 text-[#f5d77f] font-bold flex items-center gap-1 flex-shrink-0">
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (!file) return;
+                      const uploaded = await uploadMediaFile(file, 'media');
+                      if (uploaded) setEditPostForm({ ...editPostForm, mediaUrl: uploaded.url });
+                    }}
+                  />
+                  <Upload className="w-3.5 h-3.5" /> Replace
+                </label>
+                <input
+                  type="text"
+                  value={editPostForm.mediaUrl}
+                  onChange={(e) => setEditPostForm({ ...editPostForm, mediaUrl: e.target.value })}
+                  className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                />
+              </div>
+            </div>
+            <button type="submit" className="w-full py-2.5 rounded-xl gold-button font-bold">
+              Save Post Changes
+            </button>
+          </form>
+        )}
+      </PanelModal>
+
+      {/* View Custom Order Details Modal */}
+      <PanelModal
+        open={Boolean(viewOrderModal)}
+        title={viewOrderModal?.title || 'Custom Order'}
+        subtitle={viewOrderModal ? `Customer: ${viewOrderModal.customerName} (${viewOrderModal.customerHandle || '@fan'})` : undefined}
+        onClose={() => setViewOrderModal(null)}
+      >
+        {viewOrderModal && (
+          <div className="space-y-3 text-xs">
+            <div className="p-4 rounded-2xl bg-[#161622] space-y-2 border border-[#2a2a3b]">
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Order ID</span><span className="font-mono text-[#cbd5e1]">{viewOrderModal.id}</span></div>
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Price</span><span className="font-bold text-[#f5d77f]">${Number(viewOrderModal.price || 0).toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Status</span><span className="font-bold text-white">{viewOrderModal.status}</span></div>
+            </div>
+            <div className="p-3 rounded-xl bg-[#161622]">
+              <span className="text-[#717182] block mb-1">Request Instructions</span>
+              <p className="text-[#cbd5e1]">{viewOrderModal.description || viewOrderModal.title}</p>
+            </div>
+            {viewOrderModal.deliveredMediaUrl && (
+              <div className="rounded-xl overflow-hidden bg-black border border-[#2b2b3a]">
+                {/\.(mp4|mov|webm)(\?|$)/i.test(viewOrderModal.deliveredMediaUrl) ? (
+                  <video src={viewOrderModal.deliveredMediaUrl} controls playsInline className="w-full max-h-56 object-contain" />
+                ) : (
+                  <img src={viewOrderModal.deliveredMediaUrl} alt="Delivered" className="w-full max-h-56 object-contain" />
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </PanelModal>
+
+      {/* Edit Custom Order Modal */}
+      <PanelModal
+        open={Boolean(editOrderForm)}
+        title="Edit Custom Order"
+        onClose={() => setEditOrderForm(null)}
+      >
+        {editOrderForm && (
+          <form onSubmit={handleSaveEditOrder} className="space-y-3 text-xs">
+            <div>
+              <label className="block text-[#8e8e9e] mb-1">Order Title</label>
+              <input
+                type="text"
+                required
+                value={editOrderForm.title}
+                onChange={(e) => setEditOrderForm({ ...editOrderForm, title: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-[#8e8e9e] mb-1">Description</label>
+              <textarea
+                rows={2}
+                value={editOrderForm.description}
+                onChange={(e) => setEditOrderForm({ ...editOrderForm, description: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-[#8e8e9e] mb-1">Agreed Price ($)</label>
+              <input
+                type="number"
+                step="0.50"
+                min="5"
+                required
+                value={editOrderForm.price}
+                onChange={(e) => setEditOrderForm({ ...editOrderForm, price: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+              />
+            </div>
+            <button type="submit" className="w-full py-2.5 rounded-xl gold-button font-bold">
+              Save Order Changes
+            </button>
+          </form>
+        )}
+      </PanelModal>
+
+      {/* View Sale Receipt Modal */}
+      <PanelModal
+        open={Boolean(viewSaleModal)}
+        title="Creator Sale Receipt"
+        subtitle={viewSaleModal?.transactionReference}
+        onClose={() => setViewSaleModal(null)}
+      >
+        {viewSaleModal && (
+          <div className="space-y-2 p-4 rounded-2xl bg-[#161622] text-xs border border-[#2a2a3b]">
+            <div className="flex justify-between"><span className="text-[#8e8e9e]">Item</span><span className="font-bold text-white">{viewSaleModal.postTitle || viewSaleModal.type}</span></div>
+            <div className="flex justify-between"><span className="text-[#8e8e9e]">Buyer</span><span className="text-white">{viewSaleModal.userName}</span></div>
+            <div className="flex justify-between"><span className="text-[#8e8e9e]">Gross Sale</span><span className="font-bold text-white">${Number(viewSaleModal.grossAmount).toFixed(2)}</span></div>
+            <div className="flex justify-between"><span className="text-[#8e8e9e]">Your {commissionSplit.creatorPercent}% Net</span><span className="font-bold text-green-400">${Number(viewSaleModal.creatorShare).toFixed(2)}</span></div>
+            <div className="flex justify-between"><span className="text-[#8e8e9e]">Platform {commissionSplit.platformPercent}% Fee</span><span className="text-[#cbd5e1]">${Number(viewSaleModal.platformShare).toFixed(2)}</span></div>
+            <div className="flex justify-between"><span className="text-[#8e8e9e]">Status</span><span className="font-bold text-green-400">{viewSaleModal.status}</span></div>
+          </div>
+        )}
+      </PanelModal>
+
+      {/* View Subscriber Details Modal */}
+      <PanelModal
+        open={Boolean(viewSubscriberModal)}
+        title={viewSubscriberModal?.name || 'Subscriber'}
+        subtitle={viewSubscriberModal?.handle}
+        onClose={() => setViewSubscriberModal(null)}
+      >
+        {viewSubscriberModal && (
+          <div className="space-y-3 text-xs">
+            <div className="p-4 rounded-2xl bg-[#161622] space-y-2 border border-[#2a2a3b]">
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Status</span><span className="text-green-400 font-bold">{viewSubscriberModal.status}</span></div>
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Joined Date</span><span className="text-white">{viewSubscriberModal.joined}</span></div>
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Total Lifetime Value</span><span className="font-bold text-[#f5d77f]">{viewSubscriberModal.totalSpent}</span></div>
+            </div>
+            <Link
+              href={`/chat?creator=${encodeURIComponent(creatorUser.username)}`}
+              className="w-full py-2.5 rounded-xl gold-button font-bold flex items-center justify-center gap-1.5"
+            >
+              <MessageSquare className="w-3.5 h-3.5" /> Open Studio Direct Chat
+            </Link>
+          </div>
+        )}
+      </PanelModal>
+
+      {/* Shared Confirmation Modal */}
+      <ConfirmActionModal
+        open={Boolean(confirmModal)}
+        title={confirmModal?.title || 'Confirm Action'}
+        description={confirmModal?.description || ''}
+        confirmLabel={confirmModal?.confirmLabel || 'Delete'}
+        confirmTone={confirmModal?.confirmTone || 'danger'}
+        busy={confirmBusy}
+        onClose={() => !confirmBusy && setConfirmModal(null)}
+        onConfirm={async () => {
+          if (!confirmModal) return;
+          setConfirmBusy(true);
+          try {
+            await confirmModal.onConfirm();
+          } finally {
+            setConfirmBusy(false);
+            setConfirmModal(null);
+          }
+        }}
+      />
     </div>
   );
 }

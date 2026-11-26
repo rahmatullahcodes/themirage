@@ -28,9 +28,20 @@ import {
   Archive,
   Sparkles,
   RefreshCw,
+  Edit2,
+  Trash2,
+  BadgeCheck,
+  ShieldOff,
+  UserX,
+  UserCheck,
+  Ban,
+  ExternalLink,
 } from 'lucide-react';
 import PanelSidebar from '@/components/PanelSidebar';
 import PanelHeader from '@/components/PanelHeader';
+import { ActionIconBtn, PanelModal, ConfirmActionModal } from '@/components/PanelUi';
+
+const CREATOR_CATEGORIES = ['Popular', 'New', 'Nearby', 'Fitness', 'Lifestyle', 'Fetish', 'Cosplay', 'Mature'];
 
 export default function AdminPanelPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -38,11 +49,28 @@ export default function AdminPanelPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [loadingOverview, setLoadingOverview] = useState(true);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
-  const [confirmRefundTxId, setConfirmRefundTxId] = useState<string | null>(null);
+
+  // Detail, Edit & Confirm Modal states
+  const [viewCreator, setViewCreator] = useState<any | null>(null);
+  const [editCreatorForm, setEditCreatorForm] = useState<any | null>(null);
+  const [viewPost, setViewPost] = useState<any | null>(null);
+  const [editPostForm, setEditPostForm] = useState<any | null>(null);
+  const [viewUser, setViewUser] = useState<any | null>(null);
+  const [editUserForm, setEditUserForm] = useState<any | null>(null);
+  const [viewTx, setViewTx] = useState<any | null>(null);
+  const [viewReport, setViewReport] = useState<any | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    description: string;
+    confirmLabel: string;
+    confirmTone?: 'danger' | 'gold';
+    onConfirm: () => Promise<void>;
+  } | null>(null);
 
   const [adminUser, setAdminUser] = useState({
-    name: 'Super Admin',
-    handle: 'admin@themirage.vip',
+    name: 'Administrator',
+    handle: 'admin',
   });
 
   // Live Commission Config
@@ -110,7 +138,17 @@ export default function AdminPanelPage() {
       const data = await res.json();
       if (data.success) {
         if (data.metrics) setMetrics(data.metrics);
-        if (Array.isArray(data.users)) setUsers(data.users);
+        if (Array.isArray(data.users)) {
+          setUsers(data.users);
+          try {
+            if (!localStorage.getItem('mirage_user')) {
+              const adminRec = data.users.find((u: any) => u.role === 'ADMIN');
+              if (adminRec) {
+                setAdminUser({ name: adminRec.name, handle: adminRec.email || `@${adminRec.username}` });
+              }
+            }
+          } catch {}
+        }
         if (Array.isArray(data.creators)) setCreators(data.creators);
         if (Array.isArray(data.transactions)) setTransactions(data.transactions);
         if (Array.isArray(data.reports)) setReports(data.reports);
@@ -166,12 +204,59 @@ export default function AdminPanelPage() {
     }
   };
 
+  const handleSaveCatalogPost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editPostForm) return;
+    try {
+      const res = await fetch('/api/admin/catalog', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          postId: editPostForm.id,
+          updates: {
+            title: editPostForm.title,
+            caption: editPostForm.caption,
+            visibility: editPostForm.visibility,
+            price: Number(editPostForm.price || 0),
+            status: editPostForm.status,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.post) {
+        setCatalogItems(prev => prev.map(item => (item.id === editPostForm.id ? { ...item, ...data.post } : item)));
+        setEditPostForm(null);
+        showToast(`Post "${data.post.title}" updated`);
+      } else {
+        showToast(data?.message || 'Failed to update post');
+      }
+    } catch (err) {
+      showToast('Failed to update post');
+    }
+  };
+
+  const handleDeleteCatalogPost = async (postId: string) => {
+    try {
+      const res = await fetch(`/api/admin/catalog?postId=${encodeURIComponent(postId)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setCatalogItems(prev => prev.filter(p => p.id !== postId));
+        showToast('Catalog item deleted permanently');
+        loadAdminOverview();
+      } else {
+        showToast(data?.message || 'Failed to delete item');
+      }
+    } catch (err) {
+      showToast('Failed to delete catalog item');
+    }
+  };
+
   const handleToggleVerification = async (creatorId: string) => {
     try {
       const res = await fetch('/api/admin/creators', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ creatorId }),
+        body: JSON.stringify({ creatorId, action: 'TOGGLE_VERIFY' }),
       });
       const data = await res.json();
       if (data.success && data.creator) {
@@ -186,6 +271,55 @@ export default function AdminPanelPage() {
       }
     } catch (e) {
       console.error('Failed to toggle creator verification:', e);
+    }
+  };
+
+  const handleSaveCreator = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editCreatorForm) return;
+    try {
+      const res = await fetch('/api/admin/creators', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          creatorId: editCreatorForm.id,
+          name: editCreatorForm.name,
+          handle: editCreatorForm.handle,
+          category: editCreatorForm.category,
+          monthlyPrice: Number(editCreatorForm.monthlyPrice),
+          bio: editCreatorForm.bio,
+          isVerified: Boolean(editCreatorForm.isVerified),
+          status: editCreatorForm.status,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.creator) {
+        setCreators(prev => prev.map(c => (c.id === editCreatorForm.id ? { ...c, ...data.creator } : c)));
+        setEditCreatorForm(null);
+        showToast(`Creator "${data.creator.name}" updated`);
+        loadAdminOverview();
+      } else {
+        showToast(data?.message || 'Failed to update creator');
+      }
+    } catch (err) {
+      showToast('Failed to update creator');
+    }
+  };
+
+  const handleDeleteCreator = async (creatorId: string) => {
+    try {
+      const res = await fetch(`/api/admin/creators?creatorId=${encodeURIComponent(creatorId)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setCreators(prev => prev.filter(c => c.id !== creatorId));
+        showToast('Creator profile removed');
+        loadAdminOverview();
+        fetchCatalog();
+      } else {
+        showToast(data?.message || 'Failed to delete creator');
+      }
+    } catch (err) {
+      showToast('Failed to delete creator');
     }
   };
 
@@ -212,6 +346,45 @@ export default function AdminPanelPage() {
     }
   };
 
+  const handleSaveUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editUserForm) return;
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editUserForm),
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        setUsers(prev => prev.map(u => (u.id === editUserForm.userId ? { ...u, ...data.user } : u)));
+        setEditUserForm(null);
+        showToast(`Account "${data.user.name}" updated`);
+        loadAdminOverview();
+      } else {
+        showToast(data?.message || 'Failed to update user');
+      }
+    } catch (err) {
+      showToast('Failed to update user');
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      const res = await fetch(`/api/admin/users?userId=${encodeURIComponent(userId)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setUsers(prev => prev.filter(u => u.id !== userId));
+        showToast('User account deleted');
+        loadAdminOverview();
+      } else {
+        showToast(data?.message || 'Cannot delete user');
+      }
+    } catch (err) {
+      showToast('Failed to delete user');
+    }
+  };
+
   const handleIssueRefund = async (txId: string) => {
     try {
       const res = await fetch('/api/admin/transactions', {
@@ -221,7 +394,6 @@ export default function AdminPanelPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setConfirmRefundTxId(null);
         showToast(`Refund processed for transaction ${txId}. Platform metrics updated.`);
         loadAdminOverview();
       }
@@ -230,20 +402,53 @@ export default function AdminPanelPage() {
     }
   };
 
-  const handleReportDecision = async (reportId: string, status: 'RESOLVED' | 'DISMISSED') => {
+  const handleDeleteTx = async (txId: string) => {
+    try {
+      const res = await fetch(`/api/admin/transactions?txId=${encodeURIComponent(txId)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setTransactions(prev => prev.filter(t => t.id !== txId));
+        showToast('Transaction record deleted');
+        loadAdminOverview();
+      }
+    } catch (err) {
+      showToast('Failed to delete transaction');
+    }
+  };
+
+  const handleReportDecision = async (reportId: string, status: 'RESOLVED' | 'DISMISSED', postAction?: 'PUBLISHED' | 'ARCHIVED') => {
     try {
       const res = await fetch('/api/admin/reports', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reportId, status }),
+        body: JSON.stringify({ reportId, status, postAction }),
       });
       const data = await res.json();
       if (data.success) {
         setReports(prev => prev.map(r => (r.id === reportId ? { ...r, status } : r)));
-        showToast(`Report ${reportId} marked as ${status}`);
+        if (postAction) fetchCatalog();
+        showToast(
+          postAction === 'ARCHIVED'
+            ? `Report resolved & violating post taken down`
+            : `Report dismissed & post approved`
+        );
       }
     } catch (e) {
       console.error('Failed to update report:', e);
+    }
+  };
+
+  const handleDeleteReport = async (reportId: string) => {
+    try {
+      const res = await fetch(`/api/admin/reports?reportId=${encodeURIComponent(reportId)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setReports(prev => prev.filter(r => r.id !== reportId));
+        showToast('Moderation report deleted');
+        loadAdminOverview();
+      }
+    } catch (err) {
+      showToast('Failed to delete report');
     }
   };
 
@@ -348,6 +553,7 @@ export default function AdminPanelPage() {
           title={getTabTitle()}
           onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
           role="ADMIN"
+          statusLabel={`Commission Rule: ${creatorCommission}/${platformCommission} Active`}
         />
 
         <main className="flex-1 p-4 sm:p-8 space-y-8 max-w-7xl mx-auto w-full">
@@ -437,7 +643,10 @@ export default function AdminPanelPage() {
                           {tx.type}: <strong>{tx.userName}</strong> → {tx.creatorName || 'Creator'} (${tx.grossAmount.toFixed(2)})
                         </span>
                       </div>
-                      <span className="text-[10px] text-[#6e6e80] flex-shrink-0">{formatDate(tx.createdAt)}</span>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-[10px] text-[#6e6e80]">{formatDate(tx.createdAt)}</span>
+                        <ActionIconBtn icon={Eye} label="View Transaction Receipt" tone="gold" onClick={() => setViewTx(tx)} />
+                      </div>
                     </div>
                   ))}
                   {transactions.length === 0 && (
@@ -500,11 +709,17 @@ export default function AdminPanelPage() {
                   <tbody className="divide-y divide-[#1e1e28] text-white">
                     {creators.map((c) => (
                       <tr key={c.id} className="hover:bg-[#161622]/40">
-                        <td className="py-3.5 px-4 font-bold flex items-center gap-1.5">
-                          {c.name}
-                          {c.isVerified && <CheckCircle2 className="w-3.5 h-3.5 fill-[#d4af37] text-black" />}
+                        <td className="py-3.5 px-4 font-bold">
+                          <div className="flex items-center gap-2">
+                            {c.avatar && <img src={c.avatar} alt={c.name} className="w-7 h-7 rounded-full object-cover border border-[#d4af37]/40" />}
+                            <span>{c.name}</span>
+                            {c.isVerified && <CheckCircle2 className="w-3.5 h-3.5 fill-[#d4af37] text-black flex-shrink-0" />}
+                          </div>
                         </td>
-                        <td className="py-3.5 px-4 font-mono text-[#94a3b8]">@{c.handle}</td>
+                        <td className="py-3.5 px-4">
+                          <div className="font-mono text-[#94a3b8]">@{c.handle}</div>
+                          <div className="text-[10px] text-[#d4af37]">{c.category}</div>
+                        </td>
                         <td className="py-3.5 px-4">${Number(c.monthlyPrice || 0).toFixed(2)}/mo</td>
                         <td className="py-3.5 px-4">{c.subscribers || 0}</td>
                         <td className="py-3.5 px-4 text-[#f5d77f] font-semibold">${Number(c.earnings || 0).toFixed(2)}</td>
@@ -518,13 +733,46 @@ export default function AdminPanelPage() {
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleVerification(c.id)}
-                            className="px-3 py-1 rounded-lg bg-[#181824] hover:bg-[#202030] text-[11px] text-[#cbd5e1] border border-[#2f2f40]"
-                          >
-                            {c.isVerified ? 'Revoke Badge' : 'Grant Verified'}
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <ActionIconBtn icon={Eye} label="View Creator Profile" tone="neutral" onClick={() => setViewCreator(c)} />
+                            <ActionIconBtn
+                              icon={Edit2}
+                              label="Edit Creator"
+                              tone="gold"
+                              onClick={() =>
+                                setEditCreatorForm({
+                                  id: c.id,
+                                  name: c.name,
+                                  handle: c.handle,
+                                  category: c.category || 'Popular',
+                                  monthlyPrice: String(c.monthlyPrice || 9.99),
+                                  bio: c.bio || '',
+                                  isVerified: Boolean(c.isVerified),
+                                  status: c.status || 'ACTIVE',
+                                })
+                              }
+                            />
+                            <ActionIconBtn
+                              icon={c.isVerified ? ShieldOff : BadgeCheck}
+                              label={c.isVerified ? 'Revoke Verified Badge' : 'Grant Verified Badge'}
+                              tone={c.isVerified ? 'amber' : 'green'}
+                              onClick={() => handleToggleVerification(c.id)}
+                            />
+                            <ActionIconBtn
+                              icon={Trash2}
+                              label="Delete Creator"
+                              tone="danger"
+                              onClick={() =>
+                                setConfirmModal({
+                                  title: `Delete Creator "${c.name}"?`,
+                                  description: `This permanently removes @${c.handle} and all of their posts from The Mirage catalog.`,
+                                  confirmLabel: 'Delete Creator',
+                                  confirmTone: 'danger',
+                                  onConfirm: () => handleDeleteCreator(c.id),
+                                })
+                              }
+                            />
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -652,31 +900,42 @@ export default function AdminPanelPage() {
                           </td>
                           <td className="py-3.5 px-4">
                             <div className="flex items-center gap-1.5">
-                              {post.status !== 'PUBLISHED' && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleUpdatePostStatus(post.id, 'PUBLISHED')}
-                                  className="px-2 py-1 rounded bg-[#181824] hover:bg-[#202030] text-[10px] text-green-400 border border-green-500/30 font-semibold"
-                                >
-                                  Publish
-                                </button>
-                              )}
-                              {post.status !== 'ARCHIVED' && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleUpdatePostStatus(post.id, 'ARCHIVED')}
-                                  className="px-2 py-1 rounded bg-[#201c18] hover:bg-[#2c241c] text-[10px] text-yellow-400 border border-yellow-500/30 font-semibold"
-                                >
-                                  Archive
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => handleUpdatePostStatus(post.id, 'ARCHIVED')}
-                                className="px-2 py-1 rounded bg-[#251515] hover:bg-[#321b1b] text-[10px] text-red-400 border border-red-500/30 font-semibold"
-                              >
-                                Takedown
-                              </button>
+                              <ActionIconBtn icon={Eye} label="Preview Media & Details" tone="neutral" onClick={() => setViewPost(post)} />
+                              <ActionIconBtn
+                                icon={Edit2}
+                                label="Edit Catalog Item"
+                                tone="gold"
+                                onClick={() =>
+                                  setEditPostForm({
+                                    id: post.id,
+                                    title: post.title,
+                                    caption: post.caption || '',
+                                    visibility: post.visibility,
+                                    price: String(post.price || 0),
+                                    status: post.status,
+                                  })
+                                }
+                              />
+                              <ActionIconBtn
+                                icon={post.status === 'PUBLISHED' ? Archive : CheckCircle2}
+                                label={post.status === 'PUBLISHED' ? 'Archive / Takedown Post' : 'Publish Post'}
+                                tone={post.status === 'PUBLISHED' ? 'amber' : 'green'}
+                                onClick={() => handleUpdatePostStatus(post.id, post.status === 'PUBLISHED' ? 'ARCHIVED' : 'PUBLISHED')}
+                              />
+                              <ActionIconBtn
+                                icon={Trash2}
+                                label="Delete Post Permanently"
+                                tone="danger"
+                                onClick={() =>
+                                  setConfirmModal({
+                                    title: `Delete "${post.title}"?`,
+                                    description: 'This permanently deletes this media post from the platform catalog.',
+                                    confirmLabel: 'Delete Post',
+                                    confirmTone: 'danger',
+                                    onConfirm: () => handleDeleteCatalogPost(post.id),
+                                  })
+                                }
+                              />
                             </div>
                           </td>
                         </tr>
@@ -756,17 +1015,51 @@ export default function AdminPanelPage() {
                         </td>
                         <td className="py-3.5 px-4 text-[#717182]">{formatDate(u.createdAt)}</td>
                         <td className="py-3.5 px-4">
-                          {u.role !== 'ADMIN' ? (
-                            <button
-                              type="button"
-                              onClick={() => handleToggleUserStatus(u.id)}
-                              className="px-3 py-1 rounded-lg bg-[#181824] hover:bg-[#202030] text-[11px] text-[#cbd5e1] border border-[#2f2f40]"
-                            >
-                              {u.status === 'ACTIVE' ? 'Suspend' : 'Reactivate'}
-                            </button>
-                          ) : (
-                            <span className="text-[10px] text-[#5c5c70]">Protected</span>
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            <ActionIconBtn icon={Eye} label="View User Details" tone="neutral" onClick={() => setViewUser(u)} />
+                            <ActionIconBtn
+                              icon={Edit2}
+                              label="Edit User Account"
+                              tone="gold"
+                              onClick={() =>
+                                setEditUserForm({
+                                  userId: u.id,
+                                  name: u.name,
+                                  username: u.username,
+                                  email: u.email,
+                                  role: u.role,
+                                  status: u.status,
+                                  bio: u.bio || '',
+                                })
+                              }
+                            />
+                            {u.role !== 'ADMIN' ? (
+                              <>
+                                <ActionIconBtn
+                                  icon={u.status === 'ACTIVE' ? UserX : UserCheck}
+                                  label={u.status === 'ACTIVE' ? 'Suspend Account' : 'Reactivate Account'}
+                                  tone={u.status === 'ACTIVE' ? 'amber' : 'green'}
+                                  onClick={() => handleToggleUserStatus(u.id)}
+                                />
+                                <ActionIconBtn
+                                  icon={Trash2}
+                                  label="Delete User Account"
+                                  tone="danger"
+                                  onClick={() =>
+                                    setConfirmModal({
+                                      title: `Delete Account "${u.name}"?`,
+                                      description: `Removes ${u.email} (${u.role}) and clears associated subscriptions/follows permanently.`,
+                                      confirmLabel: 'Delete User',
+                                      confirmTone: 'danger',
+                                      onConfirm: () => handleDeleteUser(u.id),
+                                    })
+                                  }
+                                />
+                              </>
+                            ) : (
+                              <span className="text-[10px] text-[#5c5c70] pl-1">Protected</span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -857,37 +1150,39 @@ export default function AdminPanelPage() {
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
-                          {tx.status === 'SUCCESS' ? (
-                            confirmRefundTxId === tx.id ? (
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleIssueRefund(tx.id)}
-                                  className="px-2 py-1 rounded bg-red-600 text-white text-[10px] font-bold"
-                                >
-                                  Confirm
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setConfirmRefundTxId(null)}
-                                  className="px-2 py-1 rounded bg-[#222230] text-[#94a3b8] text-[10px]"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => setConfirmRefundTxId(tx.id)}
-                                className="px-2.5 py-1 rounded bg-[#251515] hover:bg-[#301818] text-red-400 border border-red-500/30 text-[10px] font-bold flex items-center gap-1"
-                              >
-                                <RotateCcw className="w-3 h-3" />
-                                Refund
-                              </button>
-                            )
-                          ) : (
-                            <span className="text-[10px] text-[#606070]">Refunded</span>
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            <ActionIconBtn icon={Eye} label="View Transaction Invoice" tone="neutral" onClick={() => setViewTx(tx)} />
+                            {tx.status === 'SUCCESS' && (
+                              <ActionIconBtn
+                                icon={RotateCcw}
+                                label="Issue Refund"
+                                tone="amber"
+                                onClick={() =>
+                                  setConfirmModal({
+                                    title: `Issue Refund for ${tx.transactionReference}?`,
+                                    description: `Refund $${Number(tx.grossAmount).toFixed(2)} to ${tx.userName} and deduct from net ledger totals.`,
+                                    confirmLabel: 'Confirm Refund',
+                                    confirmTone: 'danger',
+                                    onConfirm: () => handleIssueRefund(tx.id),
+                                  })
+                                }
+                              />
+                            )}
+                            <ActionIconBtn
+                              icon={Trash2}
+                              label="Delete Transaction Record"
+                              tone="danger"
+                              onClick={() =>
+                                setConfirmModal({
+                                  title: `Delete Transaction ${tx.transactionReference}?`,
+                                  description: 'Removes this ledger record permanently from administrative records.',
+                                  confirmLabel: 'Delete Record',
+                                  confirmTone: 'danger',
+                                  onConfirm: () => handleDeleteTx(tx.id),
+                                })
+                              }
+                            />
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -924,21 +1219,36 @@ export default function AdminPanelPage() {
                         <td className="py-3.5 px-4">{r.postTitle}</td>
                         <td className="py-3.5 px-4 text-yellow-400">{r.reason}</td>
                         <td className="py-3.5 px-4 font-bold">{r.status}</td>
-                        <td className="py-3.5 px-4 flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleReportDecision(r.id, 'RESOLVED')}
-                            className="px-2.5 py-1 rounded bg-[#181824] text-[10px] text-green-400 border border-green-500/30"
-                          >
-                            Approve Post
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleReportDecision(r.id, 'DISMISSED')}
-                            className="px-2.5 py-1 rounded bg-[#251515] text-[10px] text-red-400 border border-red-500/30"
-                          >
-                            Dismiss / Remove
-                          </button>
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-1.5">
+                            <ActionIconBtn icon={Eye} label="Inspect Report & Post" tone="neutral" onClick={() => setViewReport(r)} />
+                            <ActionIconBtn
+                              icon={CheckCircle2}
+                              label="Approve Post & Dismiss Report"
+                              tone="green"
+                              onClick={() => handleReportDecision(r.id, 'DISMISSED', 'PUBLISHED')}
+                            />
+                            <ActionIconBtn
+                              icon={Ban}
+                              label="Takedown Post & Resolve Report"
+                              tone="amber"
+                              onClick={() => handleReportDecision(r.id, 'RESOLVED', 'ARCHIVED')}
+                            />
+                            <ActionIconBtn
+                              icon={Trash2}
+                              label="Delete Report"
+                              tone="danger"
+                              onClick={() =>
+                                setConfirmModal({
+                                  title: `Delete Report ${r.id}?`,
+                                  description: `Remove moderation report regarding "${r.postTitle}".`,
+                                  confirmLabel: 'Delete Report',
+                                  confirmTone: 'danger',
+                                  onConfirm: () => handleDeleteReport(r.id),
+                                })
+                              }
+                            />
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1024,6 +1334,432 @@ export default function AdminPanelPage() {
           )}
         </main>
       </div>
+
+      {/* View Creator Modal */}
+      <PanelModal
+        open={Boolean(viewCreator)}
+        title={viewCreator?.name || 'Creator Profile'}
+        subtitle={viewCreator ? `@${viewCreator.handle} • ${viewCreator.category}` : undefined}
+        onClose={() => setViewCreator(null)}
+      >
+        {viewCreator && (
+          <div className="space-y-4 text-xs">
+            <div className="flex items-center gap-3">
+              {viewCreator.avatar && (
+                <img src={viewCreator.avatar} alt={viewCreator.name} className="w-16 h-16 rounded-2xl object-cover border border-[#d4af37]/50" />
+              )}
+              <div className="space-y-1">
+                <div className="font-bold text-white text-sm flex items-center gap-1.5">
+                  {viewCreator.name}
+                  {viewCreator.isVerified && <CheckCircle2 className="w-4 h-4 fill-[#d4af37] text-black" />}
+                </div>
+                <div className="text-[#8e8e9e]">{viewCreator.bio || 'No bio entered yet.'}</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="p-3 rounded-xl bg-[#161622] text-center">
+                <div className="text-[#f5d77f] font-bold">${Number(viewCreator.monthlyPrice || 0).toFixed(2)}</div>
+                <div className="text-[10px] text-[#717182]">Monthly Price</div>
+              </div>
+              <div className="p-3 rounded-xl bg-[#161622] text-center">
+                <div className="text-white font-bold">{viewCreator.subscribers || 0}</div>
+                <div className="text-[10px] text-[#717182]">Subscribers</div>
+              </div>
+              <div className="p-3 rounded-xl bg-[#161622] text-center">
+                <div className="text-green-400 font-bold">${Number(viewCreator.earnings || 0).toFixed(2)}</div>
+                <div className="text-[10px] text-[#717182]">Net Earnings</div>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2 border-t border-[#1c1c28]">
+              <Link
+                href={`/creator/${viewCreator.handle}`}
+                className="flex-1 py-2.5 rounded-xl gold-button text-center font-bold flex items-center justify-center gap-1.5"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Public Profile
+              </Link>
+              <Link
+                href={`/creator-studio?creator=${encodeURIComponent(viewCreator.handle)}`}
+                className="flex-1 py-2.5 rounded-xl bg-[#181824] border border-[#2e2e40] text-center font-semibold text-white hover:border-[#d4af37]"
+              >
+                Open in Studio
+              </Link>
+            </div>
+          </div>
+        )}
+      </PanelModal>
+
+      {/* Edit Creator Modal */}
+      <PanelModal
+        open={Boolean(editCreatorForm)}
+        title={`Edit Creator: ${editCreatorForm?.name || ''}`}
+        onClose={() => setEditCreatorForm(null)}
+      >
+        {editCreatorForm && (
+          <form onSubmit={handleSaveCreator} className="space-y-3 text-xs">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Display Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editCreatorForm.name}
+                  onChange={(e) => setEditCreatorForm({ ...editCreatorForm, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Handle</label>
+                <input
+                  type="text"
+                  required
+                  value={editCreatorForm.handle}
+                  onChange={(e) => setEditCreatorForm({ ...editCreatorForm, handle: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Category</label>
+                <select
+                  value={editCreatorForm.category}
+                  onChange={(e) => setEditCreatorForm({ ...editCreatorForm, category: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                >
+                  {CREATOR_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Monthly Price ($)</label>
+                <input
+                  type="number"
+                  step="0.50"
+                  min="1"
+                  required
+                  value={editCreatorForm.monthlyPrice}
+                  onChange={(e) => setEditCreatorForm({ ...editCreatorForm, monthlyPrice: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-[#8e8e9e] mb-1">Bio</label>
+              <textarea
+                rows={2}
+                value={editCreatorForm.bio}
+                onChange={(e) => setEditCreatorForm({ ...editCreatorForm, bio: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+              />
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <label className="flex items-center gap-2 text-white cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={editCreatorForm.isVerified}
+                  onChange={(e) => setEditCreatorForm({ ...editCreatorForm, isVerified: e.target.checked })}
+                  className="accent-[#d4af37]"
+                />
+                <span>Verified Creator Badge</span>
+              </label>
+              <select
+                value={editCreatorForm.status}
+                onChange={(e) => setEditCreatorForm({ ...editCreatorForm, status: e.target.value })}
+                className="px-3 py-1.5 rounded-lg bg-[#161622] border border-[#2b2b3c] text-white"
+              >
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="SUSPENDED">SUSPENDED</option>
+              </select>
+            </div>
+            <button type="submit" className="w-full py-2.5 rounded-xl gold-button font-bold">
+              Save Creator Changes
+            </button>
+          </form>
+        )}
+      </PanelModal>
+
+      {/* View Catalog Post Modal */}
+      <PanelModal
+        open={Boolean(viewPost)}
+        title={viewPost?.title || 'Media Preview'}
+        subtitle={viewPost ? `By ${viewPost.creatorName} (@${viewPost.creatorHandle}) • ${viewPost.status}` : undefined}
+        onClose={() => setViewPost(null)}
+        maxWidthClass="max-w-2xl"
+      >
+        {viewPost && (
+          <div className="space-y-4 text-xs">
+            <div className="rounded-2xl overflow-hidden bg-black border border-[#2b2b3a]">
+              {viewPost.mediaType === 'VIDEO' ? (
+                <video src={viewPost.mediaUrl} poster={viewPost.thumbnailUrl} controls playsInline className="w-full max-h-[55vh] object-contain" />
+              ) : (
+                <img src={viewPost.mediaUrl || viewPost.thumbnailUrl} alt={viewPost.title} className="w-full max-h-[55vh] object-contain" />
+              )}
+            </div>
+            <p className="text-[#cbd5e1]">{viewPost.caption || 'No caption'}</p>
+            <div className="flex flex-wrap justify-between gap-2 p-3 rounded-xl bg-[#161622] text-[11px] text-[#94a3b8]">
+              <span>Visibility: <strong className="text-white">{viewPost.visibility}</strong></span>
+              <span>Price: <strong className="text-[#f5d77f]">{viewPost.price > 0 ? `$${viewPost.price.toFixed(2)}` : 'Included'}</strong></span>
+              <span>Sales: <strong className="text-green-400">{viewPost.salesCount || 0}</strong></span>
+            </div>
+          </div>
+        )}
+      </PanelModal>
+
+      {/* Edit Catalog Post Modal */}
+      <PanelModal
+        open={Boolean(editPostForm)}
+        title="Edit Catalog Media"
+        onClose={() => setEditPostForm(null)}
+      >
+        {editPostForm && (
+          <form onSubmit={handleSaveCatalogPost} className="space-y-3 text-xs">
+            <div>
+              <label className="block text-[#8e8e9e] mb-1">Title</label>
+              <input
+                type="text"
+                required
+                value={editPostForm.title}
+                onChange={(e) => setEditPostForm({ ...editPostForm, title: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-[#8e8e9e] mb-1">Caption</label>
+              <textarea
+                rows={2}
+                value={editPostForm.caption}
+                onChange={(e) => setEditPostForm({ ...editPostForm, caption: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2.5">
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Visibility</label>
+                <select
+                  value={editPostForm.visibility}
+                  onChange={(e) => setEditPostForm({ ...editPostForm, visibility: e.target.value })}
+                  className="w-full px-2.5 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                >
+                  <option value="PURCHASE_ONLY">Paid PPV</option>
+                  <option value="SUBSCRIBER_ONLY">Subscriber-Only</option>
+                  <option value="PUBLIC">Public</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Price ($)</label>
+                <input
+                  type="number"
+                  step="0.50"
+                  min="0"
+                  disabled={editPostForm.visibility !== 'PURCHASE_ONLY'}
+                  value={editPostForm.price}
+                  onChange={(e) => setEditPostForm({ ...editPostForm, price: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white disabled:opacity-40"
+                />
+              </div>
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Status</label>
+                <select
+                  value={editPostForm.status}
+                  onChange={(e) => setEditPostForm({ ...editPostForm, status: e.target.value })}
+                  className="w-full px-2.5 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                >
+                  <option value="PUBLISHED">PUBLISHED</option>
+                  <option value="DRAFT">DRAFT</option>
+                  <option value="ARCHIVED">ARCHIVED</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" className="w-full py-2.5 rounded-xl gold-button font-bold">
+              Save Post Changes
+            </button>
+          </form>
+        )}
+      </PanelModal>
+
+      {/* View User Modal */}
+      <PanelModal
+        open={Boolean(viewUser)}
+        title={viewUser?.name || 'User Account'}
+        subtitle={viewUser ? `@${viewUser.username} • ${viewUser.role}` : undefined}
+        onClose={() => setViewUser(null)}
+      >
+        {viewUser && (
+          <div className="space-y-3 text-xs">
+            <div className="grid grid-cols-2 gap-2.5 p-3.5 rounded-2xl bg-[#161622]">
+              <div><span className="text-[#717182] block">Email</span><span className="text-white font-medium">{viewUser.email}</span></div>
+              <div><span className="text-[#717182] block">Account Status</span><span className={viewUser.status === 'ACTIVE' ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>{viewUser.status}</span></div>
+              <div><span className="text-[#717182] block">User ID</span><span className="font-mono text-[#cbd5e1]">{viewUser.id}</span></div>
+              <div><span className="text-[#717182] block">Joined</span><span className="text-[#cbd5e1]">{formatDate(viewUser.createdAt)}</span></div>
+            </div>
+            <div className="p-3 rounded-xl bg-[#161622]">
+              <span className="text-[#717182] block mb-1">Bio</span>
+              <p className="text-[#cbd5e1]">{viewUser.bio || 'No bio provided.'}</p>
+            </div>
+          </div>
+        )}
+      </PanelModal>
+
+      {/* Edit User Modal */}
+      <PanelModal
+        open={Boolean(editUserForm)}
+        title={`Edit User: ${editUserForm?.name || ''}`}
+        onClose={() => setEditUserForm(null)}
+      >
+        {editUserForm && (
+          <form onSubmit={handleSaveUser} className="space-y-3 text-xs">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editUserForm.name}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Username</label>
+                <input
+                  type="text"
+                  required
+                  value={editUserForm.username}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, username: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-[#8e8e9e] mb-1">Email</label>
+              <input
+                type="email"
+                required
+                value={editUserForm.email}
+                onChange={(e) => setEditUserForm({ ...editUserForm, email: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Role</label>
+                <select
+                  value={editUserForm.role}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, role: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                >
+                  <option value="SUBSCRIBER">SUBSCRIBER</option>
+                  <option value="CREATOR">CREATOR</option>
+                  <option value="ADMIN">ADMIN</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Status</label>
+                <select
+                  value={editUserForm.status}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, status: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                >
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="SUSPENDED">SUSPENDED</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" className="w-full py-2.5 rounded-xl gold-button font-bold">
+              Save Account Changes
+            </button>
+          </form>
+        )}
+      </PanelModal>
+
+      {/* View Transaction Invoice Modal */}
+      <PanelModal
+        open={Boolean(viewTx)}
+        title="Transaction Receipt & Split"
+        subtitle={viewTx?.transactionReference}
+        onClose={() => setViewTx(null)}
+      >
+        {viewTx && (
+          <div className="space-y-3 text-xs">
+            <div className="p-4 rounded-2xl bg-[#161622] space-y-2 border border-[#2a2a3b]">
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Type</span><span className="font-bold text-white">{viewTx.type}</span></div>
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Buyer</span><span className="text-white">{viewTx.userName}</span></div>
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Creator</span><span className="text-[#f5d77f] font-semibold">{viewTx.creatorName || 'Creator'}</span></div>
+              {viewTx.postTitle && <div className="flex justify-between"><span className="text-[#8e8e9e]">Item</span><span className="text-white">{viewTx.postTitle}</span></div>}
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Gross Total</span><span className="font-bold text-white">${Number(viewTx.grossAmount).toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Creator Net</span><span className="font-bold text-green-400">${Number(viewTx.creatorShare).toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Platform Cut</span><span className="text-[#cbd5e1]">${Number(viewTx.platformShare).toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Gateway / Ref</span><span className="font-mono text-[#94a3b8]">{viewTx.paymentGateway} • {viewTx.gatewayReference}</span></div>
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Status</span><span className={viewTx.status === 'SUCCESS' ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>{viewTx.status}</span></div>
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Timestamp</span><span className="text-[#94a3b8]">{formatDate(viewTx.createdAt)}</span></div>
+            </div>
+          </div>
+        )}
+      </PanelModal>
+
+      {/* View Report Modal */}
+      <PanelModal
+        open={Boolean(viewReport)}
+        title={`Moderation Report: ${viewReport?.id || ''}`}
+        subtitle={viewReport?.postTitle}
+        onClose={() => setViewReport(null)}
+      >
+        {viewReport && (
+          <div className="space-y-4 text-xs">
+            <div className="p-4 rounded-2xl bg-[#161622] space-y-2 border border-[#2a2a3b]">
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Reporter</span><span className="text-white font-semibold">{viewReport.reporterName}</span></div>
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Target Post</span><span className="text-white">{viewReport.postTitle}</span></div>
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Reason</span><span className="text-yellow-400 font-semibold">{viewReport.reason}</span></div>
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Status</span><span className="font-bold text-white">{viewReport.status}</span></div>
+              <div className="flex justify-between"><span className="text-[#8e8e9e]">Date</span><span className="text-[#94a3b8]">{formatDate(viewReport.createdAt)}</span></div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  handleReportDecision(viewReport.id, 'DISMISSED', 'PUBLISHED');
+                  setViewReport(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-green-950/60 border border-green-500/40 text-green-300 font-bold"
+              >
+                Approve Post & Dismiss
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleReportDecision(viewReport.id, 'RESOLVED', 'ARCHIVED');
+                  setViewReport(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-red-950/60 border border-red-500/40 text-red-300 font-bold"
+              >
+                Takedown Post
+              </button>
+            </div>
+          </div>
+        )}
+      </PanelModal>
+
+      {/* Shared Confirmation Modal */}
+      <ConfirmActionModal
+        open={Boolean(confirmModal)}
+        title={confirmModal?.title || 'Confirm Action'}
+        description={confirmModal?.description || ''}
+        confirmLabel={confirmModal?.confirmLabel || 'Confirm'}
+        confirmTone={confirmModal?.confirmTone || 'danger'}
+        busy={confirmBusy}
+        onClose={() => !confirmBusy && setConfirmModal(null)}
+        onConfirm={async () => {
+          if (!confirmModal) return;
+          setConfirmBusy(true);
+          try {
+            await confirmModal.onConfirm();
+          } finally {
+            setConfirmBusy(false);
+            setConfirmModal(null);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminTransactions, issueRefundAdmin } from '@/lib/contentStore';
+import { getAdminTransactions, issueRefundAdmin, deleteTransactionAdmin } from '@/lib/contentStore';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
@@ -42,6 +44,26 @@ export async function PATCH(req: NextRequest) {
   } catch (error: any) {
     return NextResponse.json(
       { success: false, message: error?.message || 'Failed to issue refund' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const searchParams = req.nextUrl?.searchParams || new URL(req.url, 'http://localhost:3000').searchParams;
+    const txId = searchParams.get('txId');
+    if (!txId) {
+      return NextResponse.json({ success: false, message: 'txId is required' }, { status: 400 });
+    }
+    const result = deleteTransactionAdmin(txId);
+    if (!result.success) {
+      return NextResponse.json({ success: false, message: 'Transaction not found' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, message: 'Transaction deleted permanently' });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, message: error?.message || 'Failed to delete transaction' },
       { status: 500 }
     );
   }

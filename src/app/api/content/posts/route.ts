@@ -7,10 +7,13 @@ import {
   getCreatorPreviewCounts,
   createCreatorPost,
   updatePostDetails,
+  deletePost,
   MediaType,
   Visibility,
   PostStatus,
 } from '@/lib/contentStore';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
@@ -151,6 +154,39 @@ export async function PATCH(req: NextRequest) {
   } catch (error: any) {
     return NextResponse.json(
       { success: false, message: error?.message || 'Failed to update post' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const searchParams = req.nextUrl?.searchParams || new URL(req.url, 'http://localhost:3000').searchParams;
+    const postId = searchParams.get('postId');
+    const creatorId = searchParams.get('creatorId') || 'c1';
+
+    if (!postId) {
+      return NextResponse.json({ success: false, message: 'postId is required' }, { status: 400 });
+    }
+
+    const result = deletePost(postId, creatorId, false);
+    if (!result.success) {
+      const status =
+        result.error === 'Post not found'
+          ? 404
+          : result.error?.startsWith('Unauthorized')
+          ? 403
+          : 400;
+      return NextResponse.json({ success: false, message: result.error }, { status });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Post deleted permanently',
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, message: error?.message || 'Failed to delete post' },
       { status: 500 }
     );
   }
