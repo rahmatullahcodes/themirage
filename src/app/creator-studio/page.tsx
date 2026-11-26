@@ -463,7 +463,7 @@ export default function CreatorStudioPage() {
     }, 1200);
   };
 
-  const handleTogglePreview = (postId: string) => {
+  const handleTogglePreview = async (postId: string) => {
     const target = feedPosts.find(p => p.id === postId);
     if (!target) return;
 
@@ -473,15 +473,33 @@ export default function CreatorStudioPage() {
           p.id === postId ? { ...p, isPublicPreview: false } : p
         )
       );
-      fetch('/api/content/posts', {
-        method: 'PATCH',
-        headers: authJsonHeaders(),
-        body: JSON.stringify({
-          postId,
-          creatorId: creatorUser.id,
-          updates: { isPublicPreview: false },
-        }),
-      }).catch(err => console.error('Error toggling preview:', err));
+      try {
+        const res = await fetch('/api/content/posts', {
+          method: 'PATCH',
+          headers: authJsonHeaders(),
+          body: JSON.stringify({
+            postId,
+            creatorId: creatorUser.id,
+            updates: { isPublicPreview: false },
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data?.success) {
+          setFeedPosts(prev =>
+            prev.map(p =>
+              p.id === postId ? { ...p, isPublicPreview: true } : p
+            )
+          );
+          showToast(data?.message || 'Failed to update preview setting');
+        }
+      } catch {
+        setFeedPosts(prev =>
+          prev.map(p =>
+            p.id === postId ? { ...p, isPublicPreview: true } : p
+          )
+        );
+        showToast('Network error updating preview setting');
+      }
     } else {
       const isVid = target.type === 'video' || target.type === 'VIDEO';
       if (!isVid && previewPhotosCount >= 3) {
@@ -492,51 +510,93 @@ export default function CreatorStudioPage() {
         showToast('Limit reached: Max 2 public preview videos allowed. Unmark one first.');
         return;
       }
+      const prevVisibility = target.visibility;
       setFeedPosts(prev =>
         prev.map(p =>
           p.id === postId ? { ...p, isPublicPreview: true, visibility: 'PUBLIC' } : p
         )
       );
-      fetch('/api/content/posts', {
-        method: 'PATCH',
-        headers: authJsonHeaders(),
-        body: JSON.stringify({
-          postId,
-          creatorId: creatorUser.id,
-          updates: { isPublicPreview: true, visibility: 'PUBLIC' },
-        }),
-      }).catch(err => console.error('Error toggling preview:', err));
+      try {
+        const res = await fetch('/api/content/posts', {
+          method: 'PATCH',
+          headers: authJsonHeaders(),
+          body: JSON.stringify({
+            postId,
+            creatorId: creatorUser.id,
+            updates: { isPublicPreview: true, visibility: 'PUBLIC' },
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data?.success) {
+          setFeedPosts(prev =>
+            prev.map(p =>
+              p.id === postId ? { ...p, isPublicPreview: false, visibility: prevVisibility } : p
+            )
+          );
+          showToast(data?.message || 'Could not mark post as preview');
+        }
+      } catch {
+        setFeedPosts(prev =>
+          prev.map(p =>
+            p.id === postId ? { ...p, isPublicPreview: false, visibility: prevVisibility } : p
+          )
+        );
+        showToast('Network error updating preview');
+      }
     }
   };
 
-  const handleUpdatePrice = (postId: string) => {
+  const handleUpdatePrice = async (postId: string) => {
+    const target = feedPosts.find(p => p.id === postId);
     const p = parseFloat(editPriceInput);
     if (isNaN(p) || p <= 0) {
       showToast('Please enter a valid price amount');
       return;
     }
+    const previousPrice = target?.price ?? 0;
     setFeedPosts(prev =>
       prev.map(post =>
         post.id === postId ? { ...post, price: p } : post
       )
     );
-    fetch('/api/content/posts', {
-      method: 'PATCH',
-      headers: authJsonHeaders(),
-      body: JSON.stringify({
-        postId,
-        creatorId: creatorUser.id,
-        updates: { price: p },
-      }),
-    }).catch(err => console.error('Error updating price:', err));
-
     setEditingPostId(null);
     setEditPriceInput('');
+
+    try {
+      const res = await fetch('/api/content/posts', {
+        method: 'PATCH',
+        headers: authJsonHeaders(),
+        body: JSON.stringify({
+          postId,
+          creatorId: creatorUser.id,
+          updates: { price: p },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        setFeedPosts(prev =>
+          prev.map(post =>
+            post.id === postId ? { ...post, price: previousPrice } : post
+          )
+        );
+        showToast(data?.message || 'Failed to update price');
+      } else {
+        showToast(`Price updated to $${p.toFixed(2)}`);
+      }
+    } catch {
+      setFeedPosts(prev =>
+        prev.map(post =>
+          post.id === postId ? { ...post, price: previousPrice } : post
+        )
+      );
+      showToast('Network error updating price');
+    }
   };
 
-  const handleToggleStatus = (postId: string) => {
+  const handleToggleStatus = async (postId: string) => {
     const target = feedPosts.find(p => p.id === postId);
     if (!target) return;
+    const prevStatus = target.status;
     const nextStatus = target.status === 'PUBLISHED' ? ('DRAFT' as const) : ('PUBLISHED' as const);
 
     setFeedPosts(prev =>
@@ -548,15 +608,29 @@ export default function CreatorStudioPage() {
       })
     );
 
-    fetch('/api/content/posts', {
-      method: 'PATCH',
-      headers: authJsonHeaders(),
-      body: JSON.stringify({
-        postId,
-        creatorId: creatorUser.id,
-        updates: { status: nextStatus },
-      }),
-    }).catch(err => console.error('Error updating status:', err));
+    try {
+      const res = await fetch('/api/content/posts', {
+        method: 'PATCH',
+        headers: authJsonHeaders(),
+        body: JSON.stringify({
+          postId,
+          creatorId: creatorUser.id,
+          updates: { status: nextStatus },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        setFeedPosts(prev =>
+          prev.map(post => (post.id === postId ? { ...post, status: prevStatus } : post))
+        );
+        showToast(data?.message || 'Failed to update status');
+      }
+    } catch {
+      setFeedPosts(prev =>
+        prev.map(post => (post.id === postId ? { ...post, status: prevStatus } : post))
+      );
+      showToast('Network error updating status');
+    }
   };
 
   const handleSaveEditPost = async (e: React.FormEvent) => {

@@ -97,7 +97,9 @@ const CATEGORIES = [
 ];
 
 export default function HomePage() {
-  const [featuredCreators, setFeaturedCreators] = useState(FEATURED_CREATORS);
+  const [featuredCreators, setFeaturedCreators] = useState<typeof FEATURED_CREATORS>([]);
+  const [loadingHome, setLoadingHome] = useState(true);
+  const [statsLoaded, setStatsLoaded] = useState(false);
   const [stats, setStats] = useState({
     totalCreators: 0,
     totalMembers: 0,
@@ -105,13 +107,16 @@ export default function HomePage() {
   });
 
   useEffect(() => {
+    let active = true;
     fetch('/api/creators', { cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => {
+        if (!active) return;
         if (d?.stats) {
           setStats((prev) => ({ ...prev, ...d.stats }));
+          setStatsLoaded(true);
         }
-        if (d?.success && Array.isArray(d.creators) && d.creators.length > 0) {
+        if (d?.success && Array.isArray(d.creators)) {
           const mapped = d.creators.slice(0, 5).map((c: any) => ({
             id: c.id,
             name: c.name,
@@ -123,9 +128,19 @@ export default function HomePage() {
             isVerified: Boolean(c.isVerified),
           }));
           setFeaturedCreators(mapped);
+        } else {
+          setFeaturedCreators(FEATURED_CREATORS);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (active) setFeaturedCreators(FEATURED_CREATORS);
+      })
+      .finally(() => {
+        if (active) setLoadingHome(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const heroCreator = featuredCreators[0];
@@ -183,13 +198,13 @@ export default function HomePage() {
               <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-6 border-t border-[#1c1c28]">
                 <div>
                   <div className="text-lg sm:text-xl font-bold font-serif text-white">
-                    {stats.totalCreators > 0 ? stats.totalCreators : '9'}+
+                    {statsLoaded ? stats.totalCreators : '—'}
                   </div>
                   <div className="text-[10px] text-[#717182] uppercase tracking-wider mt-0.5">Verified Creators</div>
                 </div>
                 <div>
                   <div className="text-lg sm:text-xl font-bold font-serif text-white">
-                    {stats.totalMembers > 0 ? stats.totalMembers : '10'}+
+                    {statsLoaded ? stats.totalMembers : '—'}
                   </div>
                   <div className="text-[10px] text-[#717182] uppercase tracking-wider mt-0.5">Active Members</div>
                 </div>
@@ -204,12 +219,16 @@ export default function HomePage() {
 
             {/* Center Visual Column: Featured Model Portrait */}
             <div className="lg:col-span-4 relative flex items-center justify-center">
-              <div className="relative w-full max-w-[370px] aspect-[3/4] rounded-3xl overflow-hidden border border-[#d4af37]/30 shadow-2xl">
-                <img
-                  src={heroCreator?.image || HERO_CREATOR_IMG}
-                  alt={heroCreator?.name || 'Featured Creator'}
-                  className="w-full h-full object-cover object-center"
-                />
+              <div className="relative w-full max-w-[370px] aspect-[3/4] rounded-3xl overflow-hidden border border-[#d4af37]/30 shadow-2xl bg-[#111118]">
+                {loadingHome ? (
+                  <div className="w-full h-full animate-pulse bg-[#14141d]" />
+                ) : (
+                  <img
+                    src={heroCreator?.image || HERO_CREATOR_IMG}
+                    alt={heroCreator?.name || 'Featured Creator'}
+                    className="w-full h-full object-cover object-center"
+                  />
+                )}
 
                 <div className="absolute inset-0 bg-gradient-to-t from-[#08080a] via-transparent to-transparent opacity-80" />
 
@@ -322,12 +341,22 @@ export default function HomePage() {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-3.5">
-              {featuredCreators.map((creator) => (
-                <FeaturedCreatorCard
-                  key={creator.id}
-                  {...creator}
-                />
-              ))}
+              {loadingHome ? (
+                [0, 1, 2, 3, 4].map((idx) => (
+                  <div key={idx} className="aspect-[3/4] rounded-2xl bg-[#12121a] border border-[#1f1f2b] animate-pulse" />
+                ))
+              ) : featuredCreators.length > 0 ? (
+                featuredCreators.map((creator) => (
+                  <FeaturedCreatorCard
+                    key={creator.id}
+                    {...creator}
+                  />
+                ))
+              ) : (
+                <div className="col-span-full py-10 text-center text-xs text-[#7c7c90] rounded-2xl bg-[#111117] border border-[#1e1e2b]">
+                  No active creators available right now. Check back soon or explore categories!
+                </div>
+              )}
             </div>
           </div>
 

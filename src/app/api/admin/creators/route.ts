@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireSession } from '@/lib/auth';
+import { requireSession, hashPassword } from '@/lib/auth';
 import {
   listAllCreators,
+  registerNewUser,
   toggleCreatorVerificationAdmin,
   updateCreatorAdmin,
   deleteCreatorAdmin,
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
     const auth = requireSession(req, ['ADMIN']);
     if (!auth.ok) return auth.response;
 
-    const creators = listAllCreators();
+    const creators = listAllCreators({ includeSuspended: true });
     return NextResponse.json({
       success: true,
       count: creators.length,
@@ -28,13 +29,90 @@ export async function GET(req: NextRequest) {
   }
 }
 
+export async function POST(req: NextRequest) {
+  try {
+    const auth = requireSession(req, ['ADMIN']);
+    if (!auth.ok) return auth.response;
+
+    const body = await req.json();
+    const {
+      name,
+      handle,
+      email,
+      password,
+      category,
+      monthlyPrice,
+      bio,
+      avatar,
+      banner,
+      isVerified,
+      status,
+    } = body || {};
+
+    if (!name || !email || !password) {
+      return NextResponse.json(
+        { success: false, message: 'Name, email, and initial password are required' },
+        { status: 400 }
+      );
+    }
+    if (String(password).length < 6) {
+      return NextResponse.json(
+        { success: false, message: 'Password must be at least 6 characters long' },
+        { status: 400 }
+      );
+    }
+
+    const passwordHash = await hashPassword(String(password));
+    const derivedHandle =
+      (handle && String(handle).trim()) ||
+      String(name)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') ||
+      `creator_${Date.now()}`;
+
+    const result = registerNewUser({
+      name: String(name).trim(),
+      username: derivedHandle,
+      email: String(email).trim().toLowerCase(),
+      passwordHash,
+      role: 'CREATOR',
+      monthlyPrice: Number(monthlyPrice) || 9.99,
+      category,
+      bio,
+      avatar,
+      banner,
+      isVerified: Boolean(isVerified),
+      status: status === 'SUSPENDED' ? 'SUSPENDED' : 'ACTIVE',
+      exactHandle: true,
+    });
+
+    if (!result.success || !result.creator) {
+      return NextResponse.json(
+        { success: false, message: result.error || 'Failed to create creator account' },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      creator: result.creator,
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, message: error?.message || 'Failed to create creator' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PATCH(req: NextRequest) {
   try {
     const auth = requireSession(req, ['ADMIN']);
     if (!auth.ok) return auth.response;
 
     const body = await req.json();
-    const { creatorId, action, name, handle, category, monthlyPrice, bio, isVerified, status } = body || {};
+    const { creatorId, action, name, handle, category, monthlyPrice, bio, avatar, banner, isVerified, status } = body || {};
 
     if (!creatorId) {
       return NextResponse.json({ success: false, message: 'creatorId is required' }, { status: 400 });
@@ -46,6 +124,8 @@ export async function PATCH(req: NextRequest) {
       category !== undefined ||
       monthlyPrice !== undefined ||
       bio !== undefined ||
+      avatar !== undefined ||
+      banner !== undefined ||
       isVerified !== undefined ||
       status !== undefined;
 
@@ -56,6 +136,8 @@ export async function PATCH(req: NextRequest) {
         category,
         monthlyPrice,
         bio,
+        avatar,
+        banner,
         isVerified,
         status,
       });

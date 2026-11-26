@@ -37,6 +37,9 @@ import {
   UserCheck,
   Ban,
   ExternalLink,
+  Plus,
+  Upload,
+  Loader2,
 } from 'lucide-react';
 import PanelSidebar from '@/components/PanelSidebar';
 import PanelHeader from '@/components/PanelHeader';
@@ -62,6 +65,12 @@ export default function AdminPanelPage() {
   const [editPostForm, setEditPostForm] = useState<any | null>(null);
   const [viewUser, setViewUser] = useState<any | null>(null);
   const [editUserForm, setEditUserForm] = useState<any | null>(null);
+  const [createUserForm, setCreateUserForm] = useState<any | null>(null);
+  const [createCreatorForm, setCreateCreatorForm] = useState<any | null>(null);
+  const [editOrderForm, setEditOrderForm] = useState<any | null>(null);
+  const [deliverOrderModal, setDeliverOrderModal] = useState<any | null>(null);
+  const [uploadingField, setUploadingField] = useState<string | null>(null);
+  const [ordersSubTab, setOrdersSubTab] = useState<'orders' | 'subscriptions'>('orders');
   const [viewTx, setViewTx] = useState<any | null>(null);
   const [viewReport, setViewReport] = useState<any | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
@@ -103,6 +112,8 @@ export default function AdminPanelPage() {
   const [creators, setCreators] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [customOrders, setCustomOrders] = useState<any[]>([]);
+  const [subscriptionsList, setSubscriptionsList] = useState<any[]>([]);
 
   // Catalog state
   const [catalogItems, setCatalogItems] = useState<any[]>([]);
@@ -170,6 +181,8 @@ export default function AdminPanelPage() {
         if (Array.isArray(data.creators)) setCreators(data.creators);
         if (Array.isArray(data.transactions)) setTransactions(data.transactions);
         if (Array.isArray(data.reports)) setReports(data.reports);
+        if (Array.isArray(data.customRequests)) setCustomOrders(data.customRequests);
+        if (Array.isArray(data.subscriptions)) setSubscriptionsList(data.subscriptions);
         if (data.settings) {
           setCreatorCommission(data.settings.creatorCommissionPercent);
           setPlatformCommission(data.settings.platformCommissionPercent);
@@ -298,6 +311,34 @@ export default function AdminPanelPage() {
     }
   };
 
+  const handleUploadAsset = async (
+    file: File,
+    fieldKey: string,
+    onSuccess: (url: string) => void
+  ) => {
+    setUploadingField(fieldKey);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data?.success && data?.url) {
+        onSuccess(data.url);
+        showToast('Media uploaded successfully');
+      } else {
+        showToast(data?.message || 'Upload failed');
+      }
+    } catch {
+      showToast('Network error during upload');
+    } finally {
+      setUploadingField(null);
+    }
+  };
+
   const handleSaveCreator = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editCreatorForm) return;
@@ -312,6 +353,8 @@ export default function AdminPanelPage() {
           category: editCreatorForm.category,
           monthlyPrice: Number(editCreatorForm.monthlyPrice),
           bio: editCreatorForm.bio,
+          avatar: editCreatorForm.avatar,
+          banner: editCreatorForm.banner,
           isVerified: Boolean(editCreatorForm.isVerified),
           status: editCreatorForm.status,
         }),
@@ -327,6 +370,195 @@ export default function AdminPanelPage() {
       }
     } catch (err) {
       showToast('Failed to update creator');
+    }
+  };
+
+  const handleCreateCreator = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createCreatorForm) return;
+    try {
+      const res = await fetch('/api/admin/creators', {
+        method: 'POST',
+        headers: authJsonHeaders(),
+        body: JSON.stringify({
+          name: createCreatorForm.name,
+          handle: createCreatorForm.handle,
+          email: createCreatorForm.email,
+          password: createCreatorForm.password,
+          category: createCreatorForm.category,
+          monthlyPrice: Number(createCreatorForm.monthlyPrice || 9.99),
+          bio: createCreatorForm.bio,
+          avatar: createCreatorForm.avatar,
+          banner: createCreatorForm.banner,
+          isVerified: Boolean(createCreatorForm.isVerified),
+          status: createCreatorForm.status || 'ACTIVE',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.creator) {
+        setCreateCreatorForm(null);
+        showToast(`Creator "${data.creator.name}" created`);
+        loadAdminOverview();
+      } else {
+        showToast(data?.message || 'Failed to create creator');
+      }
+    } catch {
+      showToast('Failed to create creator');
+    }
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createUserForm) return;
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: authJsonHeaders(),
+        body: JSON.stringify(createUserForm),
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.user) {
+        setCreateUserForm(null);
+        showToast(`Account "${data.user.name}" created (${data.user.role})`);
+        loadAdminOverview();
+      } else {
+        showToast(data?.message || 'Failed to create user account');
+      }
+    } catch {
+      showToast('Failed to create user account');
+    }
+  };
+
+  const handleSaveCustomOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editOrderForm) return;
+    try {
+      const res = await fetch('/api/custom-requests', {
+        method: 'PATCH',
+        headers: authJsonHeaders(),
+        body: JSON.stringify({
+          requestId: editOrderForm.id,
+          action: 'UPDATE',
+          title: editOrderForm.title,
+          description: editOrderForm.description,
+          price: Number(editOrderForm.price),
+          status: editOrderForm.status,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.request) {
+        setCustomOrders(prev => prev.map(o => (o.id === editOrderForm.id ? data.request : o)));
+        setEditOrderForm(null);
+        showToast(`Order "${data.request.title}" updated`);
+        loadAdminOverview();
+      } else {
+        showToast(data?.message || 'Failed to update custom order');
+      }
+    } catch {
+      showToast('Failed to update custom order');
+    }
+  };
+
+  const handleDeliverCustomOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deliverOrderModal) return;
+    try {
+      const res = await fetch('/api/custom-requests', {
+        method: 'PATCH',
+        headers: authJsonHeaders(),
+        body: JSON.stringify({
+          requestId: deliverOrderModal.id,
+          action: 'DELIVER',
+          deliveredMediaUrl: deliverOrderModal.deliveredMediaUrl,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.request) {
+        setCustomOrders(prev => prev.map(o => (o.id === deliverOrderModal.id ? data.request : o)));
+        setDeliverOrderModal(null);
+        showToast(`Order "${data.request.title}" delivered to buyer vault`);
+        loadAdminOverview();
+      } else {
+        showToast(data?.message || 'Failed to deliver custom order');
+      }
+    } catch {
+      showToast('Failed to deliver custom order');
+    }
+  };
+
+  const handleCancelCustomOrder = async (requestId: string) => {
+    try {
+      const res = await fetch('/api/custom-requests', {
+        method: 'PATCH',
+        headers: authJsonHeaders(),
+        body: JSON.stringify({ requestId, action: 'CANCEL' }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.request) {
+        setCustomOrders(prev => prev.map(o => (o.id === requestId ? data.request : o)));
+        showToast('Custom order cancelled');
+      } else {
+        showToast(data?.message || 'Failed to cancel order');
+      }
+    } catch {
+      showToast('Failed to cancel order');
+    }
+  };
+
+  const handleDeleteCustomOrder = async (requestId: string) => {
+    try {
+      const res = await fetch(`/api/custom-requests?requestId=${encodeURIComponent(requestId)}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCustomOrders(prev => prev.filter(o => o.id !== requestId));
+        showToast('Custom order deleted');
+      } else {
+        showToast(data?.message || 'Failed to delete order');
+      }
+    } catch {
+      showToast('Failed to delete order');
+    }
+  };
+
+  const handleToggleSubStatus = async (subscriptionId: string, nextStatus: 'ACTIVE' | 'CANCELLED') => {
+    try {
+      const res = await fetch('/api/admin/subscriptions', {
+        method: 'PATCH',
+        headers: authJsonHeaders(),
+        body: JSON.stringify({ subscriptionId, status: nextStatus }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.subscription) {
+        setSubscriptionsList(prev => prev.map(s => (s.id === subscriptionId ? data.subscription : s)));
+        showToast(`Subscription updated to ${nextStatus}`);
+        loadAdminOverview();
+      } else {
+        showToast(data?.message || 'Failed to update subscription');
+      }
+    } catch {
+      showToast('Failed to update subscription');
+    }
+  };
+
+  const handleDeleteSub = async (subscriptionId: string) => {
+    try {
+      const res = await fetch(`/api/admin/subscriptions?subscriptionId=${encodeURIComponent(subscriptionId)}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSubscriptionsList(prev => prev.filter(s => s.id !== subscriptionId));
+        showToast('Subscription record removed');
+        loadAdminOverview();
+      } else {
+        showToast(data?.message || 'Failed to remove subscription');
+      }
+    } catch {
+      showToast('Failed to remove subscription');
     }
   };
 
@@ -547,6 +779,8 @@ export default function AdminPanelPage() {
         return 'Content Catalog & PPV Media Moderation';
       case 'users':
         return 'User Accounts & Access Permissions';
+      case 'orders':
+        return 'Custom Orders & Active Subscriptions';
       case 'transactions':
         return `Transactions & ${creatorCommission}/${platformCommission} Commission Ledger`;
       case 'moderation':
@@ -610,6 +844,7 @@ export default function AdminPanelPage() {
         badges={{
           creators: String(creators.length),
           users: String(users.length),
+          orders: String(customOrders.length),
           transactions: `${creatorCommission}/${platformCommission}`,
           moderation: String(reports.filter(r => r.status === 'PENDING').length || 0),
         }}
@@ -752,18 +987,41 @@ export default function AdminPanelPage() {
           {/* Tab 2: Creators & Verification */}
           {activeTab === 'creators' && (
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
                   <h3 className="text-base font-serif font-bold text-white">Creator Verification & Status ({creators.length})</h3>
-                  <p className="text-xs text-[#8c8c9e]">Grant or revoke official verification checkmarks and inspect real creator earnings.</p>
+                  <p className="text-xs text-[#8c8c9e]">Create profiles, upload avatars/banners, toggle verification checkmarks, and suspend or audit creators.</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={loadAdminOverview}
-                  className="px-3 py-1.5 rounded-lg bg-[#161622] border border-[#2b2b3a] text-xs text-[#f5d77f] flex items-center gap-1.5"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" /> Refresh
-                </button>
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCreateCreatorForm({
+                        name: '',
+                        handle: '',
+                        email: '',
+                        password: '',
+                        category: 'Popular',
+                        monthlyPrice: '9.99',
+                        bio: '',
+                        avatar: '',
+                        banner: '',
+                        isVerified: true,
+                        status: 'ACTIVE',
+                      })
+                    }
+                    className="px-3.5 py-1.5 rounded-lg gold-button text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Creator
+                  </button>
+                  <button
+                    type="button"
+                    onClick={loadAdminOverview}
+                    className="px-3 py-1.5 rounded-lg bg-[#161622] border border-[#2b2b3a] text-xs text-[#f5d77f] flex items-center gap-1.5"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" /> Refresh
+                  </button>
+                </div>
               </div>
               <div className="bg-[#111117] border border-[#232330] rounded-2xl overflow-x-auto">
                 <table className="w-full text-left text-xs">
@@ -812,13 +1070,15 @@ export default function AdminPanelPage() {
                               label="Edit Creator"
                               tone="gold"
                               onClick={() =>
-                                setEditCreatorForm({
+                                  setEditCreatorForm({
                                   id: c.id,
                                   name: c.name,
                                   handle: c.handle,
                                   category: c.category || 'Popular',
                                   monthlyPrice: String(c.monthlyPrice || 9.99),
                                   bio: c.bio || '',
+                                  avatar: c.avatar || '',
+                                  banner: c.banner || '',
                                   isVerified: Boolean(c.isVerified),
                                   status: c.status || 'ACTIVE',
                                 })
@@ -868,7 +1128,7 @@ export default function AdminPanelPage() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 bg-[#12121a] p-1.5 rounded-xl border border-[#222230] text-xs">
+                <div className="flex flex-wrap items-center gap-2 bg-[#12121a] p-1.5 rounded-xl border border-[#222230] text-xs w-full sm:w-auto">
                   <select
                     value={catalogStatusFilter}
                     onChange={(e) => setCatalogStatusFilter(e.target.value)}
@@ -1034,8 +1294,8 @@ export default function AdminPanelPage() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <div className="relative flex-1 sm:w-64">
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
+                  <div className="relative flex-1 min-w-[160px] sm:w-64">
                     <Search className="w-3.5 h-3.5 text-[#666677] absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
@@ -1047,8 +1307,26 @@ export default function AdminPanelPage() {
                   </div>
                   <button
                     type="button"
+                    onClick={() =>
+                      setCreateUserForm({
+                        name: '',
+                        username: '',
+                        email: '',
+                        password: '',
+                        role: 'SUBSCRIBER',
+                        bio: '',
+                        status: 'ACTIVE',
+                      })
+                    }
+                    className="px-3 py-1.5 rounded-xl gold-button text-xs font-bold flex items-center gap-1 whitespace-nowrap"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add User
+                  </button>
+                  <button
+                    type="button"
                     onClick={loadAdminOverview}
                     className="px-3 py-1.5 rounded-xl bg-[#161622] border border-[#282838] text-xs text-[#f5d77f] flex items-center gap-1"
+                    title="Refresh Users"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                   </button>
@@ -1143,6 +1421,222 @@ export default function AdminPanelPage() {
             </div>
           )}
 
+          {/* Tab: Custom Orders & Active Subscriptions */}
+          {activeTab === 'orders' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                  <h3 className="text-base font-serif font-bold text-white flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#f5d77f]" />
+                    Custom Orders ({customOrders.length}) & Subscriptions ({subscriptionsList.length})
+                  </h3>
+                  <p className="text-xs text-[#8c8c9e]">
+                    Manage all custom content commissions, deliver vault media, or pause and clean up user subscriptions.
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 bg-[#12121a] p-1 rounded-xl border border-[#222230] text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setOrdersSubTab('orders')}
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+                      ordersSubTab === 'orders' ? 'gold-button' : 'text-[#8c8c9e] hover:text-white'
+                    }`}
+                  >
+                    Custom Orders ({customOrders.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOrdersSubTab('subscriptions')}
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+                      ordersSubTab === 'subscriptions' ? 'gold-button' : 'text-[#8c8c9e] hover:text-white'
+                    }`}
+                  >
+                    Subscriptions ({subscriptionsList.length})
+                  </button>
+                </div>
+              </div>
+
+              {ordersSubTab === 'orders' ? (
+                <div className="bg-[#111117] border border-[#232330] rounded-2xl overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#161622] text-[#8e8e9e] border-b border-[#232330]">
+                      <tr>
+                        <th className="py-3 px-4">Request Title</th>
+                        <th className="py-3 px-4">Subscriber</th>
+                        <th className="py-3 px-4">Creator</th>
+                        <th className="py-3 px-4">Price</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4 whitespace-nowrap">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#1e1e28] text-white">
+                      {customOrders.map((ord) => (
+                        <tr key={ord.id} className="hover:bg-[#161622]/40">
+                          <td className="py-3.5 px-4 max-w-[240px]">
+                            <div className="font-bold truncate">{ord.title}</div>
+                            {ord.description && <div className="text-[10px] text-[#717182] truncate">{ord.description}</div>}
+                          </td>
+                          <td className="py-3.5 px-4 text-[#cbd5e1]">{ord.customerName}</td>
+                          <td className="py-3.5 px-4 text-[#f5d77f]">@{ord.creatorHandle}</td>
+                          <td className="py-3.5 px-4 font-bold">${Number(ord.price || 0).toFixed(2)}</td>
+                          <td className="py-3.5 px-4">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                ord.status === 'DELIVERED'
+                                  ? 'bg-green-950/60 text-green-400 border-green-500/30'
+                                  : ord.status === 'CANCELLED'
+                                  ? 'bg-red-950/60 text-red-400 border-red-500/30'
+                                  : 'bg-yellow-950/60 text-yellow-300 border-yellow-500/30'
+                              }`}
+                            >
+                              {ord.status}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              <ActionIconBtn
+                                icon={Edit2}
+                                label="Edit Custom Order"
+                                tone="gold"
+                                onClick={() =>
+                                  setEditOrderForm({
+                                    id: ord.id,
+                                    title: ord.title,
+                                    description: ord.description || '',
+                                    price: String(ord.price || 35),
+                                    status: ord.status,
+                                  })
+                                }
+                              />
+                              {ord.status !== 'DELIVERED' && ord.status !== 'CANCELLED' && (
+                                <>
+                                  <ActionIconBtn
+                                    icon={Upload}
+                                    label="Upload & Mark Delivered"
+                                    tone="green"
+                                    onClick={() =>
+                                      setDeliverOrderModal({
+                                        id: ord.id,
+                                        title: ord.title,
+                                        deliveredMediaUrl: ord.deliveredMediaUrl || '',
+                                      })
+                                    }
+                                  />
+                                  <ActionIconBtn
+                                    icon={Ban}
+                                    label="Cancel Custom Order"
+                                    tone="amber"
+                                    onClick={() => handleCancelCustomOrder(ord.id)}
+                                  />
+                                </>
+                              )}
+                              <ActionIconBtn
+                                icon={Trash2}
+                                label="Delete Custom Order"
+                                tone="danger"
+                                onClick={() =>
+                                  setConfirmModal({
+                                    title: `Delete Order "${ord.title}"?`,
+                                    description: 'Permanently removes this custom request record.',
+                                    confirmLabel: 'Delete Order',
+                                    confirmTone: 'danger',
+                                    onConfirm: () => handleDeleteCustomOrder(ord.id),
+                                  })
+                                }
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {customOrders.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="py-10 text-center text-[#717182]">
+                            No custom requests recorded yet.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="bg-[#111117] border border-[#232330] rounded-2xl overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#161622] text-[#8e8e9e] border-b border-[#232330]">
+                      <tr>
+                        <th className="py-3 px-4">Subscriber</th>
+                        <th className="py-3 px-4">Creator</th>
+                        <th className="py-3 px-4">Price / Mo</th>
+                        <th className="py-3 px-4">Next Billing</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4 whitespace-nowrap">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#1e1e28] text-white">
+                      {subscriptionsList.map((sub) => (
+                        <tr key={sub.id} className="hover:bg-[#161622]/40">
+                          <td className="py-3.5 px-4">
+                            <div className="font-bold">{sub.userName}</div>
+                            <div className="text-[10px] font-mono text-[#717182]">{sub.userHandle}</div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-semibold text-[#f5d77f]">{sub.creatorName}</div>
+                            <div className="text-[10px] font-mono text-[#717182]">@{sub.creatorHandle}</div>
+                          </td>
+                          <td className="py-3.5 px-4 font-bold">${Number(sub.price || 0).toFixed(2)}</td>
+                          <td className="py-3.5 px-4 text-[#94a3b8]">{sub.nextBilling || '—'}</td>
+                          <td className="py-3.5 px-4">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                sub.status === 'ACTIVE'
+                                  ? 'bg-green-950/60 text-green-400 border-green-500/30'
+                                  : 'bg-red-950/60 text-red-400 border-red-500/30'
+                              }`}
+                            >
+                              {sub.status}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              <ActionIconBtn
+                                icon={sub.status === 'ACTIVE' ? Ban : CheckCircle2}
+                                label={sub.status === 'ACTIVE' ? 'Cancel Subscription' : 'Reactivate Subscription'}
+                                tone={sub.status === 'ACTIVE' ? 'amber' : 'green'}
+                                onClick={() =>
+                                  handleToggleSubStatus(sub.id, sub.status === 'ACTIVE' ? 'CANCELLED' : 'ACTIVE')
+                                }
+                              />
+                              <ActionIconBtn
+                                icon={Trash2}
+                                label="Delete Subscription Record"
+                                tone="danger"
+                                onClick={() =>
+                                  setConfirmModal({
+                                    title: `Delete Subscription Record?`,
+                                    description: `Removes ${sub.userName}'s subscription to ${sub.creatorName} from records.`,
+                                    confirmLabel: 'Delete Record',
+                                    confirmTone: 'danger',
+                                    onConfirm: () => handleDeleteSub(sub.id),
+                                  })
+                                }
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {subscriptionsList.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="py-10 text-center text-[#717182]">
+                            No subscriptions found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Tab 4: Real Transactions Ledger & Refund Admin */}
           {activeTab === 'transactions' && (
             <div className="space-y-4">
@@ -1156,7 +1650,7 @@ export default function AdminPanelPage() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                   <select
                     value={txTypeFilter}
                     onChange={(e) => setTxTypeFilter(e.target.value)}
@@ -1463,6 +1957,8 @@ export default function AdminPanelPage() {
                     category: target.category,
                     monthlyPrice: String(target.monthlyPrice || 9.99),
                     bio: target.bio || '',
+                    avatar: target.avatar || '',
+                    banner: target.banner || '',
                     isVerified: Boolean(target.isVerified),
                     status: target.status || 'ACTIVE',
                   });
@@ -1540,6 +2036,66 @@ export default function AdminPanelPage() {
                 onChange={(e) => setEditCreatorForm({ ...editCreatorForm, bio: e.target.value })}
                 className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
               />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Avatar URL or Upload</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="https://... or /api/uploads/..."
+                    value={editCreatorForm.avatar || ''}
+                    onChange={(e) => setEditCreatorForm({ ...editCreatorForm, avatar: e.target.value })}
+                    className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                  />
+                  <label className="cursor-pointer px-2.5 py-2 rounded-xl bg-[#1d1d2b] border border-[#2b2b3c] hover:border-[#d4af37] text-[#f5d77f] flex items-center gap-1 flex-shrink-0">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        e.target.value = '';
+                        if (f) {
+                          handleUploadAsset(f, 'edit-avatar', (url) =>
+                            setEditCreatorForm((prev: any) => (prev ? { ...prev, avatar: url } : prev))
+                          );
+                        }
+                      }}
+                    />
+                    {uploadingField === 'edit-avatar' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                  </label>
+                </div>
+              </div>
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Banner URL or Upload</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="https://... or /api/uploads/..."
+                    value={editCreatorForm.banner || ''}
+                    onChange={(e) => setEditCreatorForm({ ...editCreatorForm, banner: e.target.value })}
+                    className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                  />
+                  <label className="cursor-pointer px-2.5 py-2 rounded-xl bg-[#1d1d2b] border border-[#2b2b3c] hover:border-[#d4af37] text-[#f5d77f] flex items-center gap-1 flex-shrink-0">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        e.target.value = '';
+                        if (f) {
+                          handleUploadAsset(f, 'edit-banner', (url) =>
+                            setEditCreatorForm((prev: any) => (prev ? { ...prev, banner: url } : prev))
+                          );
+                        }
+                      }}
+                    />
+                    {uploadingField === 'edit-banner' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                  </label>
+                </div>
+              </div>
             </div>
             <div className="flex items-center justify-between pt-1">
               <label className="flex items-center gap-2 text-white cursor-pointer">
@@ -1825,6 +2381,372 @@ export default function AdminPanelPage() {
               </button>
             </div>
           </div>
+        )}
+      </PanelModal>
+
+      {/* Create Creator Modal */}
+      <PanelModal
+        open={Boolean(createCreatorForm)}
+        title="Create New Creator Profile"
+        subtitle="Creates both authenticated user credentials and public creator profile"
+        onClose={() => setCreateCreatorForm(null)}
+      >
+        {createCreatorForm && (
+          <form onSubmit={handleCreateCreator} className="space-y-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Display Name</label>
+                <input
+                  type="text"
+                  required
+                  value={createCreatorForm.name}
+                  onChange={(e) => setCreateCreatorForm({ ...createCreatorForm, name: e.target.value })}
+                  placeholder="e.g. Nadia Vega"
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Handle</label>
+                <input
+                  type="text"
+                  required
+                  value={createCreatorForm.handle}
+                  onChange={(e) => setCreateCreatorForm({ ...createCreatorForm, handle: e.target.value })}
+                  placeholder="e.g. nadia-vega"
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={createCreatorForm.email}
+                  onChange={(e) => setCreateCreatorForm({ ...createCreatorForm, email: e.target.value })}
+                  placeholder="nadia@themirage.vip"
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Initial Password</label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={createCreatorForm.password}
+                  onChange={(e) => setCreateCreatorForm({ ...createCreatorForm, password: e.target.value })}
+                  placeholder="Min 6 characters"
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Category</label>
+                <select
+                  value={createCreatorForm.category}
+                  onChange={(e) => setCreateCreatorForm({ ...createCreatorForm, category: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                >
+                  {CREATOR_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Monthly Price ($)</label>
+                <input
+                  type="number"
+                  step="0.50"
+                  min="1"
+                  required
+                  value={createCreatorForm.monthlyPrice}
+                  onChange={(e) => setCreateCreatorForm({ ...createCreatorForm, monthlyPrice: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Avatar URL or Upload</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="https://... or upload"
+                    value={createCreatorForm.avatar}
+                    onChange={(e) => setCreateCreatorForm({ ...createCreatorForm, avatar: e.target.value })}
+                    className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                  />
+                  <label className="cursor-pointer px-2.5 py-2 rounded-xl bg-[#1d1d2b] border border-[#2b2b3c] hover:border-[#d4af37] text-[#f5d77f] flex items-center flex-shrink-0">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        e.target.value = '';
+                        if (f) {
+                          handleUploadAsset(f, 'create-avatar', (url) =>
+                            setCreateCreatorForm((prev: any) => (prev ? { ...prev, avatar: url } : prev))
+                          );
+                        }
+                      }}
+                    />
+                    {uploadingField === 'create-avatar' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                  </label>
+                </div>
+              </div>
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Banner URL or Upload</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="https://... or upload"
+                    value={createCreatorForm.banner}
+                    onChange={(e) => setCreateCreatorForm({ ...createCreatorForm, banner: e.target.value })}
+                    className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                  />
+                  <label className="cursor-pointer px-2.5 py-2 rounded-xl bg-[#1d1d2b] border border-[#2b2b3c] hover:border-[#d4af37] text-[#f5d77f] flex items-center flex-shrink-0">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        e.target.value = '';
+                        if (f) {
+                          handleUploadAsset(f, 'create-banner', (url) =>
+                            setCreateCreatorForm((prev: any) => (prev ? { ...prev, banner: url } : prev))
+                          );
+                        }
+                      }}
+                    />
+                    {uploadingField === 'create-banner' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className="block text-[#8e8e9e] mb-1">Bio</label>
+              <textarea
+                rows={2}
+                value={createCreatorForm.bio}
+                onChange={(e) => setCreateCreatorForm({ ...createCreatorForm, bio: e.target.value })}
+                placeholder="Official Mirage creator bio..."
+                className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+              />
+            </div>
+            <label className="flex items-center gap-2 text-white cursor-pointer">
+              <input
+                type="checkbox"
+                checked={createCreatorForm.isVerified}
+                onChange={(e) => setCreateCreatorForm({ ...createCreatorForm, isVerified: e.target.checked })}
+                className="accent-[#d4af37]"
+              />
+              <span>Grant Verified Creator Badge immediately</span>
+            </label>
+            <button type="submit" className="w-full py-2.5 rounded-xl gold-button font-bold">
+              Create Creator Account
+            </button>
+          </form>
+        )}
+      </PanelModal>
+
+      {/* Create User Modal */}
+      <PanelModal
+        open={Boolean(createUserForm)}
+        title="Create New User Account"
+        subtitle="Provision Subscriber, Creator, or Administrator access directly"
+        onClose={() => setCreateUserForm(null)}
+      >
+        {createUserForm && (
+          <form onSubmit={handleCreateUser} className="space-y-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  value={createUserForm.name}
+                  onChange={(e) => setCreateUserForm({ ...createUserForm, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Username</label>
+                <input
+                  type="text"
+                  required
+                  value={createUserForm.username}
+                  onChange={(e) => setCreateUserForm({ ...createUserForm, username: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={createUserForm.email}
+                  onChange={(e) => setCreateUserForm({ ...createUserForm, email: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Password</label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={createUserForm.password}
+                  onChange={(e) => setCreateUserForm({ ...createUserForm, password: e.target.value })}
+                  placeholder="Min 6 characters"
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Role</label>
+                <select
+                  value={createUserForm.role}
+                  onChange={(e) => setCreateUserForm({ ...createUserForm, role: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                >
+                  <option value="SUBSCRIBER">SUBSCRIBER</option>
+                  <option value="CREATOR">CREATOR</option>
+                  <option value="ADMIN">ADMIN</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Initial Status</label>
+                <select
+                  value={createUserForm.status}
+                  onChange={(e) => setCreateUserForm({ ...createUserForm, status: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                >
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="SUSPENDED">SUSPENDED</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" className="w-full py-2.5 rounded-xl gold-button font-bold">
+              Create User Account
+            </button>
+          </form>
+        )}
+      </PanelModal>
+
+      {/* Edit Custom Order Modal */}
+      <PanelModal
+        open={Boolean(editOrderForm)}
+        title={`Edit Custom Order`}
+        onClose={() => setEditOrderForm(null)}
+      >
+        {editOrderForm && (
+          <form onSubmit={handleSaveCustomOrder} className="space-y-3 text-xs">
+            <div>
+              <label className="block text-[#8e8e9e] mb-1">Request Title</label>
+              <input
+                type="text"
+                required
+                value={editOrderForm.title}
+                onChange={(e) => setEditOrderForm({ ...editOrderForm, title: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-[#8e8e9e] mb-1">Description / Brief</label>
+              <textarea
+                rows={2}
+                value={editOrderForm.description}
+                onChange={(e) => setEditOrderForm({ ...editOrderForm, description: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Price ($)</label>
+                <input
+                  type="number"
+                  step="1"
+                  min="1"
+                  required
+                  value={editOrderForm.price}
+                  onChange={(e) => setEditOrderForm({ ...editOrderForm, price: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[#8e8e9e] mb-1">Order Status</label>
+                <select
+                  value={editOrderForm.status}
+                  onChange={(e) => setEditOrderForm({ ...editOrderForm, status: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                >
+                  <option value="PENDING_PAYMENT">PENDING_PAYMENT</option>
+                  <option value="AWAITING_DELIVERY">AWAITING_DELIVERY</option>
+                  <option value="PAID">PAID</option>
+                  <option value="DELIVERED">DELIVERED</option>
+                  <option value="CANCELLED">CANCELLED</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" className="w-full py-2.5 rounded-xl gold-button font-bold">
+              Save Custom Order
+            </button>
+          </form>
+        )}
+      </PanelModal>
+
+      {/* Deliver Custom Order Modal */}
+      <PanelModal
+        open={Boolean(deliverOrderModal)}
+        title={`Deliver Custom Order`}
+        subtitle={deliverOrderModal?.title}
+        onClose={() => setDeliverOrderModal(null)}
+      >
+        {deliverOrderModal && (
+          <form onSubmit={handleDeliverCustomOrder} className="space-y-3 text-xs">
+            <div>
+              <label className="block text-[#8e8e9e] mb-1">Delivery Media URL or Upload File</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  required
+                  placeholder="https://... or /api/uploads/..."
+                  value={deliverOrderModal.deliveredMediaUrl}
+                  onChange={(e) => setDeliverOrderModal({ ...deliverOrderModal, deliveredMediaUrl: e.target.value })}
+                  className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+                />
+                <label className="cursor-pointer px-3 py-2 rounded-xl bg-[#1d1d2b] border border-[#2b2b3c] hover:border-[#d4af37] text-[#f5d77f] flex items-center gap-1 flex-shrink-0">
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = '';
+                      if (f) {
+                        handleUploadAsset(f, 'deliver-order', (url) =>
+                          setDeliverOrderModal((prev: any) => (prev ? { ...prev, deliveredMediaUrl: url } : prev))
+                        );
+                      }
+                    }}
+                  />
+                  {uploadingField === 'deliver-order' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                  Upload
+                </label>
+              </div>
+            </div>
+            <button type="submit" className="w-full py-2.5 rounded-xl gold-button font-bold">
+              Mark Delivered & Unlock in Buyer Vault
+            </button>
+          </form>
         )}
       </PanelModal>
 

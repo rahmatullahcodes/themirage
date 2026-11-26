@@ -170,10 +170,20 @@ function ChatContent() {
             userId: data.conversations[0].userId,
             creatorHandle: data.conversations[0].creatorHandle,
           });
+        } else if (
+          !effectiveCreatorMode &&
+          !rawQueryCreator &&
+          data.conversations.length > 0 &&
+          !data.conversations.some((c: any) => c.creatorHandle === selectedThread.creatorHandle)
+        ) {
+          setSelectedThread((prev) => ({
+            ...prev,
+            creatorHandle: data.conversations[0].creatorHandle,
+          }));
         }
       }
     } catch (e) {}
-  }, [authChecked, currentUser.id, currentUser.role, chatMode, selectedThread.userId, router]);
+  }, [authChecked, currentUser.id, currentUser.role, chatMode, rawQueryCreator, selectedThread.userId, selectedThread.creatorHandle, router]);
 
   useEffect(() => {
     if (authChecked) {
@@ -837,12 +847,17 @@ function ChatContent() {
           className="p-3 sm:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-[#0e0e14] border-t border-[#1c1c28] flex items-center gap-2 sm:gap-3"
         >
           <label
-            className="cursor-pointer p-2.5 sm:p-3 rounded-xl bg-[#151520] hover:bg-[#1e1e2e] border border-[#29293a] text-[#d4af37] flex-shrink-0 transition-colors"
+            className={`p-2.5 sm:p-3 rounded-xl bg-[#151520] border border-[#29293a] text-[#d4af37] flex-shrink-0 transition-colors ${
+              chatMode === 'creator' && !selectedThread.userId
+                ? 'opacity-40 pointer-events-none'
+                : 'cursor-pointer hover:bg-[#1e1e2e]'
+            }`}
             title="Send photo or video"
           >
             <input
               type="file"
               accept="image/*,video/*"
+              disabled={chatMode === 'creator' && !selectedThread.userId}
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
@@ -856,13 +871,19 @@ function ChatContent() {
           <input
             type="text"
             value={inputText}
+            disabled={chatMode === 'creator' && !selectedThread.userId}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder={`Message ${activePartner.partnerName}...`}
-            className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-[#151520] border border-[#29293a] rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-[#d4af37]"
+            placeholder={
+              chatMode === 'creator' && !selectedThread.userId
+                ? 'Select a fan conversation to reply...'
+                : `Message ${activePartner.partnerName}...`
+            }
+            className="flex-1 min-w-0 px-3 sm:px-4 py-2.5 sm:py-3 bg-[#151520] border border-[#29293a] rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-[#d4af37] disabled:opacity-50"
           />
           <button
             type="submit"
-            className="p-2.5 sm:p-3 rounded-xl gold-button text-black shadow-gold-sm hover:scale-105 transition-transform"
+            disabled={chatMode === 'creator' && !selectedThread.userId}
+            className="p-2.5 sm:p-3 rounded-xl gold-button text-black shadow-gold-sm hover:scale-105 transition-transform disabled:opacity-40 disabled:hover:scale-100"
             aria-label="Send message"
           >
             <Send className="w-4 h-4" />

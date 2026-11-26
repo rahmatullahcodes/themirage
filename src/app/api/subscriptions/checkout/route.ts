@@ -7,6 +7,7 @@ import {
   getCreatorNameById,
   recordTransaction,
   getPlatformSettings,
+  isCreatorSuspended,
 } from '@/lib/contentStore';
 
 export async function POST(req: Request) {
@@ -30,10 +31,16 @@ export async function POST(req: Request) {
     }
 
     const resolvedCreatorId = resolveCreatorId(String(creatorId));
+    if (isCreatorSuspended(resolvedCreatorId)) {
+      return NextResponse.json({ error: 'This creator account is currently suspended.' }, { status: 400 });
+    }
     const creatorName = getCreatorNameById(resolvedCreatorId);
 
     // Record active subscription entitlement in contentStore so subscriber-only media unlocks on backend
-    subscribeUserToCreator(user.userId, resolvedCreatorId);
+    const recordedSub = subscribeUserToCreator(user.userId, resolvedCreatorId);
+    if (!recordedSub) {
+      return NextResponse.json({ error: 'Creator account is unavailable or suspended.' }, { status: 400 });
+    }
 
     // Calculate commission using live configured platform rule (default 85% Creator / 15% Platform)
     const settings = getPlatformSettings();

@@ -1662,7 +1662,7 @@ function getDefaultSeedPasswordHash(): string {
   return cachedDefaultSeedHash;
 }
 
-function sanitizeUserRecord(user: UserRecord): UserRecord {
+export function sanitizeUserRecord(user: UserRecord): UserRecord {
   const { passwordHash: _omitted, ...safe } = user;
   return safe as UserRecord;
 }
@@ -1883,6 +1883,14 @@ export function registerNewUser(params: {
   passwordHash?: string;
   role: UserRole;
   monthlyPrice?: number;
+  allowAdminRole?: boolean;
+  bio?: string;
+  avatar?: string;
+  banner?: string;
+  category?: string;
+  isVerified?: boolean;
+  status?: AccountStatus;
+  exactHandle?: boolean;
 }): { success: boolean; user?: UserRecord; creator?: CreatorRecord; error?: string } {
   const db = getDb();
   const cleanEmail = params.email.trim().toLowerCase();
@@ -1895,7 +1903,23 @@ export function registerNewUser(params: {
 
   const now = new Date().toISOString();
   const userId = `usr_${Date.now()}`;
-  const assignedRole: UserRole = params.role === 'CREATOR' ? 'CREATOR' : 'SUBSCRIBER';
+  const assignedRole: UserRole =
+    params.allowAdminRole && (params.role === 'ADMIN' || params.role === 'CREATOR' || params.role === 'SUBSCRIBER')
+      ? params.role
+      : params.role === 'CREATOR'
+      ? 'CREATOR'
+      : 'SUBSCRIBER';
+  const assignedStatus: AccountStatus = params.status === 'SUSPENDED' ? 'SUSPENDED' : 'ACTIVE';
+
+  if (assignedRole === 'CREATOR' && params.exactHandle) {
+    const existingHandle = db.creators.some(c => c.handle.toLowerCase() === cleanUsername);
+    if (existingHandle) {
+      return { success: false, error: `Creator handle @${cleanUsername} is already taken.` };
+    }
+  }
+
+  const defaultAvatar = 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=600&q=80';
+  const defaultBanner = 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1400&q=80';
 
   const newUser: UserRecord = {
     id: userId,
@@ -1904,12 +1928,16 @@ export function registerNewUser(params: {
     email: cleanEmail,
     passwordHash: params.passwordHash,
     role: assignedRole,
-    status: 'ACTIVE',
-    avatar:
-      assignedRole === 'CREATOR'
-        ? 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=600&q=80'
-        : undefined,
-    bio: assignedRole === 'CREATOR' ? 'Exclusive creator on The Mirage.' : 'Subscriber member on The Mirage.',
+    status: assignedStatus,
+    avatar: params.avatar?.trim() || (assignedRole === 'CREATOR' ? defaultAvatar : undefined),
+    bio:
+      params.bio !== undefined
+        ? params.bio
+        : assignedRole === 'CREATOR'
+        ? 'Exclusive creator on The Mirage.'
+        : assignedRole === 'ADMIN'
+        ? 'Platform Administrator on The Mirage.'
+        : 'Subscriber member on The Mirage.',
     ageVerified: true,
     createdAt: now,
   };
@@ -1925,15 +1953,17 @@ export function registerNewUser(params: {
       userId,
       name: newUser.name,
       handle: finalHandle,
-      avatar: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=600&q=80',
-      banner: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1400&q=80',
-      bio: `Official Mirage profile for ${newUser.name}. Subscribe for exclusive photos, videos & 1-on-1 chat.`,
-      category: 'New',
-      monthlyPrice: Number(params.monthlyPrice) > 0 ? Number(params.monthlyPrice) : 9.99,
-      isVerified: false,
+      avatar: params.avatar?.trim() || defaultAvatar,
+      banner: params.banner?.trim() || defaultBanner,
+      bio:
+        params.bio?.trim() ||
+        `Official Mirage profile for ${newUser.name}. Subscribe for exclusive photos, videos & 1-on-1 chat.`,
+      category: params.category?.trim() || 'New',
+      monthlyPrice: Number(params.monthlyPrice) > 0 ? Number(Number(params.monthlyPrice).toFixed(2)) : 9.99,
+      isVerified: Boolean(params.isVerified),
       followersCount: 0,
       likesCount: 0,
-      status: 'ACTIVE',
+      status: assignedStatus,
       createdAt: now,
     };
     db.creators.unshift(createdCreator);
@@ -2043,9 +2073,19 @@ export function formatFollowerLabel(count: number): string {
   return String(count);
 }
 
-export function listAllCreators(filters?: { category?: string; q?: string; sort?: string; handle?: string }) {
+export function listAllCreators(filters?: {
+  category?: string;
+  q?: string;
+  sort?: string;
+  handle?: string;
+  includeSuspended?: boolean;
+}) {
   const db = getDb();
-  let list = db.creators.map(c => {
+  const baseCreators = filters?.includeSuspended
+    ? db.creators
+    : db.creators.filter(c => c.status !== 'SUSPENDED');
+
+  let list = baseCreators.map(c => {
     const subs = db.subscriptions.filter(s => s.creatorId === c.id && s.status === 'ACTIVE').length;
     const earnings = db.transactions
       .filter(t => t.creatorId === c.id && t.status === 'SUCCESS')
@@ -2086,15 +2126,27 @@ export function listAllCreators(filters?: { category?: string; q?: string; sort?
 
 export function getPublicPlatformStats() {
   const db = getDb();
-  const prices = db.creators.map(c => Number(c.monthlyPrice)).filter(p => Number.isFinite(p) && p > 0);
+  const activeCreators = db.creators.filter(c => c.status !== 'SUSPENDED');
+  const activeCreatorIds = new Set(activeCreators.map(c => c.id));
+  const prices = activeCreators.map(c => Number(c.monthlyPrice)).filter(p => Number.isFinite(p) && p > 0);
   return {
-    totalCreators: db.creators.length,
-    totalMembers: db.users.length,
-    totalPosts: db.posts.filter(p => p.status === 'PUBLISHED').length,
+    totalCreators: activeCreators.length,
+    totalMembers: db.users.filter(u => u.status !== 'SUSPENDED').length,
+    totalPosts: db.posts.filter(p => p.status === 'PUBLISHED' && activeCreatorIds.has(p.creatorId)).length,
     creatorCommissionPercent: db.settings.creatorCommissionPercent,
     platformCommissionPercent: db.settings.platformCommissionPercent,
     minMonthlyPrice: prices.length > 0 ? Math.min(...prices) : 4.99,
   };
+}
+
+export function isCreatorSuspended(creatorIdOrHandle: string): boolean {
+  if (!creatorIdOrHandle) return false;
+  const clean = creatorIdOrHandle.replace(/^@/, '').toLowerCase();
+  const resolved = resolveCreatorId(creatorIdOrHandle);
+  const creator = getDb().creators.find(
+    c => c.id === resolved || c.id === creatorIdOrHandle || c.handle.toLowerCase() === clean
+  );
+  return creator?.status === 'SUSPENDED';
 }
 
 export function incrementPostLike(postId: string): { success: boolean; post?: PostItem } {
@@ -2152,7 +2204,11 @@ export function updateCreatorAdmin(
   }
   if (updates.handle !== undefined && updates.handle.trim()) {
     const cleanHandle = updates.handle.trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_-]/g, '');
-    if (cleanHandle) creator.handle = cleanHandle;
+    if (cleanHandle && cleanHandle !== creator.handle.toLowerCase()) {
+      const dup = db.creators.find(c => c.id !== creator.id && c.handle.toLowerCase() === cleanHandle);
+      if (dup) return { success: false, error: 'Creator handle is already taken' };
+      creator.handle = cleanHandle;
+    }
   }
   if (updates.category !== undefined && updates.category.trim()) creator.category = updates.category.trim();
   if (updates.bio !== undefined) creator.bio = updates.bio;
@@ -2163,7 +2219,7 @@ export function updateCreatorAdmin(
     creator.status = updates.status;
   }
 
-  // Sync linked user & posts metadata
+  // Sync linked user, posts, subscriptions, follows, and custom requests metadata
   const linkedUser = db.users.find(u => u.id === creator.userId || u.id === creator.id);
   if (linkedUser) {
     linkedUser.name = creator.name;
@@ -2175,6 +2231,26 @@ export function updateCreatorAdmin(
     if (p.creatorId === creator.id) {
       p.creatorName = creator.name;
       p.creatorHandle = creator.handle;
+    }
+  });
+  db.subscriptions.forEach(s => {
+    if (s.creatorId === creator.id) {
+      s.creatorName = creator.name;
+      s.creatorHandle = creator.handle;
+      if (creator.avatar) s.creatorAvatar = creator.avatar;
+    }
+  });
+  db.follows.forEach(f => {
+    if (f.creatorId === creator.id) {
+      f.creatorName = creator.name;
+      f.creatorHandle = creator.handle;
+      if (creator.avatar) f.creatorAvatar = creator.avatar;
+    }
+  });
+  db.customRequests.forEach(r => {
+    if (r.creatorId === creator.id) {
+      r.creatorName = creator.name;
+      r.creatorHandle = creator.handle;
     }
   });
 
@@ -2225,6 +2301,7 @@ export function subscribeUserToCreator(
   const db = getDb();
   const resolvedId = resolveCreatorId(creatorIdOrHandle);
   const creator = db.creators.find(c => c.id === resolvedId || c.handle === creatorIdOrHandle);
+  if (creator?.status === 'SUSPENDED') return null;
   const user = db.users.find(u => u.id === userId);
   const nextBillingDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
     month: 'long',
@@ -2448,7 +2525,9 @@ export function getChatConversationsForUser(params: {
   }
 
   // Subscriber / Member mode: list all active creators dynamically
-  const threads = db.creators.map(c => {
+  const threads = db.creators
+    .filter(c => c.status !== 'SUSPENDED')
+    .map(c => {
     const cleanHandle = c.handle.toLowerCase();
     const key = `${params.userId}:${cleanHandle}`;
     const msgs = db.chatMessages.filter(m => m.conversationKey === key);
@@ -2714,7 +2793,11 @@ export function checkMediaAuthorization(
 }
 
 export function getFeedForUser(creatorHandle?: string, userId?: string | null): PostItem[] {
-  let list = getDb().posts.filter(p => p.status === 'PUBLISHED');
+  const db = getDb();
+  const suspendedCreatorIds = new Set(
+    db.creators.filter(c => c.status === 'SUSPENDED').map(c => c.id)
+  );
+  let list = db.posts.filter(p => p.status === 'PUBLISHED' && !suspendedCreatorIds.has(p.creatorId));
 
   if (creatorHandle) {
     const cleanHandle = creatorHandle.replace(/^@/, '').toLowerCase();
@@ -2769,6 +2852,11 @@ export function purchaseIndividualContent(params: {
 
   if (post.creatorId === userId) {
     return { success: false, error: 'Creators cannot purchase their own content.' };
+  }
+
+  const creator = db.creators.find(c => c.id === post.creatorId);
+  if (creator?.status === 'SUSPENDED') {
+    return { success: false, error: 'This creator account is currently suspended.' };
   }
 
   const existingPurchase = db.purchases.find(p => p.userId === userId && p.postId === postId);
@@ -2853,8 +2941,13 @@ export function getCreatorPublicPreviews(creatorHandle: string): {
   totalPhotos: number;
   totalVideos: number;
 } {
+  const db = getDb();
   const cleanHandle = creatorHandle.replace(/^@/, '').toLowerCase();
-  const creatorPosts = getDb().posts.filter(
+  const creator = db.creators.find(c => c.handle.toLowerCase() === cleanHandle);
+  if (creator?.status === 'SUSPENDED') {
+    return { photos: [], videos: [], totalPhotos: 0, totalVideos: 0 };
+  }
+  const creatorPosts = db.posts.filter(
     p => p.creatorHandle.toLowerCase() === cleanHandle && p.status === 'PUBLISHED' && p.isPublicPreview === true
   );
 
@@ -3231,6 +3324,31 @@ export function deleteReportAdmin(reportId: string): { success: boolean } {
   return { success: true };
 }
 
+export function listAllSubscriptionsAdmin(): SubscriptionRecord[] {
+  return [...getDb().subscriptions];
+}
+
+export function updateSubscriptionStatusAdmin(
+  subscriptionId: string,
+  status: 'ACTIVE' | 'CANCELLED'
+): { success: boolean; subscription?: SubscriptionRecord } {
+  const db = getDb();
+  const sub = db.subscriptions.find(s => s.id === subscriptionId);
+  if (!sub) return { success: false };
+  sub.status = status;
+  saveDb(db);
+  return { success: true, subscription: sub };
+}
+
+export function deleteSubscriptionAdmin(subscriptionId: string): { success: boolean } {
+  const db = getDb();
+  const idx = db.subscriptions.findIndex(s => s.id === subscriptionId);
+  if (idx === -1) return { success: false };
+  db.subscriptions.splice(idx, 1);
+  saveDb(db);
+  return { success: true };
+}
+
 export function getAdminOverviewData() {
   const db = getDb();
   const activeTxs = db.transactions.filter(t => t.status === 'SUCCESS');
@@ -3263,9 +3381,11 @@ export function getAdminOverviewData() {
       pendingReportsCount: db.reports.filter(r => r.status === 'PENDING').length,
     },
     users: db.users.map(sanitizeUserRecord),
-    creators: listAllCreators(),
+    creators: listAllCreators({ includeSuspended: true }),
     transactions: [...db.transactions],
     reports: [...db.reports],
+    customRequests: [...db.customRequests],
+    subscriptions: [...db.subscriptions],
     settings: { ...db.settings },
   };
 }

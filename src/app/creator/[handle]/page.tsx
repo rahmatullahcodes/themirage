@@ -574,30 +574,35 @@ function CreatorProfileContent() {
       )}
 
       {/* Banner Container */}
-      <div className="relative h-48 sm:h-72 w-full overflow-hidden bg-[#121218]">
-        {creator.banner ? (
-          <img
-            src={creator.banner}
-            alt={creator.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-[#161622] to-[#0c0c12]" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#08080a] via-transparent to-black/30" />
-      </div>
+      {!( !loadingCreator && creatorNotFound ) && (
+        <div className="relative h-48 sm:h-72 w-full overflow-hidden bg-[#121218]">
+          {creator.banner ? (
+            <img
+              src={creator.banner}
+              alt={creator.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-[#161622] to-[#0c0c12]" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#08080a] via-transparent to-black/30" />
+        </div>
+      )}
 
       {/* Profile Header Details */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {!loadingCreator && creatorNotFound && (
-          <div className="my-10 p-8 rounded-3xl bg-[#111118] border border-[#2a2a3a] text-center space-y-3">
-            <h2 className="text-xl font-serif font-bold text-white">Creator Profile Not Found</h2>
-            <p className="text-xs text-[#8c8c9e]">The profile @{cleanHandle} could not be found.</p>
+        {!loadingCreator && creatorNotFound ? (
+          <div className="my-12 p-8 rounded-3xl bg-[#111118] border border-[#2a2a3a] text-center space-y-3">
+            <h2 className="text-xl font-serif font-bold text-white">Creator Profile Unavailable</h2>
+            <p className="text-xs text-[#8c8c9e]">
+              The profile @{cleanHandle} could not be found or is currently suspended.
+            </p>
             <Link href="/explore" className="inline-block px-5 py-2 rounded-full gold-button text-xs font-bold">
               Browse Active Creators
             </Link>
           </div>
-        )}
+        ) : (
+        <>
         <div className="relative -mt-20 sm:-mt-24 mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#1c1c28]">
           {/* Avatar & Identifiers */}
           <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5 text-center sm:text-left">
@@ -1182,6 +1187,8 @@ function CreatorProfileContent() {
             </div>
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

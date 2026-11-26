@@ -9,6 +9,7 @@ import {
   deliverCustomRequest,
   updateCustomRequest,
   deleteCustomRequest,
+  isCreatorSuspended,
 } from '@/lib/contentStore';
 
 export const dynamic = 'force-dynamic';
@@ -71,6 +72,12 @@ export async function POST(req: NextRequest) {
     if (!targetCreator || !title) {
       return NextResponse.json(
         { success: false, message: 'creatorHandle and title are required' },
+        { status: 400 }
+      );
+    }
+    if (isCreatorSuspended(String(targetCreator))) {
+      return NextResponse.json(
+        { success: false, message: 'This creator account is currently suspended.' },
         { status: 400 }
       );
     }

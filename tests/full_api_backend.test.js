@@ -749,6 +749,122 @@ async function runTests() {
   console.log('✓ Test 23: Strict Auth Isolation & Zero Profile-Switching Enforcement verified');
   passed++;
 
+  // 24. Admin Full Dynamic Control: Create User/Creator, Update Media, Suspend Filtering, Orders & Subscriptions
+  const tempSuffix = Date.now();
+  const adminCreateCreator = await request('POST', '/api/admin/creators', {
+    name: 'Admin Created Star',
+    handle: `adminstar-${tempSuffix}`,
+    email: `adminstar-${tempSuffix}@themirage.vip`,
+    password: 'CreatorPass123!',
+    category: 'Glamour',
+    monthlyPrice: 14.99,
+    bio: 'Created directly from Admin Panel.',
+    avatar: '/api/uploads/adminstar-avatar.jpg',
+    banner: '/api/uploads/adminstar-banner.jpg',
+    isVerified: true,
+  }, adminAuth);
+  assert.strictEqual(adminCreateCreator.status, 200, 'Admin POST /api/admin/creators should succeed');
+  const createdCreatorId = adminCreateCreator.data.creator.id;
+  const createdCreatorHandle = adminCreateCreator.data.creator.handle;
+  assert.strictEqual(adminCreateCreator.data.creator.avatar, '/api/uploads/adminstar-avatar.jpg');
+
+  const adminCreateUser = await request('POST', '/api/admin/users', {
+    name: 'Admin Created Member',
+    username: `adminfan_${tempSuffix}`,
+    email: `adminfan-${tempSuffix}@themirage.vip`,
+    password: 'MemberPass123!',
+    role: 'SUBSCRIBER',
+  }, adminAuth);
+  assert.strictEqual(adminCreateUser.status, 200, 'Admin POST /api/admin/users should succeed');
+  const createdUserId = adminCreateUser.data.user.id;
+
+  // Update avatar/banner and suspend creator
+  const adminSuspendCreator = await request('PATCH', '/api/admin/creators', {
+    creatorId: createdCreatorId,
+    avatar: '/api/uploads/adminstar-avatar-v2.jpg',
+    banner: '/api/uploads/adminstar-banner-v2.jpg',
+    status: 'SUSPENDED',
+  }, adminAuth);
+  assert.strictEqual(adminSuspendCreator.status, 200);
+  assert.strictEqual(adminSuspendCreator.data.creator.status, 'SUSPENDED');
+  assert.strictEqual(adminSuspendCreator.data.creator.avatar, '/api/uploads/adminstar-avatar-v2.jpg');
+
+  // Public creators list must hide suspended creator, while Admin creators & overview still show it
+  const pubAfterSuspend = await request('GET', `/api/creators?handle=${encodeURIComponent(createdCreatorHandle)}`);
+  assert.strictEqual(pubAfterSuspend.status, 200);
+  assert.strictEqual(pubAfterSuspend.data.creators.length, 0, 'Suspended creator must be hidden from public discovery');
+
+  const adminListAfterSuspend = await request('GET', '/api/admin/creators', null, adminAuth);
+  assert.strictEqual(adminListAfterSuspend.status, 200);
+  assert.ok(adminListAfterSuspend.data.creators.some((c) => c.id === createdCreatorId), 'Admin list must still retain suspended creator');
+
+  // Suspended creator must reject new subscriptions and custom requests
+  const blockedSub = await request('POST', '/api/subscriptions/checkout', {
+    creatorId: createdCreatorId,
+    amount: 14.99,
+  }, newSubAuth);
+  assert.strictEqual(blockedSub.status, 400, 'Checkout for suspended creator must fail cleanly');
+
+  const blockedOrder = await request('POST', '/api/custom-requests', {
+    creatorHandle: createdCreatorHandle,
+    title: 'Blocked Suspended Order',
+    price: 30,
+  }, newSubAuth);
+  assert.strictEqual(blockedOrder.status, 400, 'Custom request for suspended creator must fail cleanly');
+
+  // Reactivate creator -> test custom order & subscription management via Admin
+  const adminReactivate = await request('PATCH', '/api/admin/creators', {
+    creatorId: createdCreatorId,
+    status: 'ACTIVE',
+  }, adminAuth);
+  assert.strictEqual(adminReactivate.status, 200);
+  assert.strictEqual(adminReactivate.data.creator.status, 'ACTIVE');
+
+  const subActiveRes = await request('POST', '/api/subscriptions/checkout', {
+    creatorId: createdCreatorId,
+    amount: 14.99,
+  }, newSubAuth);
+  assert.strictEqual(subActiveRes.status, 200);
+
+  const adminSubsList = await request('GET', '/api/admin/subscriptions', null, adminAuth);
+  assert.strictEqual(adminSubsList.status, 200);
+  const matchingSub = adminSubsList.data.subscriptions.find((s) => s.creatorId === createdCreatorId);
+  assert.ok(matchingSub, 'Admin subscriptions endpoint must list active subscription');
+
+  const adminCancelSub = await request('PATCH', '/api/admin/subscriptions', {
+    subscriptionId: matchingSub.id,
+    status: 'CANCELLED',
+  }, adminAuth);
+  assert.strictEqual(adminCancelSub.status, 200);
+  assert.strictEqual(adminCancelSub.data.subscription.status, 'CANCELLED');
+
+  const adminOrderCreate = await request('POST', '/api/custom-requests', {
+    creatorHandle: createdCreatorHandle,
+    customerId: createdUserId,
+    title: 'Admin Managed Order',
+    price: 45,
+    paid: true,
+  }, adminAuth);
+  assert.strictEqual(adminOrderCreate.status, 200);
+  const adminOrderId = adminOrderCreate.data.request.id;
+
+  const adminOrderDeliver = await request('PATCH', '/api/custom-requests', {
+    requestId: adminOrderId,
+    action: 'DELIVER',
+    deliveredMediaUrl: '/api/uploads/admin-delivered.mp4',
+  }, adminAuth);
+  assert.strictEqual(adminOrderDeliver.status, 200);
+  assert.strictEqual(adminOrderDeliver.data.request.status, 'DELIVERED');
+
+  // Cleanup temp records
+  await request('DELETE', `/api/custom-requests?requestId=${encodeURIComponent(adminOrderId)}`, null, adminAuth);
+  await request('DELETE', `/api/admin/subscriptions?subscriptionId=${encodeURIComponent(matchingSub.id)}`, null, adminAuth);
+  assert.strictEqual((await request('DELETE', `/api/admin/creators?creatorId=${encodeURIComponent(createdCreatorId)}`, null, adminAuth)).status, 200);
+  assert.strictEqual((await request('DELETE', `/api/admin/users?userId=${encodeURIComponent(createdUserId)}`, null, adminAuth)).status, 200);
+
+  console.log('✓ Test 24: Admin Full Dynamic Management, Suspension Filtering, Orders & Subscriptions verified');
+  passed++;
+
   console.log('\n================================================================');
   console.log(` ALL ${passed}/${passed} FULL-STACK E2E API & BACKEND TESTS PASSED! ✓`);
   console.log('================================================================');
