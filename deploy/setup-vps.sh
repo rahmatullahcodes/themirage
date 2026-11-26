@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# The Mirage - Hostinger Ubuntu VPS Live Deployment Script
+# The Mirage - Hostinger Ubuntu 22.04 LTS Live Deployment Script
 # Target VPS: 189.105.33.15 (srv2199443.hstgr.cloud)
-# Usage: bash setup-vps.sh [optional-domain.com]
+# Default Domain: themirage.world
+# Usage: bash setup-vps.sh [domain]
 
-DOMAIN="${1:-189.105.33.15}"
+DOMAIN="${1:-themirage.world}"
+VPS_IP="189.105.33.15"
 APP_DIR="/var/www/the-mirage"
 REPO_URL="https://github.com/rahmatullahcodes/themirage.git"
 
@@ -15,12 +17,13 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 echo "================================================================"
-echo " Deploying The Mirage to Hostinger Ubuntu VPS ($DOMAIN)"
+echo " Deploying The Mirage to Hostinger Ubuntu VPS ($VPS_IP)"
+echo " Domain Configured: $DOMAIN"
 echo "================================================================"
 
 # 1. System packages & firewall
 $SUDO apt-get update -y
-$SUDO apt-get install -y curl git nginx ufw openssl
+$SUDO apt-get install -y curl git nginx ufw openssl dnsutils certbot python3-certbot-nginx
 
 # Allow SSH + HTTP + HTTPS before enabling UFW
 $SUDO ufw allow OpenSSH >/dev/null 2>&1 || $SUDO ufw allow 22/tcp
@@ -84,7 +87,7 @@ HOSTNAME=0.0.0.0
 NODE_ENV=production
 DATABASE_URL="postgresql://postgres:password@localhost:5432/the_mirage_db?schema=public"
 JWT_SECRET="${JWT_SECRET_GEN}"
-NEXT_PUBLIC_APP_URL="http://${DOMAIN}"
+NEXT_PUBLIC_APP_URL="https://${DOMAIN}"
 CREATOR_COMMISSION_PERCENT=85
 PLATFORM_COMMISSION_PERCENT=15
 PAYMENT_GATEWAY_ENV=sandbox
@@ -100,11 +103,7 @@ npm run build
 
 # 7. Configure Nginx Reverse Proxy
 echo "[6/6] Configuring Nginx & PM2..."
-if [ "$DOMAIN" = "189.105.33.15" ]; then
-  SERVER_NAMES="189.105.33.15 srv2199443.hstgr.cloud _"
-else
-  SERVER_NAMES="${DOMAIN} www.${DOMAIN} 189.105.33.15 srv2199443.hstgr.cloud"
-fi
+SERVER_NAMES="${DOMAIN} www.${DOMAIN} ${VPS_IP} srv2199443.hstgr.cloud _"
 
 $SUDO tee /etc/nginx/sites-available/the-mirage >/dev/null <<EOF
 server {
@@ -157,12 +156,30 @@ pm2 startOrRestart "$APP_DIR/ecosystem.config.cjs" --update-env
 pm2 save
 $SUDO env PATH="$PATH:/usr/bin:/usr/local/bin" pm2 startup systemd -u "$CURRENT_USER" --hp "$HOME" >/dev/null 2>&1 || true
 
-sleep 3
+# Check DNS and automatically issue free Let's Encrypt SSL if DNS points to this VPS
+RESOLVED_IP=$(dig +short "$DOMAIN" A | tail -n1 || true)
+SSL_ENABLED=false
+if [ "$RESOLVED_IP" = "$VPS_IP" ]; then
+  echo "DNS matches $VPS_IP! Issuing Let's Encrypt HTTPS SSL certificate..."
+  if $SUDO certbot --nginx -d "$DOMAIN" -d "www.$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect; then
+    SSL_ENABLED=true
+  elif $SUDO certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect; then
+    SSL_ENABLED=true
+  fi
+fi
+
+sleep 2
 echo ""
 echo "================================================================"
 echo " Health Check:"
 curl -sS http://127.0.0.1/api/health || true
 echo ""
-echo " LIVE URL: http://${DOMAIN}"
-echo " Hostname URL: http://srv2199443.hstgr.cloud"
+echo " Direct IP URL:  http://${VPS_IP}"
+echo " Hostname URL:   http://srv2199443.hstgr.cloud"
+if [ "$SSL_ENABLED" = true ]; then
+  echo " Live Domain:    https://${DOMAIN} (SSL Active!)"
+else
+  echo " Domain URL:     http://${DOMAIN} (Update A record -> ${VPS_IP}, then run:)"
+  echo "   certbot --nginx -d ${DOMAIN} -d www.${DOMAIN} --non-interactive --agree-tos --register-unsafely-without-email --redirect"
+fi
 echo "================================================================"
