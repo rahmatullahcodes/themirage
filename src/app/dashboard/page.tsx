@@ -103,6 +103,14 @@ export default function UserDashboard() {
         router.replace('/login?redirect=/dashboard');
         return;
       }
+      if (sessionUser.role === 'CREATOR') {
+        router.replace('/creator-studio');
+        return;
+      }
+      if (sessionUser.role === 'ADMIN') {
+        router.replace('/admin');
+        return;
+      }
       setUser(sessionUser);
       setProfileName(sessionUser.name || '');
       setProfileBio(sessionUser.bio || '');

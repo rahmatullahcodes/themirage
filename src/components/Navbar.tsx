@@ -136,6 +136,20 @@ export default function Navbar() {
     }
   };
 
+  const portalHref =
+    user?.role === 'CREATOR'
+      ? '/creator-studio'
+      : user?.role === 'ADMIN'
+      ? '/admin'
+      : '/dashboard';
+
+  const portalLabel =
+    user?.role === 'CREATOR'
+      ? 'Creator Studio'
+      : user?.role === 'ADMIN'
+      ? 'Admin Panel'
+      : 'My Dashboard';
+
   const navLinkClass = (path: string) =>
     `text-sm font-medium transition-colors ${
       pathname === path ? 'text-[#f5d77f] font-semibold' : 'text-[#94a3b8] hover:text-[#d4af37]'
@@ -221,7 +235,7 @@ export default function Navbar() {
                         notifications.map((n) => (
                           <Link
                             key={n.id}
-                            href={n.type === 'chat' ? '/chat' : '/dashboard'}
+                            href={n.type === 'chat' ? '/chat' : portalHref}
                             onClick={() => setShowNotifications(false)}
                             className="block p-2.5 rounded-xl bg-[#171722] hover:bg-[#1d1d2b] transition-colors"
                           >
@@ -248,36 +262,29 @@ export default function Navbar() {
                 <span className="absolute top-1 right-1 w-2 h-2 bg-[#d4af37] rounded-full animate-pulse"></span>
               </Link>
 
-              {user.role === 'CREATOR' && (
-                <Link
-                  href="/creator-studio"
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-full bg-[#1b1b24] border border-[#d4af37]/40 text-[#f5d77f] hover:bg-[#d4af37]/10 transition-colors"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Studio
-                </Link>
-              )}
-
-              {user.role === 'ADMIN' && (
-                <Link
-                  href="/admin"
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-full bg-[#201515] border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors"
-                >
-                  <Shield className="w-3.5 h-3.5" />
-                  Admin
-                </Link>
-              )}
-
               <Link
-                href="/dashboard"
-                className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-full bg-[#16161d] border border-[#2e2e3c] text-white hover:border-[#d4af37] transition-colors"
+                href={portalHref}
+                className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-full border transition-colors ${
+                  user.role === 'ADMIN'
+                    ? 'bg-[#201515] border-red-500/40 text-red-300 hover:border-red-400'
+                    : user.role === 'CREATOR'
+                    ? 'bg-[#1b1b24] border-[#d4af37]/40 text-[#f5d77f] hover:bg-[#d4af37]/10'
+                    : 'bg-[#16161d] border-[#2e2e3c] text-white hover:border-[#d4af37]'
+                }`}
+                title={portalLabel}
               >
                 {user.avatar ? (
                   <img src={user.avatar} alt={user.name} className="w-5 h-5 rounded-full object-cover border border-[#d4af37]/50" />
+                ) : user.role === 'CREATOR' ? (
+                  <Sparkles className="w-3.5 h-3.5 text-[#f5d77f]" />
+                ) : user.role === 'ADMIN' ? (
+                  <Shield className="w-3.5 h-3.5 text-red-400" />
                 ) : (
                   <LayoutDashboard className="w-3.5 h-3.5 text-[#d4af37]" />
                 )}
-                <span className="max-w-[90px] truncate">{user.name || 'Dashboard'}</span>
+                <span className="max-w-[110px] truncate">
+                  {user.role === 'CREATOR' ? 'Creator Studio' : user.role === 'ADMIN' ? 'Admin Panel' : user.name || 'Dashboard'}
+                </span>
               </Link>
 
               <button
@@ -402,30 +409,18 @@ export default function Navbar() {
                 >
                   Direct Messages
                 </Link>
-                {user.role === 'CREATOR' && (
-                  <Link
-                    href="/creator-studio"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="px-4 py-2 text-center text-sm font-semibold rounded-lg bg-[#1b1b24] border border-[#d4af37]/40 text-[#f5d77f]"
-                  >
-                    Creator Studio
-                  </Link>
-                )}
-                {user.role === 'ADMIN' && (
-                  <Link
-                    href="/admin"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="px-4 py-2 text-center text-sm font-semibold rounded-lg bg-[#201515] border border-red-500/40 text-red-400"
-                  >
-                    Admin Panel
-                  </Link>
-                )}
                 <Link
-                  href="/dashboard"
+                  href={portalHref}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="px-4 py-2 text-center text-sm font-semibold rounded-lg bg-[#1a1a24] text-white"
+                  className={`px-4 py-2 text-center text-sm font-semibold rounded-lg border ${
+                    user.role === 'ADMIN'
+                      ? 'bg-[#201515] border-red-500/40 text-red-400'
+                      : user.role === 'CREATOR'
+                      ? 'bg-[#1b1b24] border-[#d4af37]/40 text-[#f5d77f]'
+                      : 'bg-[#1a1a24] border-[#2a2a38] text-white'
+                  }`}
                 >
-                  My Dashboard
+                  {portalLabel}
                 </Link>
                 <button
                   type="button"

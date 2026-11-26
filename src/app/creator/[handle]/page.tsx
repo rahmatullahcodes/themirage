@@ -333,6 +333,25 @@ function CreatorProfileContent() {
     );
   };
 
+  const handleSubscribedPortalRedirect = () => {
+    if (!isSubscribed) {
+      setShowSubscribeModal(true);
+      return;
+    }
+    try {
+      const u = JSON.parse(localStorage.getItem('mirage_user') || '{}');
+      if (u?.role === 'CREATOR') {
+        router.push('/creator-studio');
+        return;
+      }
+      if (u?.role === 'ADMIN') {
+        router.push('/admin');
+        return;
+      }
+    } catch {}
+    router.push('/dashboard');
+  };
+
   // Filter posts according to active tab
   const filteredPosts = posts.filter(post => {
     if (activeTab === 'posts') return true;
@@ -657,7 +676,7 @@ function CreatorProfileContent() {
               </button>
               <button
                 type="button"
-                onClick={() => (isSubscribed ? router.push('/dashboard') : setShowSubscribeModal(true))}
+                onClick={handleSubscribedPortalRedirect}
                 className="flex-1 sm:flex-none px-7 py-2.5 rounded-full gold-button text-xs font-bold shadow-gold-sm"
               >
                 {isSubscribed ? 'Subscribed ✓' : `Subscribe $${creator.monthlyPrice.toFixed(2)}/mo`}
@@ -1136,7 +1155,7 @@ function CreatorProfileContent() {
               </ul>
               <button
                 type="button"
-                onClick={() => (isSubscribed ? router.push('/dashboard') : setShowSubscribeModal(true))}
+                onClick={handleSubscribedPortalRedirect}
                 className="w-full py-3 rounded-xl gold-button text-xs font-bold shadow-gold-sm cursor-pointer"
               >
                 {isSubscribed ? 'Manage Subscription' : `Subscribe for $${creator.monthlyPrice.toFixed(2)}`}

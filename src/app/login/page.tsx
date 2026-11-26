@@ -39,9 +39,17 @@ function LoginForm() {
       if (data.user.role === 'ADMIN') {
         router.push('/admin');
       } else if (data.user.role === 'CREATOR') {
-        router.push('/creator-studio');
+        if (redirectPath.startsWith('/creator/') || redirectPath.startsWith('/chat')) {
+          router.push(redirectPath);
+        } else {
+          router.push('/creator-studio');
+        }
       } else {
-        router.push(redirectPath);
+        if (redirectPath.startsWith('/admin') || redirectPath.startsWith('/creator-studio')) {
+          router.push('/dashboard');
+        } else {
+          router.push(redirectPath);
+        }
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
