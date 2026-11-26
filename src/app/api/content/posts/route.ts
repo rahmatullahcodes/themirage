@@ -8,6 +8,7 @@ import {
   createCreatorPost,
   updatePostDetails,
   deletePost,
+  incrementPostLike,
   MediaType,
   Visibility,
   PostStatus,
@@ -122,7 +123,15 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { postId, creatorId = 'c1', updates } = body;
+    const { postId, creatorId = 'c1', updates, action } = body;
+
+    if (action === 'LIKE' && postId) {
+      const likeRes = incrementPostLike(postId);
+      if (!likeRes.success) {
+        return NextResponse.json({ success: false, message: 'Post not found' }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, post: likeRes.post });
+    }
 
     if (!postId || !updates) {
       return NextResponse.json(

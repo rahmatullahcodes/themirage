@@ -98,11 +98,19 @@ const CATEGORIES = [
 
 export default function HomePage() {
   const [featuredCreators, setFeaturedCreators] = useState(FEATURED_CREATORS);
+  const [stats, setStats] = useState({
+    totalCreators: 0,
+    totalMembers: 0,
+    creatorCommissionPercent: 85,
+  });
 
   useEffect(() => {
     fetch('/api/creators', { cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => {
+        if (d?.stats) {
+          setStats((prev) => ({ ...prev, ...d.stats }));
+        }
         if (d?.success && Array.isArray(d.creators) && d.creators.length > 0) {
           const mapped = d.creators.slice(0, 5).map((c: any) => ({
             id: c.id,
@@ -119,6 +127,9 @@ export default function HomePage() {
       })
       .catch(() => {});
   }, []);
+
+  const heroCreator = featuredCreators[0];
+  const previewCreator = featuredCreators[1] || featuredCreators[0];
 
   return (
     <div className="min-h-screen bg-[#08080a] text-white">
@@ -171,16 +182,22 @@ export default function HomePage() {
               {/* Platform Statistics Row */}
               <div className="grid grid-cols-3 gap-4 pt-6 border-t border-[#1c1c28]">
                 <div>
-                  <div className="text-lg sm:text-xl font-bold font-serif text-white">10K+</div>
-                  <div className="text-[10px] text-[#717182] uppercase tracking-wider mt-0.5">Active Creators</div>
+                  <div className="text-lg sm:text-xl font-bold font-serif text-white">
+                    {stats.totalCreators > 0 ? stats.totalCreators : '9'}+
+                  </div>
+                  <div className="text-[10px] text-[#717182] uppercase tracking-wider mt-0.5">Verified Creators</div>
                 </div>
                 <div>
-                  <div className="text-lg sm:text-xl font-bold font-serif text-white">100K+</div>
-                  <div className="text-[10px] text-[#717182] uppercase tracking-wider mt-0.5">Happy Subscribers</div>
+                  <div className="text-lg sm:text-xl font-bold font-serif text-white">
+                    {stats.totalMembers > 0 ? stats.totalMembers : '10'}+
+                  </div>
+                  <div className="text-[10px] text-[#717182] uppercase tracking-wider mt-0.5">Active Members</div>
                 </div>
                 <div>
-                  <div className="text-lg sm:text-xl font-bold font-serif text-white">100%</div>
-                  <div className="text-[10px] text-[#717182] uppercase tracking-wider mt-0.5">Secure & Private</div>
+                  <div className="text-lg sm:text-xl font-bold font-serif text-white">
+                    {stats.creatorCommissionPercent}%
+                  </div>
+                  <div className="text-[10px] text-[#717182] uppercase tracking-wider mt-0.5">Creator Revenue</div>
                 </div>
               </div>
             </div>
@@ -189,8 +206,8 @@ export default function HomePage() {
             <div className="lg:col-span-4 relative flex items-center justify-center">
               <div className="relative w-full max-w-[370px] aspect-[3/4] rounded-3xl overflow-hidden border border-[#d4af37]/30 shadow-2xl">
                 <img
-                  src={HERO_CREATOR_IMG}
-                  alt="Featured Creator"
+                  src={heroCreator?.image || HERO_CREATOR_IMG}
+                  alt={heroCreator?.name || 'Featured Creator'}
                   className="w-full h-full object-cover object-center"
                 />
 
@@ -253,11 +270,11 @@ export default function HomePage() {
 
               {/* Watch Previews Video Thumbnail Card */}
               <Link
-                href="/creator/luna-rae"
+                href={`/creator/${previewCreator?.handle || 'luna-rae'}`}
                 className="relative block rounded-2xl overflow-hidden border border-[#242434] aspect-[16/10] group cursor-pointer shadow-lg"
               >
                 <img
-                  src={PREVIEW_VIDEO_IMG}
+                  src={previewCreator?.image || PREVIEW_VIDEO_IMG}
                   alt="Watch Previews"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
@@ -380,7 +397,7 @@ export default function HomePage() {
             <div className="lg:col-span-3 flex justify-center lg:justify-start">
               <div className="relative w-36 h-36 sm:w-44 sm:h-44 rounded-full p-1 bg-gradient-to-tr from-[#d4af37] via-[#f5d77f] to-[#aa820a] shadow-gold-glow">
                 <img
-                  src={PROMO_MODEL_IMG}
+                  src={previewCreator?.image || PROMO_MODEL_IMG}
                   alt="Creator on The Mirage"
                   className="w-full h-full object-cover rounded-full"
                 />
@@ -427,7 +444,7 @@ export default function HomePage() {
                 <div className="flex items-center justify-center gap-2 mb-1.5">
                   <Crown className="w-5 h-5 text-[#f5d77f]" />
                   <span className="text-base sm:text-lg font-serif font-bold text-white tracking-wide">
-                    Higher Earning Potential
+                    Keep {stats.creatorCommissionPercent}% Revenue
                   </span>
                 </div>
                 <p className="text-[11px] text-[#cbd5e1] leading-relaxed">

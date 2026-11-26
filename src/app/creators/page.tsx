@@ -1,82 +1,19 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { Search, Crown, CheckCircle2, SlidersHorizontal } from 'lucide-react';
+import { Search } from 'lucide-react';
 import FeaturedCreatorCard from '@/components/FeaturedCreatorCard';
-
-const ALL_CREATORS = [
-  {
-    id: 'c1',
-    name: 'Luna Rae',
-    handle: 'luna-rae',
-    followers: '128K',
-    price: 9.99,
-    image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
-    category: 'Popular',
-    isVerified: true,
-  },
-  {
-    id: 'c3',
-    name: 'Mia Carter',
-    handle: 'mia-carter',
-    followers: '95K',
-    price: 7.99,
-    image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80',
-    category: 'Lifestyle',
-    isVerified: true,
-  },
-  {
-    id: 'c2',
-    name: 'Sophie Lee',
-    handle: 'sophie-lee',
-    followers: '180K',
-    price: 9.99,
-    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
-    category: 'Cosplay',
-    isVerified: true,
-  },
-  {
-    id: 'c4',
-    name: 'Zara Khan',
-    handle: 'zara-khan',
-    followers: '210K',
-    price: 12.99,
-    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=80',
-    category: 'Fetish',
-    isVerified: true,
-  },
-  {
-    id: 'c9',
-    name: 'Ellie',
-    handle: 'ellie',
-    followers: '165K',
-    price: 9.99,
-    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
-    category: 'Fetish',
-    isVerified: true,
-  },
-  {
-    id: 'c5',
-    name: 'Emily Rose',
-    handle: 'emily-rose',
-    followers: '98K',
-    price: 8.99,
-    image: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=600&q=80',
-    category: 'Fitness',
-    isVerified: true,
-  },
-];
 
 export default function CreatorsDirectoryPage() {
   const [search, setSearch] = useState('');
-  const [creatorsList, setCreatorsList] = useState(ALL_CREATORS);
+  const [creatorsList, setCreatorsList] = useState<any[]>([]);
+  const [loadingCreators, setLoadingCreators] = useState(true);
 
   useEffect(() => {
     fetch('/api/creators', { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
-        if (data?.success && Array.isArray(data.creators) && data.creators.length > 0) {
+        if (data?.success && Array.isArray(data.creators)) {
           setCreatorsList(
             data.creators.map((c: any) => ({
               id: c.id,
@@ -91,7 +28,8 @@ export default function CreatorsDirectoryPage() {
           );
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoadingCreators(false));
   }, []);
 
   const filtered = creatorsList.filter(c =>
@@ -125,7 +63,13 @@ export default function CreatorsDirectoryPage() {
           </div>
         </div>
 
-        {filtered.length > 0 ? (
+        {loadingCreators ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="aspect-[4/5] rounded-2xl bg-[#111116] border border-[#22222c] animate-pulse" />
+            ))}
+          </div>
+        ) : filtered.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {filtered.map((creator) => (
               <FeaturedCreatorCard

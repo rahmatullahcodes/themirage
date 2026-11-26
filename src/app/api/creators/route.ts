@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { listAllCreators, updateCreatorProfileSettings } from '@/lib/contentStore';
+import { listAllCreators, updateCreatorProfileSettings, getPublicPlatformStats } from '@/lib/contentStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,10 +12,12 @@ export async function GET(req: NextRequest) {
     const handle = searchParams.get('handle') || undefined;
 
     const creators = listAllCreators({ category, q, sort, handle });
+    const stats = getPublicPlatformStats();
     return NextResponse.json({
       success: true,
       count: creators.length,
       creators,
+      stats,
     });
   } catch (error: any) {
     return NextResponse.json(

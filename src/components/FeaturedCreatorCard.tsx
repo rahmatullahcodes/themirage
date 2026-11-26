@@ -50,7 +50,23 @@ export default function FeaturedCreatorCard({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            setLiked(!liked);
+            const nextState = !liked;
+            setLiked(nextState);
+            try {
+              const rawUser = localStorage.getItem('mirage_user');
+              const uid = rawUser ? JSON.parse(rawUser)?.id || 'usr-1' : 'usr-1';
+              if (nextState) {
+                fetch('/api/user/follows', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ userId: uid, handle: safeHandle }),
+                }).catch(() => {});
+              } else {
+                fetch(`/api/user/follows?userId=${encodeURIComponent(uid)}&handle=${encodeURIComponent(safeHandle)}`, {
+                  method: 'DELETE',
+                }).catch(() => {});
+              }
+            } catch {}
           }}
           className={`absolute top-3 right-3 p-2 rounded-full backdrop-blur-md transition-colors ${
             liked

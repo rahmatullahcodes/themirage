@@ -595,6 +595,19 @@ async function runTests() {
   assert.strictEqual(ellieUserSyncRes.status, 200);
   assert.strictEqual(ellieUserSyncRes.data.user.avatar, '/api/uploads/ellie-avatar-updated.jpg');
 
+  // Public stats + Post Like persistence check
+  const creatorsStatsRes = await request('GET', '/api/creators');
+  assert.strictEqual(creatorsStatsRes.status, 200);
+  assert.ok(creatorsStatsRes.data.stats.totalCreators > 0);
+  assert.ok(creatorsStatsRes.data.stats.creatorCommissionPercent > 0);
+
+  const likePostRes = await request('PATCH', '/api/content/posts', {
+    postId: 'post-luna-prev-img-1',
+    action: 'LIKE',
+  });
+  assert.strictEqual(likePostRes.status, 200);
+  assert.ok(likePostRes.data.post.likeCount > 0);
+
   console.log('✓ Test 22: Two-Way 1-on-1 Chat & Dynamic User/Creator Profile Avatar Sync verified');
   passed++;
 

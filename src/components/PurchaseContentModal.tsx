@@ -70,7 +70,7 @@ export default function PurchaseContentModal({
       }
 
       let currentUserId = 'usr-1';
-      let currentUserName = 'Alex Mercer';
+      let currentUserName = 'Member';
       try {
         const storedUser = localStorage.getItem('mirage_user');
         if (storedUser) {

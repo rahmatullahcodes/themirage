@@ -1,10 +1,28 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Crown, CheckCircle2, ArrowRight, ShieldCheck, Sparkles, Heart } from 'lucide-react';
 
 export default function PricingPage() {
+  const [stats, setStats] = useState({
+    minMonthlyPrice: 4.99,
+    creatorCommissionPercent: 85,
+    platformCommissionPercent: 15,
+    totalCreators: 0,
+  });
+
+  useEffect(() => {
+    fetch('/api/creators', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.stats) {
+          setStats((prev) => ({ ...prev, ...d.stats }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#08080a] text-white py-16">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
@@ -36,7 +54,7 @@ export default function PricingPage() {
               <div className="text-2xl font-bold text-white font-serif pt-2">
                 Pay Per Creator
                 <span className="text-xs text-[#7c7c90] font-sans font-normal block mt-1">
-                  Starting from $4.99 / month • Cancel anytime
+                  Starting from ${Number(stats.minMonthlyPrice || 4.99).toFixed(2)} / month • Cancel anytime
                 </span>
               </div>
 
@@ -85,10 +103,10 @@ export default function PricingPage() {
 
               <div className="pt-2">
                 <div className="text-2xl sm:text-3xl font-black font-serif text-[#f5d77f]">
-                  Higher Earning Potential
+                  Keep {stats.creatorCommissionPercent}% Revenue
                 </div>
                 <span className="text-xs text-[#8c8c9e] font-sans font-normal block mt-1">
-                  Transparent platform terms • No upfront fees
+                  Live {stats.creatorCommissionPercent}% Creator / {stats.platformCommissionPercent}% Platform split • No upfront fees
                 </span>
               </div>
 

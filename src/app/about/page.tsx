@@ -1,10 +1,26 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Crown, Shield, Sparkles, Heart, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export default function AboutPage() {
+  const [stats, setStats] = useState({
+    totalCreators: 0,
+    totalMembers: 0,
+    creatorCommissionPercent: 85,
+    platformCommissionPercent: 15,
+  });
+
+  useEffect(() => {
+    fetch('/api/creators', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.stats) setStats((prev) => ({ ...prev, ...d.stats }));
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#08080a] text-white py-16">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
@@ -31,9 +47,9 @@ export default function AboutPage() {
             <div className="w-10 h-10 rounded-xl bg-[#181824] flex items-center justify-center text-[#f5d77f]">
               <Crown className="w-5 h-5" />
             </div>
-            <h3 className="text-base font-serif font-bold text-white">Higher Earning Potential</h3>
+            <h3 className="text-base font-serif font-bold text-white">Keep {stats.creatorCommissionPercent}% of Every Dollar</h3>
             <p className="text-xs text-[#8c8c9e] leading-relaxed">
-              We believe creators should keep the overwhelming majority of the value they generate. Our creator-first model allows creators to thrive with higher earning potential and sustainable income.
+              We believe creators should keep the overwhelming majority of the value they generate ({stats.creatorCommissionPercent}% creator payout / {stats.platformCommissionPercent}% platform cut across subscriptions, PPV, and custom orders).
             </p>
           </div>
 
@@ -64,7 +80,7 @@ export default function AboutPage() {
             Ready to Experience The Mirage?
           </h2>
           <p className="text-xs sm:text-sm text-[#94a3af] max-w-lg mx-auto">
-            Join thousands of active creators and subscribers in the next generation of creator subscription platforms.
+            Join {stats.totalCreators > 0 ? `${stats.totalCreators}+ verified creators` : 'our active creators'} and subscribers in the next generation of creator subscription platforms.
           </p>
           <div className="flex justify-center gap-4 pt-2">
             <Link

@@ -71,48 +71,6 @@ export default function SubscribeModal({
         throw new Error(data.error || data.message || 'Failed to complete checkout');
       }
 
-      // Persist subscription in localStorage so Dashboard Active Subscriptions stays synced
-      try {
-        const cleanSubHandle = creator.handle.replace(/^@/, '').toLowerCase();
-        const storedSubs = localStorage.getItem('mirage_subscriptions');
-        const subsList: any[] = storedSubs ? JSON.parse(storedSubs) : [
-          {
-            id: 'sub-1',
-            creatorName: 'Luna Rae',
-            creatorHandle: 'luna-rae',
-            avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-            price: 9.99,
-            status: 'ACTIVE',
-            nextBilling: 'November 21, 2026',
-          },
-          {
-            id: 'sub-2',
-            creatorName: 'Sophie Lee',
-            creatorHandle: 'sophie-lee',
-            avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
-            price: 9.99,
-            status: 'ACTIVE',
-            nextBilling: 'November 18, 2026',
-          },
-        ];
-        if (!subsList.some(s => (s.creatorHandle || '').replace(/^@/, '').toLowerCase() === cleanSubHandle)) {
-          subsList.push({
-            id: data?.subscription?.id || `sub-${Date.now()}`,
-            creatorName: creator.name,
-            creatorHandle: cleanSubHandle,
-            avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-            price: creator.price,
-            status: 'ACTIVE',
-            nextBilling: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
-              month: 'long',
-              day: 'numeric',
-              year: 'numeric',
-            }),
-          });
-          localStorage.setItem('mirage_subscriptions', JSON.stringify(subsList));
-        }
-      } catch (e) {}
-
       setSuccess(true);
       setTimeout(() => {
         if (onSuccess) onSuccess();

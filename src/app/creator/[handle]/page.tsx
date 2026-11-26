@@ -65,323 +65,6 @@ export interface PreviewVideoItem {
   likes?: number;
 }
 
-const CREATOR_DATA: Record<string, any> = {
-  'luna-rae': {
-    name: 'Luna Rae',
-    handle: '@luna-rae',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
-    banner: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1400&q=80',
-    bio: 'Fashion model, fitness enthusiast and creative visual storyteller. Sharing my exclusive lifestyle, behind the scenes, and direct chat moments with you.',
-    monthlyPrice: 9.99,
-    followersCount: '128K',
-    postsCount: 48,
-    likesCount: '340K',
-    category: 'Popular',
-    photoPreviews: [
-      {
-        id: 'post-luna-prev-img-1',
-        title: 'Santorini Sunset Editorial',
-        caption: 'Golden hour shot over Oia cliffs. One of my favorite looks from the summer campaign.',
-        mediaUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1600&q=90',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
-        likes: 1420,
-      },
-      {
-        id: 'post-luna-prev-img-2',
-        title: 'Parisian Morning Bloom',
-        caption: 'Early morning coffee on the private balcony overlooking the city.',
-        mediaUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1600&q=90',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80',
-        likes: 980,
-      },
-      {
-        id: 'post-luna-prev-img-3',
-        title: 'Milan Haute Couture Session',
-        caption: 'Studio lighting test before Milan Fashion Week runway show.',
-        mediaUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1600&q=90',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80',
-        likes: 1650,
-      },
-    ],
-    videoPreviews: [
-      {
-        id: 'post-luna-prev-vid-1',
-        title: 'Paris Runway Fashion Week Teaser',
-        caption: 'Exclusive backstage sneak peek into the 2026 autumn runway collection.',
-        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=800&q=80',
-        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        videoDuration: '0:45',
-        likes: 2310,
-      },
-      {
-        id: 'post-luna-prev-vid-2',
-        title: 'Sunset Studio BTS Clip',
-        caption: 'Behind the lens of our private coastal editorial shoot.',
-        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80',
-        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        videoDuration: '1:15',
-        likes: 3120,
-      },
-    ],
-  },
-  'mia-carter': {
-    name: 'Mia Carter',
-    handle: '@mia-carter',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80',
-    banner: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1400&q=80',
-    bio: 'Lifestyle creator, wellness guide, and everyday glamour enthusiast. Join my private community for daily looks, personal vlogs, and 1-on-1 chats.',
-    monthlyPrice: 7.99,
-    followersCount: '95K',
-    postsCount: 42,
-    likesCount: '290K',
-    category: 'Lifestyle',
-    photoPreviews: [
-      {
-        id: 'post-mia-prev-img-1',
-        title: 'Golden Sunset Terrace',
-        caption: 'Unwinding after an all-day editorial session in Malibu.',
-        mediaUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1600&q=90',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80',
-        likes: 1240,
-      },
-      {
-        id: 'post-mia-prev-img-2',
-        title: 'Summer Glow Portrait',
-        caption: 'Natural lighting and warm reflections in my studio.',
-        mediaUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1600&q=90',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
-        likes: 1105,
-      },
-      {
-        id: 'post-mia-prev-img-3',
-        title: 'Evening Elegance in Black & Gold',
-        caption: 'Sneak preview from our private luxury gallery release.',
-        mediaUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1600&q=90',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80',
-        likes: 1480,
-      },
-    ],
-    videoPreviews: [
-      {
-        id: 'post-mia-prev-vid-1',
-        title: 'Malibu Sunset Studio Vlog',
-        caption: 'Sneak peek into my daily creative routine and studio setup.',
-        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80',
-        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        videoDuration: '0:50',
-        likes: 2190,
-      },
-      {
-        id: 'post-mia-prev-vid-2',
-        title: 'Behind the Scenes — Glamour Look',
-        caption: 'Full backstage lighting test and camera prep.',
-        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80',
-        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        videoDuration: '1:10',
-        likes: 2850,
-      },
-    ],
-  },
-  'sophie-lee': {
-    name: 'Sophie Lee',
-    handle: '@sophie-lee',
-    avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
-    banner: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1400&q=80',
-    bio: 'Tokyo-based editorial model and visual creator. Neon aesthetics, travel cinematography, and private subscriber logs.',
-    monthlyPrice: 9.99,
-    followersCount: '180K',
-    postsCount: 36,
-    likesCount: '210K',
-    category: 'Cosplay',
-    photoPreviews: [
-      {
-        id: 'post-sophie-prev-img-1',
-        title: 'Shibuya Neon Nightfall',
-        caption: 'Rain reflections and cyberpunk vibes in central Tokyo.',
-        mediaUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1600&q=90',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80',
-        likes: 1980,
-      },
-      {
-        id: 'post-sophie-prev-img-2',
-        title: 'Akihabara Fantasy Costume',
-        caption: 'Handcrafted cosplay costume reveal for my members.',
-        mediaUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1600&q=90',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
-        likes: 1540,
-      },
-      {
-        id: 'post-sophie-prev-img-3',
-        title: 'Kyoto Temple Garden Walk',
-        caption: 'Traditional kimono look amidst autumn blossoms.',
-        mediaUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1600&q=90',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80',
-        likes: 1720,
-      },
-    ],
-    videoPreviews: [
-      {
-        id: 'post-sophie-prev-vid-1',
-        title: 'Tokyo Neon Nights Teaser',
-        caption: 'Late night wander through Shinjuku alleys and arcade halls.',
-        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80',
-        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        videoDuration: '0:40',
-        likes: 2450,
-      },
-      {
-        id: 'post-sophie-prev-vid-2',
-        title: 'Cosplay Crafting & Fitting',
-        caption: 'Sewing and styling the newest fantasy character look.',
-        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80',
-        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        videoDuration: '1:05',
-        likes: 2900,
-      },
-    ],
-  },
-  'zara-khan': {
-    name: 'Zara Khan',
-    handle: '@zara-khan',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=80',
-    banner: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1400&q=80',
-    bio: 'International luxury travel vlogger and photographer. Exploring hidden gems and private escapes across the globe.',
-    monthlyPrice: 12.99,
-    followersCount: '210K',
-    postsCount: 54,
-    likesCount: '480K',
-    category: 'Fetish',
-    photoPreviews: [
-      {
-        id: 'post-zara-prev-img-1',
-        title: 'Dubai Desert Horizon',
-        caption: 'Golden dunes and sunset reflections on private safari.',
-        mediaUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1600&q=90',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=800&q=80',
-        likes: 2100,
-      },
-      {
-        id: 'post-zara-prev-img-2',
-        title: 'Maldives Overwater Bungalow',
-        caption: 'Morning swim in crystal turquoise waters.',
-        mediaUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=90',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80',
-        likes: 2650,
-      },
-      {
-        id: 'post-zara-prev-img-3',
-        title: 'Amalfi Coast Viewpoint',
-        caption: 'Classic Italian coastal colors and cliffside terrace.',
-        mediaUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1600&q=90',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
-        likes: 1890,
-      },
-    ],
-    videoPreviews: [
-      {
-        id: 'post-zara-prev-vid-1',
-        title: 'Maldives Drone Cinema Teaser',
-        caption: 'Aerial views of private coral islands and sunset lagoons.',
-        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80',
-        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        videoDuration: '0:55',
-        likes: 3410,
-      },
-      {
-        id: 'post-zara-prev-vid-2',
-        title: 'Dubai High-Rise Penthouse Tour',
-        caption: 'Exclusive tour of our VIP suite overlooking the marina.',
-        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=800&q=80',
-        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        videoDuration: '1:20',
-        likes: 3950,
-      },
-    ],
-  },
-  'emily-rose': {
-    name: 'Emily Rose',
-    handle: '@emily-rose',
-    avatar: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=600&q=80',
-    banner: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=1400&q=80',
-    bio: 'Fitness coach, athlete and daily motivation mentor. High intensity routines, nutrition guides, and personal training tips.',
-    monthlyPrice: 8.99,
-    followersCount: '98K',
-    postsCount: 40,
-    likesCount: '275K',
-    category: 'Fitness',
-    photoPreviews: [
-      {
-        id: 'post-emily-prev-img-1',
-        title: 'Sunrise Beach HIIT Session',
-        caption: 'Pushing boundaries with morning endurance sprints on the sand.',
-        mediaUrl: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=1600&q=90',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=800&q=80',
-        likes: 1420,
-      },
-      {
-        id: 'post-emily-prev-img-2',
-        title: 'Studio Strength Form & Conditioning',
-        caption: 'Focusing on core posture, breathing, and maximum control.',
-        mediaUrl: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=1600&q=90',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=800&q=80',
-        likes: 1290,
-      },
-      {
-        id: 'post-emily-prev-img-3',
-        title: 'Post-Workout Recovery & Hydration',
-        caption: 'My favorite clean smoothie recipe and cooldown stretches.',
-        mediaUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1600&q=90',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80',
-        likes: 1560,
-      },
-    ],
-    videoPreviews: [
-      {
-        id: 'post-emily-prev-vid-1',
-        title: '10-Minute Morning Warmup Routine',
-        caption: 'Follow-along mobility and activation flow before daily training.',
-        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=800&q=80',
-        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        videoDuration: '0:45',
-        likes: 2150,
-      },
-      {
-        id: 'post-emily-prev-vid-2',
-        title: 'Core & Glutes Blast Preview',
-        caption: 'Quick highlights of my subscriber-only 45-min masterclass.',
-        mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=800&q=80',
-        previewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        videoDuration: '1:00',
-        likes: 2840,
-      },
-    ],
-  },
-  'ellie': {
-    name: 'Ellie',
-    handle: '@ellie',
-    avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
-    banner: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1400&q=80',
-    bio: 'Welcome to Ellie’s world on The Mirage. Unlock exclusive after-dark glamour, fetish editorial sets, 4K clips, and custom private chat.',
-    monthlyPrice: 9.99,
-    followersCount: '165K',
-    postsCount: 44,
-    likesCount: '380K',
-    category: 'Fetish',
-    photoPreviews: [],
-    videoPreviews: [],
-  },
-};
-
 function CreatorProfileContent() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -402,51 +85,35 @@ function CreatorProfileContent() {
   const [activeVideoPreview, setActiveVideoPreview] = useState<PreviewVideoItem | null>(null);
 
   const [liveCreatorMeta, setLiveCreatorMeta] = useState<any>(null);
-
-  // Dynamic creator metadata (merged with live backend record if available)
-  const baseCreator = CREATOR_DATA[cleanHandle] || {
-    name: cleanHandle.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
-    handle: `@${cleanHandle}`,
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
-    banner: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1400&q=80',
-    bio: 'Exclusive creator on The Mirage. Explore my curated public previews and subscribe for complete access.',
-    monthlyPrice: 9.99,
-    followersCount: '110K',
-    postsCount: 42,
-    likesCount: '280K',
-    category: 'Popular',
-    photoPreviews: CREATOR_DATA['luna-rae'].photoPreviews,
-    videoPreviews: CREATOR_DATA['luna-rae'].videoPreviews,
-  };
+  const [loadingCreator, setLoadingCreator] = useState(true);
+  const [creatorNotFound, setCreatorNotFound] = useState(false);
 
   const creator = {
-    id: liveCreatorMeta?.id || `creator-${cleanHandle}`,
-    ...baseCreator,
-    ...(liveCreatorMeta
-      ? {
-          name: liveCreatorMeta.name,
-          handle: `@${liveCreatorMeta.handle}`,
-          avatar: liveCreatorMeta.avatar || baseCreator.avatar,
-          banner: liveCreatorMeta.banner || baseCreator.banner,
-          bio: liveCreatorMeta.bio || baseCreator.bio,
-          monthlyPrice: liveCreatorMeta.monthlyPrice ?? baseCreator.monthlyPrice,
-          followersCount: liveCreatorMeta.followers || baseCreator.followersCount,
-          postsCount: liveCreatorMeta.postsCount ?? baseCreator.postsCount,
-          category: liveCreatorMeta.category || baseCreator.category,
-          isVerified: Boolean(liveCreatorMeta.isVerified),
-        }
-      : { isVerified: true }),
+    id: liveCreatorMeta?.id || cleanHandle,
+    name:
+      liveCreatorMeta?.name ||
+      cleanHandle
+        .split('-')
+        .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+        .join(' '),
+    handle: `@${liveCreatorMeta?.handle || cleanHandle}`,
+    avatar: liveCreatorMeta?.avatar || '',
+    banner: liveCreatorMeta?.banner || '',
+    bio: liveCreatorMeta?.bio || '',
+    monthlyPrice: Number(liveCreatorMeta?.monthlyPrice ?? 9.99),
+    followersCount: liveCreatorMeta?.followers || '0',
+    postsCount: liveCreatorMeta?.postsCount ?? 0,
+    likesCount: liveCreatorMeta?.likes || '0',
+    category: liveCreatorMeta?.category || 'Creator',
+    isVerified: Boolean(liveCreatorMeta?.isVerified),
+    createdAt: liveCreatorMeta?.createdAt || '',
   };
 
   // Up to 3 Photo Previews state
-  const [photoPreviews, setPhotoPreviews] = useState<PreviewPhotoItem[]>(
-    baseCreator.photoPreviews || []
-  );
+  const [photoPreviews, setPhotoPreviews] = useState<PreviewPhotoItem[]>([]);
 
   // Up to 2 Video Previews state
-  const [videoPreviews, setVideoPreviews] = useState<PreviewVideoItem[]>(
-    baseCreator.videoPreviews || []
-  );
+  const [videoPreviews, setVideoPreviews] = useState<PreviewVideoItem[]>([]);
 
   // Load live creator profile, follow status, and active subscription status from backend
   useEffect(() => {
@@ -460,6 +127,8 @@ function CreatorProfileContent() {
     } catch (e) {}
 
     async function syncCreatorAndUserState() {
+      setLoadingCreator(true);
+      setCreatorNotFound(false);
       try {
         const [crRes, folRes, subRes] = await Promise.all([
           fetch(`/api/creators?handle=${encodeURIComponent(cleanHandle)}`, { cache: 'no-store' }),
@@ -471,6 +140,10 @@ function CreatorProfileContent() {
           const crData = await crRes.json();
           if (crData?.creators?.length > 0) {
             setLiveCreatorMeta(crData.creators[0]);
+            setCreatorNotFound(false);
+          } else {
+            setLiveCreatorMeta(null);
+            setCreatorNotFound(true);
           }
         }
         if (folRes.ok) {
@@ -489,7 +162,10 @@ function CreatorProfileContent() {
             );
           }
         }
-      } catch (e) {}
+      } catch (e) {
+      } finally {
+        setLoadingCreator(false);
+      }
     }
 
     syncCreatorAndUserState();
@@ -520,16 +196,6 @@ function CreatorProfileContent() {
     } catch (e) {}
   };
 
-  // Synchronize state if cleanHandle changes
-  useEffect(() => {
-    if (baseCreator.photoPreviews) {
-      setPhotoPreviews(baseCreator.photoPreviews);
-    }
-    if (baseCreator.videoPreviews) {
-      setVideoPreviews(baseCreator.videoPreviews);
-    }
-  }, [cleanHandle]);
-
   // Main Posts feed (loaded live from backend API)
   const [posts, setPosts] = useState<PostItem[]>([]);
 
@@ -541,12 +207,8 @@ function CreatorProfileContent() {
         if (previewRes.ok) {
           const previewJson = await previewRes.json();
           if (previewJson?.previews) {
-            if (previewJson.previews.photos?.length > 0 || !CREATOR_DATA[cleanHandle]) {
-              setPhotoPreviews((previewJson.previews.photos || []).slice(0, 3));
-            }
-            if (previewJson.previews.videos?.length > 0 || !CREATOR_DATA[cleanHandle]) {
-              setVideoPreviews((previewJson.previews.videos || []).slice(0, 2));
-            }
+            setPhotoPreviews((previewJson.previews.photos || []).slice(0, 3));
+            setVideoPreviews((previewJson.previews.videos || []).slice(0, 2));
           }
         }
 
@@ -894,25 +556,44 @@ function CreatorProfileContent() {
 
       {/* Banner Container */}
       <div className="relative h-48 sm:h-72 w-full overflow-hidden bg-[#121218]">
-        <img
-          src={creator.banner}
-          alt={creator.name}
-          className="w-full h-full object-cover"
-        />
+        {creator.banner ? (
+          <img
+            src={creator.banner}
+            alt={creator.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#161622] to-[#0c0c12]" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-[#08080a] via-transparent to-black/30" />
       </div>
 
       {/* Profile Header Details */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        {!loadingCreator && creatorNotFound && (
+          <div className="my-10 p-8 rounded-3xl bg-[#111118] border border-[#2a2a3a] text-center space-y-3">
+            <h2 className="text-xl font-serif font-bold text-white">Creator Profile Not Found</h2>
+            <p className="text-xs text-[#8c8c9e]">The profile @{cleanHandle} could not be found.</p>
+            <Link href="/explore" className="inline-block px-5 py-2 rounded-full gold-button text-xs font-bold">
+              Browse Active Creators
+            </Link>
+          </div>
+        )}
         <div className="relative -mt-20 sm:-mt-24 mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#1c1c28]">
           {/* Avatar & Identifiers */}
           <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5 text-center sm:text-left">
             <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-full p-1 bg-gradient-to-br from-[#d4af37] via-[#f5d77f] to-[#aa820a] shadow-gold-glow flex-shrink-0">
-              <img
-                src={creator.avatar}
-                alt={creator.name}
-                className="w-full h-full object-cover rounded-full"
-              />
+              {creator.avatar ? (
+                <img
+                  src={creator.avatar}
+                  alt={creator.name}
+                  className="w-full h-full object-cover rounded-full"
+                />
+              ) : (
+                <div className="w-full h-full rounded-full bg-[#12121a] flex items-center justify-center text-3xl font-serif font-bold text-[#f5d77f]">
+                  {creator.name.charAt(0).toUpperCase()}
+                </div>
+              )}
               <span className="absolute bottom-2 right-2 p-1.5 rounded-full bg-[#0a0a0e] text-[#f5d77f] border border-[#d4af37]/40 shadow-md">
                 <Crown className="w-4 h-4" />
               </span>
@@ -1133,10 +814,10 @@ function CreatorProfileContent() {
                 Subscribe to {creator.name} for ${creator.monthlyPrice.toFixed(2)} / month
               </h3>
               <p className="text-xs sm:text-sm text-[#9da3af] leading-relaxed">
-                Unlock full feed access to all 48+ photos & 4K uncompressed video sets, direct 1-on-1 private messaging, and weekly exclusive drops.
+                Unlock full feed access to {creator.postsCount > 0 ? `${creator.postsCount}+` : 'exclusive'} photos &amp; 4K video sets, direct 1-on-1 private messaging, and regular drops.
               </p>
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-[11px] text-[#d4af37] pt-1">
-                <span>✓ All 48+ full photos & 4K videos</span>
+                <span>✓ All exclusive photos &amp; 4K videos</span>
                 <span>✓ 1-on-1 private chat</span>
                 <span>✓ Cancel anytime</span>
               </div>
@@ -1249,7 +930,10 @@ function CreatorProfileContent() {
                 <p className="text-sm text-[#9da3af] leading-relaxed">{creator.bio}</p>
                 <div className="pt-4 border-t border-[#1c1c28] flex items-center gap-4 text-xs text-[#717182]">
                   <Calendar className="w-4 h-4" />
-                  <span>Joined The Mirage Creator Network in 2026</span>
+                  <span>
+                    Joined The Mirage Creator Network in{' '}
+                    {creator.createdAt ? new Date(creator.createdAt).getFullYear() : 2026}
+                  </span>
                 </div>
               </div>
             ) : filteredPosts.length === 0 ? (
@@ -1304,21 +988,22 @@ function CreatorProfileContent() {
 
                     {/* Post Media Area (Locked or Unlocked) */}
                     <div className="relative aspect-video w-full bg-[#0a0a0e] overflow-hidden flex items-center justify-center">
-                      <img
-                        src={post.isLocked && post.thumbnailUrl ? post.thumbnailUrl : post.mediaUrl}
-                        alt={post.title || 'Content Media'}
-                        className={`w-full h-full object-cover transition-all ${
-                          post.isLocked ? 'blur-2xl scale-110 opacity-30 pointer-events-none' : ''
-                        }`}
-                      />
-
-                      {/* Video Play Overlay if Unlocked */}
-                      {!post.isLocked && post.type === 'video' && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 group cursor-pointer">
-                          <div className="w-16 h-16 rounded-full bg-black/60 border border-[#d4af37] text-[#f5d77f] flex items-center justify-center shadow-gold-sm hover:scale-110 transition-transform">
-                            <Play className="w-7 h-7 fill-[#f5d77f] ml-1" />
-                          </div>
-                        </div>
+                      {!post.isLocked && post.type === 'video' ? (
+                        <video
+                          src={post.mediaUrl}
+                          poster={post.thumbnailUrl}
+                          controls
+                          playsInline
+                          className="w-full h-full object-contain bg-black"
+                        />
+                      ) : (
+                        <img
+                          src={post.isLocked && post.thumbnailUrl ? post.thumbnailUrl : post.mediaUrl}
+                          alt={post.title || 'Content Media'}
+                          className={`w-full h-full object-cover transition-all ${
+                            post.isLocked ? 'blur-2xl scale-110 opacity-30 pointer-events-none' : ''
+                          }`}
+                        />
                       )}
 
                       {/* Locked Paywall Overlay */}
@@ -1389,8 +1074,13 @@ function CreatorProfileContent() {
                                 p.id === post.id ? { ...p, likes: p.likes + 1 } : p
                               )
                             );
+                            fetch('/api/content/posts', {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ postId: post.id, action: 'LIKE' }),
+                            }).catch(() => {});
                           }}
-                          className="flex items-center gap-1.5 hover:text-red-400 transition-colors"
+                          className="flex items-center gap-1.5 hover:text-red-400 transition-colors cursor-pointer"
                         >
                           <Heart className="w-4 h-4 text-red-400" />
                           <span>{post.likes}</span>

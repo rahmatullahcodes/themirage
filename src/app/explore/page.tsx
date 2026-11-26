@@ -2,101 +2,8 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Search, SlidersHorizontal, Flame, Star, MapPin, Dumbbell, Coffee, Plane, Sparkles, Grid } from 'lucide-react';
+import { Search, SlidersHorizontal } from 'lucide-react';
 import FeaturedCreatorCard from '@/components/FeaturedCreatorCard';
-
-const ALL_CREATORS = [
-  {
-    id: 'c1',
-    name: 'Luna Rae',
-    handle: 'luna-rae',
-    followers: '128K',
-    price: 9.99,
-    image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
-    category: 'Popular',
-    isVerified: true,
-  },
-  {
-    id: 'c3',
-    name: 'Mia Carter',
-    handle: 'mia-carter',
-    followers: '95K',
-    price: 7.99,
-    image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80',
-    category: 'Lifestyle',
-    isVerified: true,
-  },
-  {
-    id: 'c2',
-    name: 'Sophie Lee',
-    handle: 'sophie-lee',
-    followers: '180K',
-    price: 9.99,
-    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
-    category: 'Cosplay',
-    isVerified: true,
-  },
-  {
-    id: 'c4',
-    name: 'Zara Khan',
-    handle: 'zara-khan',
-    followers: '210K',
-    price: 12.99,
-    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=80',
-    category: 'Fetish',
-    isVerified: true,
-  },
-  {
-    id: 'c9',
-    name: 'Ellie',
-    handle: 'ellie',
-    followers: '165K',
-    price: 9.99,
-    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
-    category: 'Fetish',
-    isVerified: true,
-  },
-  {
-    id: 'c5',
-    name: 'Emily Rose',
-    handle: 'emily-rose',
-    followers: '98K',
-    price: 8.99,
-    image: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=600&q=80',
-    category: 'Fitness',
-    isVerified: true,
-  },
-  {
-    id: 'c6',
-    name: 'Aria Vance',
-    handle: 'aria-vance',
-    followers: '142K',
-    price: 10.99,
-    image: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=600&q=80',
-    category: 'New',
-    isVerified: true,
-  },
-  {
-    id: 'c7',
-    name: 'Chloe Bennett',
-    handle: 'chloe-bennett',
-    followers: '88K',
-    price: 6.99,
-    image: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80',
-    category: 'Nearby',
-    isVerified: false,
-  },
-  {
-    id: 'c8',
-    name: 'Elena Rostova',
-    handle: 'elena-rostova',
-    followers: '230K',
-    price: 14.99,
-    image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80',
-    category: 'Mature',
-    isVerified: true,
-  },
-];
 
 const CATEGORIES_LIST = [
   'All',
@@ -140,13 +47,14 @@ function ExploreContent() {
     return num;
   };
 
-  const [creatorsList, setCreatorsList] = useState(ALL_CREATORS);
+  const [creatorsList, setCreatorsList] = useState<any[]>([]);
+  const [loadingCreators, setLoadingCreators] = useState(true);
 
   useEffect(() => {
     fetch('/api/creators', { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
-        if (data?.success && Array.isArray(data.creators) && data.creators.length > 0) {
+        if (data?.success && Array.isArray(data.creators)) {
           setCreatorsList(
             data.creators.map((c: any) => ({
               id: c.id,
@@ -157,11 +65,13 @@ function ExploreContent() {
               image: c.avatar,
               category: c.category || 'Popular',
               isVerified: Boolean(c.isVerified),
+              createdAt: c.createdAt,
             }))
           );
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoadingCreators(false));
   }, []);
 
   const filteredCreators = creatorsList.filter((c) => {
@@ -174,7 +84,7 @@ function ExploreContent() {
   }).sort((a, b) => {
     if (sortBy === 'price-low') return a.price - b.price;
     if (sortBy === 'price-high') return b.price - a.price;
-    if (sortBy === 'newest') return b.id.localeCompare(a.id);
+    if (sortBy === 'newest') return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
     return parseFollowers(b.followers) - parseFollowers(a.followers);
   });
 
@@ -235,7 +145,13 @@ function ExploreContent() {
           ))}
         </div>
 
-        {filteredCreators.length > 0 ? (
+        {loadingCreators ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="aspect-[4/5] rounded-2xl bg-[#111116] border border-[#22222c] animate-pulse" />
+            ))}
+          </div>
+        ) : filteredCreators.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {filteredCreators.map((creator) => (
               <FeaturedCreatorCard

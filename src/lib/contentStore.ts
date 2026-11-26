@@ -2022,6 +2022,7 @@ export function listAllCreators(filters?: { category?: string; q?: string; sort?
     return {
       ...c,
       followers: formatFollowerLabel(c.followersCount),
+      likes: formatFollowerLabel(c.likesCount),
       subscribers: subs,
       earnings: Number(earnings.toFixed(2)),
       postsCount,
@@ -2049,6 +2050,30 @@ export function listAllCreators(filters?: { category?: string; q?: string; sort?
     list.sort((a, b) => b.followersCount - a.followersCount);
   }
   return list;
+}
+
+export function getPublicPlatformStats() {
+  const db = getDb();
+  const prices = db.creators.map(c => Number(c.monthlyPrice)).filter(p => Number.isFinite(p) && p > 0);
+  return {
+    totalCreators: db.creators.length,
+    totalMembers: db.users.length,
+    totalPosts: db.posts.filter(p => p.status === 'PUBLISHED').length,
+    creatorCommissionPercent: db.settings.creatorCommissionPercent,
+    platformCommissionPercent: db.settings.platformCommissionPercent,
+    minMonthlyPrice: prices.length > 0 ? Math.min(...prices) : 4.99,
+  };
+}
+
+export function incrementPostLike(postId: string): { success: boolean; post?: PostItem } {
+  const db = getDb();
+  const post = db.posts.find(p => p.id === postId);
+  if (!post) return { success: false };
+  post.likeCount = (post.likeCount || 0) + 1;
+  const creator = db.creators.find(c => c.id === post.creatorId || c.handle === post.creatorHandle);
+  if (creator) creator.likesCount = (creator.likesCount || 0) + 1;
+  saveDb(db);
+  return { success: true, post };
 }
 
 export function toggleCreatorVerificationAdmin(creatorId: string): { success: boolean; creator?: CreatorRecord } {
