@@ -35,6 +35,7 @@ import {
 import PanelSidebar from '@/components/PanelSidebar';
 import PanelHeader from '@/components/PanelHeader';
 import { ActionIconBtn, PanelModal, ConfirmActionModal, MediaThumb } from '@/components/PanelUi';
+import { fetchCurrentSessionUser, getAuthHeaders } from '@/lib/clientAuth';
 
 interface PurchasedItem {
   id: string;
@@ -51,6 +52,7 @@ interface PurchasedItem {
 
 export default function UserDashboard() {
   const router = useRouter();
+  const [authChecked, setAuthChecked] = useState(false);
   const [activeTab, setActiveTab] = useState('subscriptions');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -93,24 +95,26 @@ export default function UserDashboard() {
   };
 
   useEffect(() => {
-    const stored = localStorage.getItem('mirage_user');
-    let currentUser: { id: string; name: string; username: string; email: string; role: string; ageVerified?: boolean } = {
-      id: 'usr-1',
-      name: 'Member',
-      username: 'member',
-      email: '',
-      role: 'SUBSCRIBER',
-      ageVerified: true,
+    let active = true;
+    (async () => {
+      const sessionUser = await fetchCurrentSessionUser();
+      if (!active) return;
+      if (!sessionUser) {
+        router.replace('/login?redirect=/dashboard');
+        return;
+      }
+      setUser(sessionUser);
+      setProfileName(sessionUser.name || '');
+      setProfileBio(sessionUser.bio || '');
+      setProfileAvatar(sessionUser.avatar || '');
+      setProfileAgeVerified(Boolean(sessionUser.ageVerified));
+      setAuthChecked(true);
+      loadAllDashboardData();
+    })();
+    return () => {
+      active = false;
     };
-    if (stored) {
-      try {
-        currentUser = JSON.parse(stored);
-      } catch (e) {}
-    }
-    setUser(currentUser);
-    setProfileName(currentUser.name || '');
-    loadAllDashboardData(currentUser.id);
-  }, []);
+  }, [router]);
 
   // Global Escape key listener to close media viewer modal
   useEffect(() => {
@@ -123,19 +127,23 @@ export default function UserDashboard() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const loadAllDashboardData = async (userId: string) => {
+  const loadAllDashboardData = async () => {
     setVaultLoading(true);
     try {
-      const token = localStorage.getItem('mirage_token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+      const headers = getAuthHeaders();
 
       const [purchRes, subRes, folRes, txRes, profRes] = await Promise.all([
-        fetch(`/api/user/purchases?userId=${encodeURIComponent(userId)}`, { headers, cache: 'no-store' }),
-        fetch(`/api/user/subscriptions?userId=${encodeURIComponent(userId)}`, { headers, cache: 'no-store' }),
-        fetch(`/api/user/follows?userId=${encodeURIComponent(userId)}`, { headers, cache: 'no-store' }),
-        fetch(`/api/user/transactions?userId=${encodeURIComponent(userId)}`, { headers, cache: 'no-store' }),
-        fetch(`/api/user/profile?userId=${encodeURIComponent(userId)}`, { headers, cache: 'no-store' }),
+        fetch('/api/user/purchases', { headers, cache: 'no-store' }),
+        fetch('/api/user/subscriptions', { headers, cache: 'no-store' }),
+        fetch('/api/user/follows', { headers, cache: 'no-store' }),
+        fetch('/api/user/transactions', { headers, cache: 'no-store' }),
+        fetch('/api/user/profile', { headers, cache: 'no-store' }),
       ]);
+
+      if ([purchRes, subRes, folRes, txRes, profRes].some((r) => r.status === 401)) {
+        router.replace('/login?redirect=/dashboard');
+        return;
+      }
 
       if (purchRes.ok) {
         const data = await purchRes.json();
@@ -223,8 +231,9 @@ export default function UserDashboard() {
   const handleUnfollow = async (creatorHandle: string, creatorName?: string) => {
     setFollowed(prev => prev.filter(c => c.handle !== creatorHandle));
     try {
-      await fetch(`/api/user/follows?userId=${encodeURIComponent(user?.id || 'usr-1')}&handle=${encodeURIComponent(creatorHandle)}`, {
+      await fetch(`/api/user/follows?handle=${encodeURIComponent(creatorHandle)}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
       showToast(`Unfollowed ${creatorName || creatorHandle}`);
     } catch (e) {}
@@ -235,10 +244,9 @@ export default function UserDashboard() {
     try {
       await fetch('/api/user/subscriptions', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           subscriptionId: subId,
-          userId: user?.id || 'usr-1',
           action: 'CANCEL',
         }),
       });
@@ -252,9 +260,8 @@ export default function UserDashboard() {
     try {
       const res = await fetch('/api/user/profile', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
-          userId: user.id,
           name: profileName,
           bio: profileBio,
           avatar: profileAvatar,
@@ -299,6 +306,14 @@ export default function UserDashboard() {
         return 'Subscriber Dashboard';
     }
   };
+
+  if (!authChecked || !user) {
+    return (
+      <div className="min-h-screen bg-[#08080a] flex items-center justify-center text-[#d4af37] text-sm">
+        Verifying your account session...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#08080a] text-white flex">
@@ -842,14 +857,14 @@ export default function UserDashboard() {
                             try {
                               const fd = new FormData();
                               fd.append('file', file);
-                              const upRes = await fetch('/api/upload', { method: 'POST', body: fd });
+                              const upRes = await fetch('/api/upload', { method: 'POST', headers: getAuthHeaders(), body: fd });
                               const upData = await upRes.json();
                               if (upRes.ok && upData?.url) {
                                 setProfileAvatar(upData.url);
                                 const profPatch = await fetch('/api/user/profile', {
                                   method: 'PATCH',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ userId: user.id, avatar: upData.url }),
+                                  headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                                  body: JSON.stringify({ avatar: upData.url }),
                                 });
                                 const pJson = await profPatch.json();
                                 if (profPatch.ok && pJson?.user) {

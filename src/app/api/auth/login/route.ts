@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { signToken, comparePassword } from '@/lib/auth';
-import { findUserByEmail, registerNewUser } from '@/lib/contentStore';
+import { signToken, comparePassword, attachSessionCookie } from '@/lib/auth';
+import { findCreatorByUserId, findUserByEmail } from '@/lib/contentStore';
 
 export async function POST(req: Request) {
   try {
@@ -18,38 +18,29 @@ export async function POST(req: Request) {
     }
 
     const lowerEmail = email.trim().toLowerCase();
-    let dbUser = findUserByEmail(lowerEmail);
+    const dbUser = findUserByEmail(lowerEmail);
 
-    if (dbUser) {
-      if (dbUser.status === 'SUSPENDED') {
-        return NextResponse.json(
-          { error: 'This account has been suspended by administration.' },
-          { status: 403 }
-        );
-      }
-      // Verify hashed password if the account was registered with a password
-      if (dbUser.passwordHash) {
-        const isValid = await comparePassword(password, dbUser.passwordHash);
-        if (!isValid) {
-          return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
-        }
-      }
-    } else {
-      // Auto-provision subscriber record on demo/test login so user appears in Admin User Accounts
-      const localPart = lowerEmail.split('@')[0] || 'member';
-      const displayName = localPart.replace(/[._-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-      const cleanUsername = localPart.replace(/[^a-z0-9_-]/g, '') || `user_${Date.now()}`;
-      const reg = registerNewUser({
-        name: displayName,
-        username: cleanUsername,
-        email: lowerEmail,
-        role: 'SUBSCRIBER',
-      });
-      if (!reg.success || !reg.user) {
-        return NextResponse.json({ error: 'Authentication failed' }, { status: 401 });
-      }
-      dbUser = reg.user;
+    if (!dbUser) {
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
+
+    if (dbUser.status === 'SUSPENDED') {
+      return NextResponse.json(
+        { error: 'This account has been suspended by administration.' },
+        { status: 403 }
+      );
+    }
+
+    if (!dbUser.passwordHash) {
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+    }
+
+    const isValid = await comparePassword(password, dbUser.passwordHash);
+    if (!isValid) {
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+    }
+
+    const creatorProfile = dbUser.role === 'CREATOR' ? findCreatorByUserId(dbUser.id) : undefined;
 
     const user = {
       id: dbUser.id,
@@ -57,7 +48,9 @@ export async function POST(req: Request) {
       username: dbUser.username,
       email: dbUser.email,
       role: dbUser.role,
-      avatar: dbUser.avatar || '',
+      avatar: dbUser.avatar || creatorProfile?.avatar || '',
+      creatorId: creatorProfile?.id,
+      creatorHandle: creatorProfile?.handle,
     };
 
     const token = signToken({
@@ -67,12 +60,14 @@ export async function POST(req: Request) {
       username: user.username,
     });
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       message: 'Logged in successfully',
       token,
       user,
     });
-  } catch (error) {
+    attachSessionCookie(res, token, req);
+    return res;
+  } catch {
     return NextResponse.json({ error: 'Login error occurred' }, { status: 500 });
   }
 }

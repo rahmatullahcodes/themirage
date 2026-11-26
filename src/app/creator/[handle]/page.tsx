@@ -27,6 +27,7 @@ import {
 import SubscribeModal from '@/components/SubscribeModal';
 import PurchaseContentModal from '@/components/PurchaseContentModal';
 import { MediaThumb } from '@/components/PanelUi';
+import { fetchCurrentSessionUser, getAuthHeaders } from '@/lib/clientAuth';
 
 export interface PostItem {
   id: string;
@@ -118,25 +119,15 @@ function CreatorProfileContent() {
 
   // Load live creator profile, follow status, and active subscription status from backend
   useEffect(() => {
-    let activeUserId = 'usr-1';
-    try {
-      const storedUser = localStorage.getItem('mirage_user');
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        if (parsed?.id) activeUserId = parsed.id;
-      }
-    } catch (e) {}
-
     async function syncCreatorAndUserState() {
       setLoadingCreator(true);
       setCreatorNotFound(false);
       try {
-        const [crRes, folRes, subRes] = await Promise.all([
-          fetch(`/api/creators?handle=${encodeURIComponent(cleanHandle)}`, { cache: 'no-store' }),
-          fetch(`/api/user/follows?userId=${encodeURIComponent(activeUserId)}`, { cache: 'no-store' }),
-          fetch(`/api/user/subscriptions?userId=${encodeURIComponent(activeUserId)}`, { cache: 'no-store' }),
-        ]);
+        const hasAuth = Boolean(localStorage.getItem('mirage_token') || localStorage.getItem('mirage_user'));
+        const sessionUser = hasAuth ? await fetchCurrentSessionUser() : null;
+        const authHeaders = sessionUser ? getAuthHeaders() : undefined;
 
+        const crRes = await fetch(`/api/creators?handle=${encodeURIComponent(cleanHandle)}`, { cache: 'no-store' });
         if (crRes.ok) {
           const crData = await crRes.json();
           if (crData?.creators?.length > 0) {
@@ -147,21 +138,32 @@ function CreatorProfileContent() {
             setCreatorNotFound(true);
           }
         }
-        if (folRes.ok) {
-          const folData = await folRes.json();
-          if (Array.isArray(folData?.follows)) {
-            setIsFollowing(folData.follows.some((f: any) => f.creatorHandle.toLowerCase() === cleanHandle));
+
+        if (sessionUser) {
+          const [folRes, subRes] = await Promise.all([
+            fetch('/api/user/follows', { headers: authHeaders, cache: 'no-store' }),
+            fetch('/api/user/subscriptions', { headers: authHeaders, cache: 'no-store' }),
+          ]);
+
+          if (folRes.ok) {
+            const folData = await folRes.json();
+            if (Array.isArray(folData?.follows)) {
+              setIsFollowing(folData.follows.some((f: any) => f.creatorHandle.toLowerCase() === cleanHandle));
+            }
           }
-        }
-        if (subRes.ok) {
-          const subData = await subRes.json();
-          if (Array.isArray(subData?.subscriptions)) {
-            setIsSubscribed(
-              subData.subscriptions.some(
-                (s: any) => s.creatorHandle.toLowerCase() === cleanHandle && s.status === 'ACTIVE'
-              )
-            );
+          if (subRes.ok) {
+            const subData = await subRes.json();
+            if (Array.isArray(subData?.subscriptions)) {
+              setIsSubscribed(
+                subData.subscriptions.some(
+                  (s: any) => s.creatorHandle.toLowerCase() === cleanHandle && s.status === 'ACTIVE'
+                )
+              );
+            }
           }
+        } else {
+          setIsFollowing(false);
+          setIsSubscribed(false);
         }
       } catch (e) {
       } finally {
@@ -173,26 +175,30 @@ function CreatorProfileContent() {
   }, [cleanHandle]);
 
   const handleToggleFollow = async () => {
-    let activeUserId = 'usr-1';
-    try {
-      const storedUser = localStorage.getItem('mirage_user');
-      if (storedUser) activeUserId = JSON.parse(storedUser)?.id || 'usr-1';
-    } catch (e) {}
+    const hasAuth = Boolean(localStorage.getItem('mirage_token') || localStorage.getItem('mirage_user'));
+    if (!hasAuth) {
+      router.push(`/login?redirect=${encodeURIComponent(`/creator/${cleanHandle}`)}`);
+      return;
+    }
 
+    const authHeaders = getAuthHeaders();
     const nextState = !isFollowing;
     setIsFollowing(nextState);
 
     try {
-      if (nextState) {
-        await fetch('/api/user/follows', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: activeUserId, handle: cleanHandle }),
-        });
-      } else {
-        await fetch(`/api/user/follows?userId=${encodeURIComponent(activeUserId)}&handle=${encodeURIComponent(cleanHandle)}`, {
-          method: 'DELETE',
-        });
+      const res = nextState
+        ? await fetch('/api/user/follows', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeaders },
+            body: JSON.stringify({ handle: cleanHandle }),
+          })
+        : await fetch(`/api/user/follows?handle=${encodeURIComponent(cleanHandle)}`, {
+            method: 'DELETE',
+            headers: authHeaders,
+          });
+      if (res.status === 401) {
+        setIsFollowing(!nextState);
+        router.push(`/login?redirect=${encodeURIComponent(`/creator/${cleanHandle}`)}`);
       }
     } catch (e) {}
   };
@@ -213,21 +219,8 @@ function CreatorProfileContent() {
           }
         }
 
-        let token: string | null = null;
-        let currentUserId: string | null = null;
-        try {
-          token = localStorage.getItem('mirage_token');
-          const rawUser = localStorage.getItem('mirage_user');
-          if (rawUser) {
-            currentUserId = JSON.parse(rawUser)?.id || null;
-          }
-        } catch (e) {}
-
-        const feedUrl = currentUserId
-          ? `/api/content/posts?handle=${cleanHandle}&userId=${encodeURIComponent(currentUserId)}`
-          : `/api/content/posts?handle=${cleanHandle}`;
-        const feedRes = await fetch(feedUrl, {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        const feedRes = await fetch(`/api/content/posts?handle=${cleanHandle}`, {
+          headers: getAuthHeaders(),
           cache: 'no-store',
         });
         if (feedRes.ok) {
@@ -286,14 +279,8 @@ function CreatorProfileContent() {
   const handleSubscribeSuccess = async () => {
     setIsSubscribed(true);
     try {
-      const token = localStorage.getItem('mirage_token');
-      const rawUser = localStorage.getItem('mirage_user');
-      const currentUserId = rawUser ? JSON.parse(rawUser)?.id : null;
-      const feedUrl = currentUserId
-        ? `/api/content/posts?handle=${cleanHandle}&userId=${encodeURIComponent(currentUserId)}`
-        : `/api/content/posts?handle=${cleanHandle}`;
-      const feedRes = await fetch(feedUrl, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      const feedRes = await fetch(`/api/content/posts?handle=${cleanHandle}`, {
+        headers: getAuthHeaders(),
         cache: 'no-store',
       });
       if (feedRes.ok) {

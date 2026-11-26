@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkMediaAuthorization } from '@/lib/contentStore';
-import { getUserFromAuthHeader } from '@/lib/auth';
+import { getSessionUser } from '@/lib/auth';
 
 export async function GET(
   req: NextRequest,
@@ -12,9 +12,8 @@ export async function GET(
       return NextResponse.json({ error: 'Post ID is required' }, { status: 400 });
     }
 
-    const searchParams = req.nextUrl?.searchParams || (req.url.startsWith('http') ? new URL(req.url).searchParams : new URL(req.url, 'http://localhost:3000').searchParams);
-    const tokenUser = getUserFromAuthHeader(req.headers.get('Authorization'));
-    const userId = tokenUser?.userId || searchParams.get('userId') || null;
+    const session = getSessionUser(req);
+    const userId = session?.userId || null;
 
     const authResult = checkMediaAuthorization(userId, postId);
 
@@ -43,4 +42,3 @@ export async function GET(
     );
   }
 }
-

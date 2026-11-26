@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireSession } from '@/lib/auth';
 import { getAdminTransactions, issueRefundAdmin, deleteTransactionAdmin } from '@/lib/contentStore';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = requireSession(req, ['ADMIN']);
+    if (!auth.ok) return auth.response;
+
     const searchParams = req.nextUrl?.searchParams || new URL(req.url, 'http://localhost:3000').searchParams;
     const type = searchParams.get('type') || undefined;
     const search = searchParams.get('search') || undefined;
@@ -25,6 +29,9 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const auth = requireSession(req, ['ADMIN']);
+    if (!auth.ok) return auth.response;
+
     const body = await req.json();
     const { txId } = body || {};
 
@@ -51,6 +58,9 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const auth = requireSession(req, ['ADMIN']);
+    if (!auth.ok) return auth.response;
+
     const searchParams = req.nextUrl?.searchParams || new URL(req.url, 'http://localhost:3000').searchParams;
     const txId = searchParams.get('txId');
     if (!txId) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { signToken, hashPassword } from '@/lib/auth';
+import { signToken, hashPassword, attachSessionCookie } from '@/lib/auth';
 import { registerNewUser } from '@/lib/contentStore';
 
 export async function POST(req: Request) {
@@ -52,6 +52,8 @@ export async function POST(req: Request) {
       email: regResult.user.email,
       role: regResult.user.role,
       avatar: regResult.user.avatar || regResult.creator?.avatar || '',
+      creatorId: regResult.creator?.id,
+      creatorHandle: regResult.creator?.handle,
       monthlyPrice: regResult.creator?.monthlyPrice,
     };
 
@@ -62,12 +64,14 @@ export async function POST(req: Request) {
       username: user.username,
     });
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       message: 'Account created successfully',
       token,
       user,
     });
-  } catch (error) {
+    attachSessionCookie(res, token, req);
+    return res;
+  } catch {
     return NextResponse.json({ error: 'Failed to register account' }, { status: 500 });
   }
 }

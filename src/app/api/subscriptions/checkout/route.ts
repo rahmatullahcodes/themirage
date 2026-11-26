@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { calculateCommission } from '@/lib/commission';
-import { getUserFromAuthHeader } from '@/lib/auth';
+import { requireSession } from '@/lib/auth';
 import {
   subscribeUserToCreator,
   resolveCreatorId,
@@ -11,12 +11,9 @@ import {
 
 export async function POST(req: Request) {
   try {
-    const authHeader = req.headers.get('Authorization');
-    const user = getUserFromAuthHeader(authHeader);
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized. Please sign in.' }, { status: 401 });
-    }
+    const auth = requireSession(req);
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     let body: any;
     try {

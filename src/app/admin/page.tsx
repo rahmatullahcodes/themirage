@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Shield,
   Users,
@@ -40,10 +41,14 @@ import {
 import PanelSidebar from '@/components/PanelSidebar';
 import PanelHeader from '@/components/PanelHeader';
 import { ActionIconBtn, PanelModal, ConfirmActionModal, MediaThumb } from '@/components/PanelUi';
+import { fetchCurrentSessionUser, getAuthHeaders, ClientSessionUser } from '@/lib/clientAuth';
 
 const CREATOR_CATEGORIES = ['Popular', 'New', 'Nearby', 'Fitness', 'Lifestyle', 'Fetish', 'Cosplay', 'Mature'];
 
 export default function AdminPanelPage() {
+  const router = useRouter();
+  const [sessionUser, setSessionUser] = useState<ClientSessionUser | null>(null);
+  const [authState, setAuthState] = useState<'loading' | 'authorized' | 'forbidden'>('loading');
   const [activeTab, setActiveTab] = useState('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -114,41 +119,54 @@ export default function AdminPanelPage() {
     setTimeout(() => setActionNotice(null), 3500);
   };
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('mirage_user');
-      if (stored) {
-        const u = JSON.parse(stored);
-        if (u.name) {
-          setAdminUser({
-            name: u.name,
-            handle: u.email || `@${u.username || 'admin'}`,
-          });
-        }
-      }
-    } catch (e) {}
+  const authHeaders = () => getAuthHeaders();
+  const authJsonHeaders = () => ({ 'Content-Type': 'application/json', ...getAuthHeaders() });
 
-    loadAdminOverview();
-  }, []);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const me = await fetchCurrentSessionUser();
+      if (!active) return;
+      if (!me) {
+        router.replace('/login?redirect=/admin');
+        return;
+      }
+      setSessionUser(me);
+      if (me.role !== 'ADMIN') {
+        setAuthState('forbidden');
+        return;
+      }
+      setAdminUser({
+        name: me.name,
+        handle: me.email || `@${me.username || 'admin'}`,
+      });
+      setAuthState('authorized');
+      loadAdminOverview();
+    })();
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   const loadAdminOverview = async () => {
     setLoadingOverview(true);
     try {
-      const res = await fetch('/api/admin/overview', { cache: 'no-store' });
+      const res = await fetch('/api/admin/overview', {
+        headers: authHeaders(),
+        cache: 'no-store',
+      });
+      if (res.status === 401) {
+        router.replace('/login?redirect=/admin');
+        return;
+      }
+      if (res.status === 403) {
+        setAuthState('forbidden');
+        return;
+      }
       const data = await res.json();
       if (data.success) {
         if (data.metrics) setMetrics(data.metrics);
-        if (Array.isArray(data.users)) {
-          setUsers(data.users);
-          try {
-            if (!localStorage.getItem('mirage_user')) {
-              const adminRec = data.users.find((u: any) => u.role === 'ADMIN');
-              if (adminRec) {
-                setAdminUser({ name: adminRec.name, handle: adminRec.email || `@${adminRec.username}` });
-              }
-            }
-          } catch {}
-        }
+        if (Array.isArray(data.users)) setUsers(data.users);
         if (Array.isArray(data.creators)) setCreators(data.creators);
         if (Array.isArray(data.transactions)) setTransactions(data.transactions);
         if (Array.isArray(data.reports)) setReports(data.reports);
@@ -165,13 +183,16 @@ export default function AdminPanelPage() {
   };
 
   useEffect(() => {
-    fetchCatalog();
-  }, [catalogStatusFilter, catalogTypeFilter]);
+    if (authState === 'authorized') {
+      fetchCatalog();
+    }
+  }, [authState, catalogStatusFilter, catalogTypeFilter]);
 
   const fetchCatalog = async () => {
     setCatalogLoading(true);
     try {
       const res = await fetch(`/api/admin/catalog?status=${catalogStatusFilter}&mediaType=${catalogTypeFilter}`, {
+        headers: authHeaders(),
         cache: 'no-store',
       });
       const data = await res.json();
@@ -189,7 +210,7 @@ export default function AdminPanelPage() {
     try {
       const res = await fetch('/api/admin/catalog', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({ postId, status: newStatus }),
       });
       const data = await res.json();
@@ -210,7 +231,7 @@ export default function AdminPanelPage() {
     try {
       const res = await fetch('/api/admin/catalog', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({
           postId: editPostForm.id,
           updates: {
@@ -237,7 +258,10 @@ export default function AdminPanelPage() {
 
   const handleDeleteCatalogPost = async (postId: string) => {
     try {
-      const res = await fetch(`/api/admin/catalog?postId=${encodeURIComponent(postId)}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/catalog?postId=${encodeURIComponent(postId)}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
       const data = await res.json();
       if (data.success) {
         setCatalogItems(prev => prev.filter(p => p.id !== postId));
@@ -255,7 +279,7 @@ export default function AdminPanelPage() {
     try {
       const res = await fetch('/api/admin/creators', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({ creatorId, action: 'TOGGLE_VERIFY' }),
       });
       const data = await res.json();
@@ -280,7 +304,7 @@ export default function AdminPanelPage() {
     try {
       const res = await fetch('/api/admin/creators', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({
           creatorId: editCreatorForm.id,
           name: editCreatorForm.name,
@@ -308,7 +332,10 @@ export default function AdminPanelPage() {
 
   const handleDeleteCreator = async (creatorId: string) => {
     try {
-      const res = await fetch(`/api/admin/creators?creatorId=${encodeURIComponent(creatorId)}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/creators?creatorId=${encodeURIComponent(creatorId)}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
       const data = await res.json();
       if (data.success) {
         setCreators(prev => prev.filter(c => c.id !== creatorId));
@@ -331,7 +358,7 @@ export default function AdminPanelPage() {
     try {
       const res = await fetch('/api/admin/users', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({ userId, status: nextStatus }),
       });
       const data = await res.json();
@@ -352,7 +379,7 @@ export default function AdminPanelPage() {
     try {
       const res = await fetch('/api/admin/users', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify(editUserForm),
       });
       const data = await res.json();
@@ -371,7 +398,10 @@ export default function AdminPanelPage() {
 
   const handleDeleteUser = async (userId: string) => {
     try {
-      const res = await fetch(`/api/admin/users?userId=${encodeURIComponent(userId)}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/users?userId=${encodeURIComponent(userId)}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
       const data = await res.json();
       if (data.success) {
         setUsers(prev => prev.filter(u => u.id !== userId));
@@ -389,7 +419,7 @@ export default function AdminPanelPage() {
     try {
       const res = await fetch('/api/admin/transactions', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({ txId }),
       });
       const data = await res.json();
@@ -404,7 +434,10 @@ export default function AdminPanelPage() {
 
   const handleDeleteTx = async (txId: string) => {
     try {
-      const res = await fetch(`/api/admin/transactions?txId=${encodeURIComponent(txId)}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/transactions?txId=${encodeURIComponent(txId)}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
       const data = await res.json();
       if (data.success) {
         setTransactions(prev => prev.filter(t => t.id !== txId));
@@ -420,7 +453,7 @@ export default function AdminPanelPage() {
     try {
       const res = await fetch('/api/admin/reports', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({ reportId, status, postAction }),
       });
       const data = await res.json();
@@ -440,7 +473,10 @@ export default function AdminPanelPage() {
 
   const handleDeleteReport = async (reportId: string) => {
     try {
-      const res = await fetch(`/api/admin/reports?reportId=${encodeURIComponent(reportId)}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/reports?reportId=${encodeURIComponent(reportId)}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
       const data = await res.json();
       if (data.success) {
         setReports(prev => prev.filter(r => r.id !== reportId));
@@ -457,7 +493,7 @@ export default function AdminPanelPage() {
     try {
       const res = await fetch('/api/admin/settings', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({ creatorCommissionPercent: creatorCommission }),
       });
       const data = await res.json();
@@ -521,6 +557,42 @@ export default function AdminPanelPage() {
         return 'Administration Panel';
     }
   };
+
+  if (authState === 'loading') {
+    return (
+      <div className="min-h-screen bg-[#08080a] flex items-center justify-center text-[#d4af37] text-sm">
+        Verifying administrator session...
+      </div>
+    );
+  }
+
+  if (authState === 'forbidden') {
+    return (
+      <div className="min-h-screen bg-[#08080a] flex items-center justify-center p-4">
+        <div className="max-w-md w-full p-6 rounded-2xl bg-[#111117] border border-red-500/40 text-center space-y-4">
+          <ShieldOff className="w-10 h-10 text-red-400 mx-auto" />
+          <h2 className="text-lg font-serif font-bold text-white">Administrator Access Required</h2>
+          <p className="text-xs text-[#94a3b8]">
+            You are currently signed in as <span className="text-white font-semibold">{sessionUser?.name}</span> ({sessionUser?.role}). Only authorized platform administrators can view this portal.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
+            <Link
+              href={sessionUser?.role === 'CREATOR' ? '/creator-studio' : '/dashboard'}
+              className="flex-1 py-2.5 rounded-xl gold-button text-xs font-bold text-center"
+            >
+              Go to My Portal
+            </Link>
+            <Link
+              href="/"
+              className="flex-1 py-2.5 rounded-xl bg-[#181824] border border-[#2c2c3c] text-xs font-semibold text-white text-center"
+            >
+              Homepage
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#08080a] text-white flex">
@@ -1379,12 +1451,26 @@ export default function AdminPanelPage() {
               >
                 <ExternalLink className="w-3.5 h-3.5" /> Public Profile
               </Link>
-              <Link
-                href={`/creator-studio?creator=${encodeURIComponent(viewCreator.handle)}`}
+              <button
+                type="button"
+                onClick={() => {
+                  const target = viewCreator;
+                  setViewCreator(null);
+                  setEditCreatorForm({
+                    id: target.id,
+                    name: target.name,
+                    handle: target.handle,
+                    category: target.category,
+                    monthlyPrice: String(target.monthlyPrice || 9.99),
+                    bio: target.bio || '',
+                    isVerified: Boolean(target.isVerified),
+                    status: target.status || 'ACTIVE',
+                  });
+                }}
                 className="flex-1 py-2.5 rounded-xl bg-[#181824] border border-[#2e2e40] text-center font-semibold text-white hover:border-[#d4af37]"
               >
-                Open in Studio
-              </Link>
+                Edit Creator Details
+              </button>
             </div>
           </div>
         )}

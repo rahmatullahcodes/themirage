@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { listAllCreators, updateCreatorProfileSettings, getPublicPlatformStats } from '@/lib/contentStore';
+import { requireSession } from '@/lib/auth';
+import { findCreatorByUserId, listAllCreators, updateCreatorProfileSettings, getPublicPlatformStats } from '@/lib/contentStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,9 +30,16 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const auth = requireSession(req, ['CREATOR', 'ADMIN']);
+    if (!auth.ok) return auth.response;
+
     const body = await req.json();
     const { creatorId, handle, monthlyPrice, bio, category, name, avatar, banner } = body || {};
-    const target = handle || creatorId;
+
+    const target =
+      auth.user.role === 'CREATOR'
+        ? findCreatorByUserId(auth.user.userId)?.id || auth.user.userId
+        : handle || creatorId;
 
     if (!target) {
       return NextResponse.json({ success: false, message: 'creatorId or handle is required' }, { status: 400 });

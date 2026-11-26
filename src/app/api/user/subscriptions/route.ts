@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserFromAuthHeader } from '@/lib/auth';
+import { getSessionUser } from '@/lib/auth';
 import { getUserSubscriptions, cancelUserSubscription } from '@/lib/contentStore';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
+    const session = getSessionUser(req);
+    if (!session) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
     const searchParams = req.nextUrl?.searchParams || new URL(req.url, 'http://localhost:3000').searchParams;
-    const tokenUser = getUserFromAuthHeader(req.headers.get('Authorization'));
-    const userId = tokenUser?.userId || searchParams.get('userId') || 'usr-1';
+    const requestedId = searchParams.get('userId');
+    const userId = session.role === 'ADMIN' && requestedId ? requestedId : session.userId;
 
     const subscriptions = getUserSubscriptions(userId);
     return NextResponse.json({
@@ -26,10 +31,13 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const session = getSessionUser(req);
+    if (!session) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
-    const tokenUser = getUserFromAuthHeader(req.headers.get('Authorization'));
-    const { subscriptionId, userId: bodyUserId, action } = body || {};
-    const userId = tokenUser?.userId || bodyUserId || 'usr-1';
+    const { subscriptionId, action } = body || {};
 
     if (!subscriptionId || action !== 'CANCEL') {
       return NextResponse.json(
@@ -38,7 +46,7 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const result = cancelUserSubscription(userId, subscriptionId);
+    const result = cancelUserSubscription(session.userId, subscriptionId);
     if (!result.success) {
       return NextResponse.json({ success: false, message: 'Subscription not found' }, { status: 404 });
     }

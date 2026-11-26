@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireSession } from '@/lib/auth';
 import {
   getAdminCatalogList,
   setPostStatusAdmin,
@@ -11,6 +12,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = requireSession(req, ['ADMIN']);
+    if (!auth.ok) return auth.response;
+
     const searchParams = req.nextUrl?.searchParams || (req.url.startsWith('http') ? new URL(req.url).searchParams : new URL(req.url, 'http://localhost:3000').searchParams);
     const status = searchParams.get('status') || undefined;
     const mediaType = searchParams.get('mediaType') || undefined;
@@ -34,6 +38,9 @@ const ALLOWED_STATUSES: PostStatus[] = ['DRAFT', 'PUBLISHED', 'ARCHIVED'];
 
 export async function PATCH(req: NextRequest) {
   try {
+    const auth = requireSession(req, ['ADMIN']);
+    if (!auth.ok) return auth.response;
+
     let body: any;
     try {
       body = await req.json();
@@ -106,6 +113,9 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const auth = requireSession(req, ['ADMIN']);
+    if (!auth.ok) return auth.response;
+
     const searchParams = req.nextUrl?.searchParams || new URL(req.url, 'http://localhost:3000').searchParams;
     const postId = searchParams.get('postId');
     if (!postId) {

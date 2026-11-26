@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserFromAuthHeader } from '@/lib/auth';
+import { getSessionUser } from '@/lib/auth';
 import { getUserTransactions } from '@/lib/contentStore';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
+    const session = getSessionUser(req);
+    if (!session) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
     const searchParams = req.nextUrl?.searchParams || new URL(req.url, 'http://localhost:3000').searchParams;
-    const tokenUser = getUserFromAuthHeader(req.headers.get('Authorization'));
-    const userId = tokenUser?.userId || searchParams.get('userId') || 'usr-1';
+    const requestedId = searchParams.get('userId');
+    const userId = session.role === 'ADMIN' && requestedId ? requestedId : session.userId;
 
     const transactions = getUserTransactions(userId);
     return NextResponse.json({

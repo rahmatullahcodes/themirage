@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { X, CheckCircle, Shield, CreditCard, Sparkles, AlertCircle, LogIn } from 'lucide-react';
+import { getAuthHeaders } from '@/lib/clientAuth';
 
 interface SubscribeModalProps {
   creator: {
@@ -46,19 +47,13 @@ export default function SubscribeModal({
     setIsAuthError(false);
 
     try {
-      const token = localStorage.getItem('mirage_token');
-      if (!token) {
-        setIsAuthError(true);
-        setError('Please log in or create an account to subscribe.');
-        setLoading(false);
-        return;
-      }
+      const authHeaders = getAuthHeaders();
 
       const res = await fetch('/api/subscriptions/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          ...authHeaders,
         },
         body: JSON.stringify({
           creatorId: creator.id,
@@ -67,6 +62,10 @@ export default function SubscribeModal({
       });
 
       const data = await res.json();
+      if (res.status === 401) {
+        setIsAuthError(true);
+        throw new Error(data.error || data.message || 'Please log in or create an account to subscribe.');
+      }
       if (!res.ok) {
         throw new Error(data.error || data.message || 'Failed to complete checkout');
       }

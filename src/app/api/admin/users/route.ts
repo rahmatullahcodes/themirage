@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireSession } from '@/lib/auth';
 import {
   listAllUsers,
   updateUserStatusAdmin,
@@ -10,8 +11,11 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const auth = requireSession(req, ['ADMIN']);
+    if (!auth.ok) return auth.response;
+
     const users = listAllUsers();
     return NextResponse.json({
       success: true,
@@ -28,6 +32,9 @@ export async function GET() {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const auth = requireSession(req, ['ADMIN']);
+    if (!auth.ok) return auth.response;
+
     const body = await req.json();
     const { userId, status, name, username, email, role, bio } = body || {};
 
@@ -86,6 +93,9 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const auth = requireSession(req, ['ADMIN']);
+    if (!auth.ok) return auth.response;
+
     const searchParams = req.nextUrl?.searchParams || new URL(req.url, 'http://localhost:3000').searchParams;
     const userId = searchParams.get('userId');
     if (!userId) {

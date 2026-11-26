@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { io, Socket } from 'socket.io-client';
+import { fetchCurrentSessionUser, getAuthHeaders } from '@/lib/clientAuth';
 import {
   Send,
   Sparkles,
@@ -52,32 +53,35 @@ interface ConversationSummary {
 }
 
 function ChatContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const rawQueryCreator = (searchParams?.get('creator') || '').replace(/^@/, '').toLowerCase();
   const queryCustomer = searchParams?.get('customer') || '';
   const queryRole = (searchParams?.get('role') || '').toLowerCase();
   const autoOpenCustom = searchParams?.get('requestCustom') === 'true';
 
+  const [authChecked, setAuthChecked] = useState(false);
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     name: string;
     username: string;
     role: string;
     avatar?: string;
+    creatorHandle?: string;
   }>({
-    id: 'usr-1',
-    name: 'Subscriber',
-    username: 'member',
+    id: '',
+    name: '',
+    username: '',
     role: 'SUBSCRIBER',
   });
 
-  const [chatMode, setChatMode] = useState<'user' | 'creator'>(queryRole === 'creator' ? 'creator' : 'user');
-  const [myCreatorHandle, setMyCreatorHandle] = useState<string>(rawQueryCreator || 'luna-rae');
+  const [chatMode, setChatMode] = useState<'user' | 'creator'>('user');
+  const [myCreatorHandle, setMyCreatorHandle] = useState<string>('');
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [convSearch, setConvSearch] = useState('');
   const [selectedThread, setSelectedThread] = useState<{ userId: string; creatorHandle: string }>({
-    userId: queryCustomer || 'usr-1',
-    creatorHandle: rawQueryCreator || 'luna-rae',
+    userId: '',
+    creatorHandle: '',
   });
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('chat');
 
@@ -95,90 +99,106 @@ function ChatContent() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const threadScrollInitRef = useRef(false);
 
-  // Hydrate authenticated user & mode
+  // Hydrate authenticated user strictly from verified backend session
   useEffect(() => {
-    let active = {
-      id: 'usr-1',
-      name: 'Alex Mercer',
-      username: 'alexmercer',
-      role: 'SUBSCRIBER',
-      avatar: '',
-    };
-    try {
-      const stored = localStorage.getItem('mirage_user');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed?.id) active = { ...active, ...parsed };
+    let active = true;
+    (async () => {
+      const me = await fetchCurrentSessionUser();
+      if (!active) return;
+      if (!me) {
+        router.replace('/login?redirect=/chat');
+        return;
       }
-    } catch {}
 
-    setCurrentUser(active);
-    const isCreatorViewer = queryRole === 'creator' || active.role === 'CREATOR';
-    const nextMode: 'user' | 'creator' = isCreatorViewer ? 'creator' : 'user';
-    setChatMode(nextMode);
+      setCurrentUser(me);
+      const isCreatorAccount = me.role === 'CREATOR';
+      const ownHandle = (me.creatorHandle || me.username || '').toLowerCase();
+      setMyCreatorHandle(ownHandle);
 
-    const creatorHandleForMode =
-      rawQueryCreator || (active.role === 'CREATOR' ? active.username?.toLowerCase() : 'luna-rae');
-    setMyCreatorHandle(creatorHandleForMode);
+      const openCreatorAsFan =
+        !isCreatorAccount || (Boolean(rawQueryCreator) && rawQueryCreator !== ownHandle && queryRole !== 'creator');
+      const nextMode: 'user' | 'creator' = openCreatorAsFan ? 'user' : 'creator';
+      setChatMode(nextMode);
 
-    setSelectedThread({
-      userId: nextMode === 'creator' ? queryCustomer || 'usr-1' : active.id,
-      creatorHandle: creatorHandleForMode,
-    });
-
-    fetch(`/api/user/profile?userId=${encodeURIComponent(active.id)}`, { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((d) => {
-        if (d?.success && d?.user) {
-          setCurrentUser(d.user);
+      if (nextMode === 'creator') {
+        setSelectedThread({
+          userId: queryCustomer || '',
+          creatorHandle: ownHandle,
+        });
+        if (!queryCustomer) {
+          setMobileView('list');
         }
-      })
-      .catch(() => {});
-  }, [rawQueryCreator, queryCustomer, queryRole]);
+      } else {
+        setSelectedThread({
+          userId: me.id,
+          creatorHandle: rawQueryCreator || (ownHandle === 'luna-rae' ? 'sophie-lee' : 'luna-rae'),
+        });
+      }
+      setAuthChecked(true);
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [router, rawQueryCreator, queryCustomer, queryRole]);
 
   // Load live conversations list from backend
   const fetchConversations = useCallback(async () => {
+    if (!authChecked || !currentUser.id) return;
     try {
+      const effectiveCreatorMode = chatMode === 'creator' && currentUser.role === 'CREATOR';
       const params = new URLSearchParams({
         mode: 'threads',
-        userId: currentUser.id,
-        role: chatMode === 'creator' ? 'CREATOR' : 'SUBSCRIBER',
+        role: effectiveCreatorMode ? 'CREATOR' : 'SUBSCRIBER',
       });
-      if (chatMode === 'creator' && myCreatorHandle) {
-        params.set('creatorHandle', myCreatorHandle);
+      const res = await fetch(`/api/chat?${params.toString()}`, {
+        headers: getAuthHeaders(),
+        cache: 'no-store',
+      });
+      if (res.status === 401) {
+        router.replace('/login?redirect=/chat');
+        return;
       }
-      const res = await fetch(`/api/chat?${params.toString()}`, { cache: 'no-store' });
       const data = await res.json();
       if (data?.success && Array.isArray(data.conversations)) {
         setConversations(data.conversations);
-        if (chatMode === 'creator' && data.activeCreatorHandle) {
+        if (effectiveCreatorMode && data.activeCreatorHandle) {
           setMyCreatorHandle(data.activeCreatorHandle);
+        }
+        if (effectiveCreatorMode && !selectedThread.userId && data.conversations.length > 0) {
+          setSelectedThread({
+            userId: data.conversations[0].userId,
+            creatorHandle: data.conversations[0].creatorHandle,
+          });
         }
       }
     } catch (e) {}
-  }, [currentUser.id, chatMode, myCreatorHandle]);
+  }, [authChecked, currentUser.id, currentUser.role, chatMode, selectedThread.userId, router]);
 
   useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
+    if (authChecked) {
+      fetchConversations();
+    }
+  }, [authChecked, fetchConversations]);
 
   // Fetch active thread messages + custom requests
   const fetchActiveThread = useCallback(async (showSpinner = false) => {
-    if (!selectedThread.userId || !selectedThread.creatorHandle) return;
+    if (!authChecked || !selectedThread.userId || !selectedThread.creatorHandle) return;
     if (showSpinner) setLoadingThread(true);
     try {
+      const headers = getAuthHeaders();
       const [msgRes, reqRes] = await Promise.all([
         fetch(
           `/api/chat?userId=${encodeURIComponent(selectedThread.userId)}&creator=${encodeURIComponent(
             selectedThread.creatorHandle
           )}`,
-          { cache: 'no-store' }
+          { headers, cache: 'no-store' }
         ),
         fetch(
           `/api/custom-requests?customerId=${encodeURIComponent(selectedThread.userId)}&creatorId=${encodeURIComponent(
             selectedThread.creatorHandle
           )}`,
-          { cache: 'no-store' }
+          { headers, cache: 'no-store' }
         ),
       ]);
 
@@ -237,12 +257,13 @@ function ChatContent() {
     } finally {
       if (showSpinner) setLoadingThread(false);
     }
-  }, [selectedThread.userId, selectedThread.creatorHandle]);
+  }, [authChecked, selectedThread.userId, selectedThread.creatorHandle]);
 
   useEffect(() => {
+    if (!authChecked) return;
     threadScrollInitRef.current = true;
     fetchActiveThread(true);
-  }, [fetchActiveThread]);
+  }, [authChecked, fetchActiveThread]);
 
   // Auto-scroll when messages arrive
   useEffect(() => {
@@ -254,6 +275,7 @@ function ChatContent() {
 
   // Real-time Socket.IO connection + 3s background sync fallback
   useEffect(() => {
+    if (!authChecked || !selectedThread.userId || !selectedThread.creatorHandle) return;
     const roomId = `${selectedThread.userId}:${selectedThread.creatorHandle}`;
     let socket: Socket | null = null;
     try {
@@ -299,7 +321,7 @@ function ChatContent() {
         socketRef.current = null;
       }
     };
-  }, [selectedThread.userId, selectedThread.creatorHandle, fetchActiveThread, fetchConversations]);
+  }, [authChecked, selectedThread.userId, selectedThread.creatorHandle, fetchActiveThread, fetchConversations]);
 
   // Global Escape key listener
   useEffect(() => {
@@ -317,13 +339,19 @@ function ChatContent() {
       threadKey: `${selectedThread.userId}:${selectedThread.creatorHandle}`,
       userId: selectedThread.userId,
       creatorHandle: selectedThread.creatorHandle,
-      partnerName: selectedThread.creatorHandle
-        .split('-')
-        .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-        .join(' '),
-      partnerHandle: `@${selectedThread.creatorHandle}`,
+      partnerName:
+        chatMode === 'creator' && !selectedThread.userId
+          ? 'Fan Inbox'
+          : selectedThread.creatorHandle
+              .split('-')
+              .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+              .join(' '),
+      partnerHandle:
+        chatMode === 'creator' && !selectedThread.userId
+          ? 'Select a conversation'
+          : `@${selectedThread.creatorHandle}`,
       partnerAvatar: '',
-      isVerified: true,
+      isVerified: chatMode !== 'creator' || Boolean(selectedThread.userId),
       lastMessage: '',
       lastTime: 'Online',
       lastTimestamp: 0,
@@ -344,11 +372,12 @@ function ChatContent() {
     mediaUrl?: string;
     mediaType?: 'IMAGE' | 'VIDEO';
   }) => {
+    if (!selectedThread.userId || !selectedThread.creatorHandle) return;
     const roomId = `${selectedThread.userId}:${selectedThread.creatorHandle}`;
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           userId: selectedThread.userId,
           creator: selectedThread.creatorHandle,
@@ -390,7 +419,7 @@ function ChatContent() {
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const res = await fetch('/api/upload', { method: 'POST', headers: getAuthHeaders(), body: fd });
       const data = await res.json();
       if (res.ok && data?.success && data?.url) {
         await postChatPayload({
@@ -414,8 +443,8 @@ function ChatContent() {
     try {
       await fetch('/api/custom-requests', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId: offerId, action: 'PAY', userId: selectedThread.userId }),
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ requestId: offerId, action: 'PAY' }),
       });
       socketRef.current?.emit('custom_content_update', {
         conversationId: `${selectedThread.userId}:${selectedThread.creatorHandle}`,
@@ -435,7 +464,7 @@ function ChatContent() {
     try {
       const res = await fetch('/api/custom-requests', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           customerId: selectedThread.userId,
           customerName:
@@ -476,6 +505,14 @@ function ChatContent() {
     );
   });
 
+  if (!authChecked || !currentUser.id) {
+    return (
+      <div className="min-h-screen bg-[#08080a] flex items-center justify-center text-[#d4af37] text-sm">
+        Verifying your encrypted chat session...
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen h-[100dvh] bg-[#08080a] text-white flex overflow-hidden">
       {/* Conversations Sidebar */}
@@ -509,11 +546,15 @@ function ChatContent() {
 
         {/* Mode Switcher & Search */}
         <div className="p-3 border-b border-[#181822] space-y-2.5">
-          {(currentUser.role === 'CREATOR' || queryRole === 'creator') && (
+          {currentUser.role === 'CREATOR' && (
             <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[#13131c] border border-[#242434] text-[11px]">
               <button
                 type="button"
-                onClick={() => setChatMode('creator')}
+                onClick={() => {
+                  setChatMode('creator');
+                  setMessages([]);
+                  setSelectedThread({ userId: '', creatorHandle: myCreatorHandle });
+                }}
                 className={`py-1.5 px-2 rounded-lg font-bold flex items-center justify-center gap-1 transition-colors ${
                   chatMode === 'creator' ? 'gold-button text-black' : 'text-[#8e8e9e] hover:text-white'
                 }`}
@@ -522,7 +563,14 @@ function ChatContent() {
               </button>
               <button
                 type="button"
-                onClick={() => setChatMode('user')}
+                onClick={() => {
+                  setChatMode('user');
+                  setMessages([]);
+                  setSelectedThread({
+                    userId: currentUser.id,
+                    creatorHandle: myCreatorHandle === 'luna-rae' ? 'sophie-lee' : 'luna-rae',
+                  });
+                }}
                 className={`py-1.5 px-2 rounded-lg font-bold flex items-center justify-center gap-1 transition-colors ${
                   chatMode === 'user' ? 'gold-button text-black' : 'text-[#8e8e9e] hover:text-white'
                 }`}
@@ -633,8 +681,9 @@ function ChatContent() {
 
           <button
             type="button"
+            disabled={!selectedThread.userId}
             onClick={() => setShowCustomModal(true)}
-            className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#181824] hover:bg-[#202030] text-[#f5d77f] border border-[#d4af37]/40 text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition-colors shadow-gold-sm flex-shrink-0"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#181824] hover:bg-[#202030] text-[#f5d77f] border border-[#d4af37]/40 text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition-colors shadow-gold-sm flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">

@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCreatorSegregatedEarnings, resolveCreatorId } from '@/lib/contentStore';
+import { requireSession } from '@/lib/auth';
+import { findCreatorByUserId, getCreatorSegregatedEarnings, resolveCreatorId } from '@/lib/contentStore';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = requireSession(req, ['CREATOR', 'ADMIN']);
+    if (!auth.ok) return auth.response;
+
     const searchParams = req.nextUrl?.searchParams || (req.url.startsWith('http') ? new URL(req.url).searchParams : new URL(req.url, 'http://localhost:3000').searchParams);
-    const rawCreatorId = searchParams.get('creatorId') || 'c1';
-    const creatorId = resolveCreatorId(rawCreatorId) || 'c1';
+    let creatorId: string;
+
+    if (auth.user.role === 'CREATOR') {
+      const ownCreator = findCreatorByUserId(auth.user.userId);
+      creatorId = ownCreator?.id || resolveCreatorId(auth.user.userId);
+    } else {
+      const rawCreatorId = searchParams.get('creatorId') || 'c1';
+      creatorId = resolveCreatorId(rawCreatorId) || 'c1';
+    }
 
     const earnings = getCreatorSegregatedEarnings(creatorId);
 
@@ -22,4 +33,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

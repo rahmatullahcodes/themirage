@@ -130,42 +130,7 @@ function LoginForm() {
           </button>
         </form>
 
-        <div className="mt-6 pt-5 border-t border-[#1c1c28]">
-          <span className="text-[11px] text-[#636375] block text-center mb-2 font-medium">
-            Quick Demo Login:
-          </span>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={() => {
-                setEmail('subscriber@themirage.vip');
-                setPassword('password123');
-              }}
-              className="py-1.5 px-2 rounded-lg bg-[#151520] border border-[#252535] text-[10px] text-[#9a9ab0] hover:text-[#f5d77f] hover:border-[#d4af37]/40"
-            >
-              Subscriber
-            </button>
-            <button
-              onClick={() => {
-                setEmail('creator@themirage.vip');
-                setPassword('password123');
-              }}
-              className="py-1.5 px-2 rounded-lg bg-[#151520] border border-[#252535] text-[10px] text-[#9a9ab0] hover:text-[#f5d77f] hover:border-[#d4af37]/40"
-            >
-              Creator
-            </button>
-            <button
-              onClick={() => {
-                setEmail('admin@themirage.vip');
-                setPassword('password123');
-              }}
-              className="py-1.5 px-2 rounded-lg bg-[#151520] border border-[#252535] text-[10px] text-[#9a9ab0] hover:text-[#f5d77f] hover:border-[#d4af37]/40"
-            >
-              Admin
-            </button>
-          </div>
-        </div>
-
-        <div className="text-center mt-6 text-xs text-[#7c7c90]">
+        <div className="text-center mt-6 pt-5 border-t border-[#1c1c28] text-xs text-[#7c7c90]">
           Don&apos;t have an account?{' '}
           <Link href="/register" className="text-[#f5d77f] font-semibold hover:underline">
             Sign up now

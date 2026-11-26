@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireSession } from '@/lib/auth';
 import { getPlatformSettings, updatePlatformSettings } from '@/lib/contentStore';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const auth = requireSession(req, ['ADMIN']);
+    if (!auth.ok) return auth.response;
+
     const settings = getPlatformSettings();
     return NextResponse.json({
       success: true,
@@ -20,6 +24,9 @@ export async function GET() {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const auth = requireSession(req, ['ADMIN']);
+    if (!auth.ok) return auth.response;
+
     const body = await req.json();
     const { creatorCommissionPercent } = body || {};
     const val = Number(creatorCommissionPercent);

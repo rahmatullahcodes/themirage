@@ -1,6 +1,7 @@
 // Persistent unified data store for The Mirage (Users, Creators, Posts, Subscriptions, PPV Vault, Chat, Orders & Admin)
 import fs from 'fs';
 import path from 'path';
+import bcrypt from 'bcryptjs';
 import { calculateCommission } from './commission';
 
 export type MediaType = 'IMAGE' | 'VIDEO' | 'AUDIO';
@@ -1653,14 +1654,32 @@ declare global {
   var __mirageDb: MirageDbState | undefined;
 }
 
+let cachedDefaultSeedHash: string | null = null;
+function getDefaultSeedPasswordHash(): string {
+  if (!cachedDefaultSeedHash) {
+    cachedDefaultSeedHash = bcrypt.hashSync(process.env.SEED_DEFAULT_PASSWORD || 'password123', 8);
+  }
+  return cachedDefaultSeedHash;
+}
+
+function sanitizeUserRecord(user: UserRecord): UserRecord {
+  const { passwordHash: _omitted, ...safe } = user;
+  return safe as UserRecord;
+}
+
 function getDbFilePath(): string {
   return process.env.MIRAGE_DB_FILE || path.join(process.cwd(), 'data', 'mirage-db.json');
 }
 
 function createInitialDb(): MirageDbState {
   const nowIso = new Date().toISOString();
+  const seedHash = getDefaultSeedPasswordHash();
+  const seededUsers: UserRecord[] = JSON.parse(JSON.stringify(SEED_USERS));
+  seededUsers.forEach((u) => {
+    if (!u.passwordHash) u.passwordHash = seedHash;
+  });
   return {
-    users: JSON.parse(JSON.stringify(SEED_USERS)),
+    users: seededUsers,
     creators: JSON.parse(JSON.stringify(SEED_CREATORS)),
     posts: JSON.parse(JSON.stringify(SEED_POSTS)),
     purchases: JSON.parse(JSON.stringify(SEED_PURCHASES)),
@@ -1734,8 +1753,15 @@ function getDb(): MirageDbState {
         settings: parsed.settings || base.settings,
       };
 
-      // Auto-migrate existing persisted DB: ensure Travel -> Fetish and ensure Ellie ('c9') exists
+      // Auto-migrate existing persisted DB: ensure Travel -> Fetish, Ellie ('c9'), and seeded password hashes
       let migrated = false;
+      const seedHash = getDefaultSeedPasswordHash();
+      hydrated.users.forEach((u) => {
+        if (!u.passwordHash) {
+          u.passwordHash = seedHash;
+          migrated = true;
+        }
+      });
       hydrated.creators.forEach(c => {
         if (c.category === 'Travel') {
           c.category = 'Fetish';
@@ -1832,7 +1858,7 @@ export function updatePlatformSettings(creatorCommissionPercent: number): Platfo
 // ======================= USER & CREATOR REGISTRY =======================
 
 export function listAllUsers(): UserRecord[] {
-  return [...getDb().users];
+  return getDb().users.map(sanitizeUserRecord);
 }
 
 export function findUserByEmail(email: string): UserRecord | undefined {
@@ -1842,6 +1868,12 @@ export function findUserByEmail(email: string): UserRecord | undefined {
 
 export function findUserById(userId: string): UserRecord | undefined {
   return getDb().users.find(u => u.id === userId);
+}
+
+export function findCreatorByUserId(userId: string): CreatorRecord | undefined {
+  if (!userId) return undefined;
+  const clean = userId.trim().toLowerCase();
+  return getDb().creators.find(c => c.userId.toLowerCase() === clean || c.id.toLowerCase() === clean);
 }
 
 export function registerNewUser(params: {
@@ -3230,7 +3262,7 @@ export function getAdminOverviewData() {
       totalCreatorsCount: db.creators.length,
       pendingReportsCount: db.reports.filter(r => r.status === 'PENDING').length,
     },
-    users: [...db.users],
+    users: db.users.map(sanitizeUserRecord),
     creators: listAllCreators(),
     transactions: [...db.transactions],
     reports: [...db.reports],

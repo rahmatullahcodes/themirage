@@ -43,7 +43,7 @@ function request(method, path, body = null, headers = {}) {
         } catch (e) {
           json = data;
         }
-        resolve({ status: res.statusCode, data: json });
+        resolve({ status: res.statusCode, data: json, headers: res.headers });
       });
     });
 
@@ -85,28 +85,78 @@ async function runTests() {
   let passed = 0;
 
   // 1. Auth: Register
+  const regEmail = 'test' + Date.now() + '@themirage.vip';
   const registerRes = await request('POST', '/api/auth/register', {
     name: 'Test Subscriber',
     username: 'test_sub_' + Date.now(),
-    email: 'test' + Date.now() + '@themirage.vip',
+    email: regEmail,
     password: 'Password123!',
     role: 'SUBSCRIBER',
   });
   assert.strictEqual(registerRes.status, 200, 'Register should return 200');
   assert.ok(registerRes.data.token, 'Register should return JWT token');
+  const regSetCookie = [].concat(registerRes.headers['set-cookie'] || []).join(';');
+  assert.ok(regSetCookie.includes('mirage_token='), 'Register must attach HttpOnly session cookie');
   const userToken = registerRes.data.token;
+  const userAuth = { Authorization: `Bearer ${userToken}` };
   const testUserId = registerRes.data.user.id;
-  console.log('✓ Test 1: POST /api/auth/register passed (User registered with JWT)');
+  console.log('✓ Test 1: POST /api/auth/register passed (User registered with JWT + Session Cookie)');
   passed++;
 
-  // 2. Auth: Login
+  // 2. Auth: Login + Password Enforcement + Role Session Logins
   const loginRes = await request('POST', '/api/auth/login', {
-    email: 'test@themirage.vip',
+    email: regEmail,
     password: 'Password123!',
   });
   assert.strictEqual(loginRes.status, 200, 'Login should return 200');
   assert.ok(loginRes.data.token, 'Login should return JWT');
-  console.log('✓ Test 2: POST /api/auth/login passed (User login authenticated)');
+  const loginSetCookie = [].concat(loginRes.headers['set-cookie'] || []).join(';');
+  assert.ok(loginSetCookie.includes('mirage_token='), 'Login must attach HttpOnly session cookie');
+
+  const badEmailLogin = await request('POST', '/api/auth/login', {
+    email: `nonexistent_${Date.now()}@themirage.vip`,
+    password: 'Password123!',
+  });
+  assert.strictEqual(badEmailLogin.status, 401, 'Unknown email login must be rejected with 401');
+
+  const wrongPassLogin = await request('POST', '/api/auth/login', {
+    email: regEmail,
+    password: 'WrongPassword999!',
+  });
+  assert.strictEqual(wrongPassLogin.status, 401, 'Wrong password must be rejected with 401');
+
+  const adminLogin = await request('POST', '/api/auth/login', {
+    email: 'admin@themirage.vip',
+    password: 'password123',
+  });
+  assert.strictEqual(adminLogin.status, 200, 'Seeded admin login must succeed');
+  const adminToken = adminLogin.data.token;
+  const adminAuth = { Authorization: `Bearer ${adminToken}` };
+
+  const lunaLogin = await request('POST', '/api/auth/login', {
+    email: 'creator@themirage.vip',
+    password: 'password123',
+  });
+  assert.strictEqual(lunaLogin.status, 200, 'Seeded Luna Rae creator login must succeed');
+  const lunaToken = lunaLogin.data.token;
+  const lunaAuth = { Authorization: `Bearer ${lunaToken}` };
+
+  const ellieLogin = await request('POST', '/api/auth/login', {
+    email: 'ellie@themirage.vip',
+    password: 'password123',
+  });
+  assert.strictEqual(ellieLogin.status, 200, 'Seeded Ellie creator login must succeed');
+  const ellieToken = ellieLogin.data.token;
+  const ellieAuth = { Authorization: `Bearer ${ellieToken}` };
+
+  const alexLogin = await request('POST', '/api/auth/login', {
+    email: 'subscriber@themirage.vip',
+    password: 'password123',
+  });
+  assert.strictEqual(alexLogin.status, 200, 'Seeded Alex Mercer subscriber login must succeed');
+  const alexAuth = { Authorization: `Bearer ${alexLogin.data.token}` };
+
+  console.log('✓ Test 2: POST /api/auth/login passed (Credentials & role tokens verified)');
   passed++;
 
   // 3. Auth: Forgot Password
@@ -154,7 +204,7 @@ async function runTests() {
     thumbnailUrl: 'https://images.unsplash.com/photo-test-thumb.jpg',
     visibility: 'PURCHASE_ONLY',
     price: 18.00,
-  });
+  }, lunaAuth);
   assert.strictEqual(createPostRes.status, 200);
   const createdPostId = createPostRes.data.post.id;
   assert.ok(createdPostId, 'Created post should have an id');
@@ -166,14 +216,17 @@ async function runTests() {
     postId: createdPostId,
     creatorId: 'c1',
     updates: { price: 22.00 },
-  });
+  }, lunaAuth);
   assert.strictEqual(patchPostRes.status, 200);
   assert.strictEqual(patchPostRes.data.post.price, 22.00);
   console.log('✓ Test 8: PATCH /api/content/posts passed (Updated price to $22.00)');
   passed++;
 
   // 9. Media: Check unauthorized access before purchase (should return 403 Forbidden)
-  const unauthMediaRes = await request('GET', `/api/media/${createdPostId}?userId=${testUserId}`);
+  const spoofMediaRes = await request('GET', `/api/media/${createdPostId}?userId=usr-1`);
+  assert.strictEqual(spoofMediaRes.status, 403, 'Spoofed userId without session must be denied');
+
+  const unauthMediaRes = await request('GET', `/api/media/${createdPostId}`, null, userAuth);
   assert.strictEqual(unauthMediaRes.status, 403, 'Unauthorized media request must return 403');
   assert.strictEqual(unauthMediaRes.data.authorized, false);
   console.log('✓ Test 9: GET /api/media/:id (Unpurchased) passed — strictly 403 Forbidden');
@@ -182,9 +235,7 @@ async function runTests() {
   // 10. Purchase: User purchases the individual content
   const purchaseRes = await request('POST', '/api/content/purchase', {
     postId: createdPostId,
-    userId: testUserId,
-    userName: 'Test Subscriber',
-  });
+  }, userAuth);
   assert.strictEqual(purchaseRes.status, 200);
   assert.strictEqual(purchaseRes.data.success, true);
   assert.strictEqual(purchaseRes.data.purchase.price, 22.00);
@@ -192,7 +243,7 @@ async function runTests() {
   passed++;
 
   // 11. Media: Check authorized access after purchase (should return 200 with high-res mediaUrl)
-  const authMediaRes = await request('GET', `/api/media/${createdPostId}?userId=${testUserId}`);
+  const authMediaRes = await request('GET', `/api/media/${createdPostId}`, null, userAuth);
   assert.strictEqual(authMediaRes.status, 200, 'Purchased media request must return 200');
   assert.strictEqual(authMediaRes.data.authorized, true);
   assert.strictEqual(authMediaRes.data.mediaUrl, 'https://images.unsplash.com/photo-test-raw.jpg');
@@ -200,7 +251,7 @@ async function runTests() {
   passed++;
 
   // 12. User Purchases: Check user vault library
-  const userPurchasesRes = await request('GET', `/api/user/purchases?userId=${testUserId}`);
+  const userPurchasesRes = await request('GET', '/api/user/purchases', null, userAuth);
   assert.strictEqual(userPurchasesRes.status, 200);
   assert.ok(userPurchasesRes.data.count >= 1, 'Purchased post must appear in library');
   console.log('✓ Test 12: GET /api/user/purchases passed (Vault verified)');
@@ -242,7 +293,7 @@ async function runTests() {
   passed++;
 
   // 15. Creator Earnings: Verify Segregated Earnings for Luna Rae
-  const earningsRes = await request('GET', '/api/creator/earnings?creatorId=c1');
+  const earningsRes = await request('GET', '/api/creator/earnings?creatorId=c1', null, lunaAuth);
   assert.strictEqual(earningsRes.status, 200);
   assert.strictEqual(earningsRes.data.success, true);
   assert.ok(earningsRes.data.earnings.totals.totalCreatorNet >= 0, 'Net earnings calculated');
@@ -251,14 +302,14 @@ async function runTests() {
   passed++;
 
   // 16. Admin Catalog: Query and moderate content
-  const adminCatalogRes = await request('GET', '/api/admin/catalog?status=PUBLISHED');
+  const adminCatalogRes = await request('GET', '/api/admin/catalog?status=PUBLISHED', null, adminAuth);
   assert.strictEqual(adminCatalogRes.status, 200);
   assert.ok(adminCatalogRes.data.count > 0, 'Admin catalog must return published items');
 
   const adminPatchRes = await request('PATCH', '/api/admin/catalog', {
     postId: createdPostId,
     status: 'ARCHIVED',
-  });
+  }, adminAuth);
   assert.strictEqual(adminPatchRes.status, 200);
   assert.strictEqual(adminPatchRes.data.post.status, 'ARCHIVED');
   console.log('✓ Test 16: Admin Catalog GET & PATCH passed (Moderation verified)');
@@ -314,8 +365,9 @@ async function runTests() {
   });
   assert.strictEqual(subRegRes.status, 200);
   const newSubId = subRegRes.data.user.id;
+  const newSubAuth = { Authorization: `Bearer ${subRegRes.data.token}` };
 
-  const adminUsersRes = await request('GET', '/api/admin/users');
+  const adminUsersRes = await request('GET', '/api/admin/users', null, adminAuth);
   assert.strictEqual(adminUsersRes.status, 200);
   assert.ok(adminUsersRes.data.users.some(u => u.email === uniqueSubEmail), 'Registered subscriber must immediately appear in Admin Users');
 
@@ -330,25 +382,24 @@ async function runTests() {
   });
   assert.strictEqual(creatorRegRes.status, 200);
 
-  const adminCreatorsRes = await request('GET', '/api/admin/creators');
+  const adminCreatorsRes = await request('GET', '/api/admin/creators', null, adminAuth);
   assert.strictEqual(adminCreatorsRes.status, 200);
   assert.ok(adminCreatorsRes.data.creators.some(c => c.name === 'Elena Live Creator'), 'Registered creator must immediately appear in Admin Creators');
   console.log('✓ Test 18: Newly registered Subscriber & Creator live-synced to Admin Panel');
   passed++;
 
   // 19. Real Follows, Custom Requests & Admin Overview Analytics
-  const followRes = await request('POST', '/api/user/follows', { userId: newSubId, handle: 'luna-rae' });
+  const followRes = await request('POST', '/api/user/follows', { handle: 'luna-rae' }, newSubAuth);
   assert.strictEqual(followRes.status, 200);
-  const followsListRes = await request('GET', `/api/user/follows?userId=${newSubId}`);
+  const followsListRes = await request('GET', '/api/user/follows', null, newSubAuth);
   assert.ok(followsListRes.data.follows.some(f => f.creatorHandle === 'luna-rae'));
 
   const customReqRes = await request('POST', '/api/custom-requests', {
-    customerId: newSubId,
     creatorHandle: 'luna-rae',
     title: 'VIP Integration Custom Clip',
     price: 40.00,
     paid: true,
-  });
+  }, newSubAuth);
   assert.strictEqual(customReqRes.status, 200);
   const reqId = customReqRes.data.request.id;
 
@@ -356,11 +407,11 @@ async function runTests() {
     requestId: reqId,
     action: 'DELIVER',
     deliveredMediaUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
-  });
+  }, lunaAuth);
   assert.strictEqual(deliverRes.status, 200);
   assert.strictEqual(deliverRes.data.request.status, 'DELIVERED');
 
-  const adminOverviewRes = await request('GET', '/api/admin/overview');
+  const adminOverviewRes = await request('GET', '/api/admin/overview', null, adminAuth);
   assert.strictEqual(adminOverviewRes.status, 200);
   assert.ok(adminOverviewRes.data.metrics.totalGross > 0);
   console.log('✓ Test 19: Follows, Custom Request Delivery -> Vault, & Admin Live Overview verified');
@@ -407,6 +458,7 @@ async function runTests() {
         path: '/api/upload',
         method: 'POST',
         headers: {
+          Authorization: `Bearer ${ellieToken}`,
           'Content-Type': `multipart/form-data; boundary=${boundary}`,
           'Content-Length': multipartBody.length,
         },
@@ -459,14 +511,14 @@ async function runTests() {
     name: 'Edited CRUD Fan',
     status: 'SUSPENDED',
     bio: 'Updated bio from admin panel',
-  });
+  }, adminAuth);
   assert.strictEqual(editUserRes.status, 200);
   assert.strictEqual(editUserRes.data.user.name, 'Edited CRUD Fan');
   assert.strictEqual(editUserRes.data.user.status, 'SUSPENDED');
 
-  const delUserRes = await request('DELETE', `/api/admin/users?userId=${encodeURIComponent(tempUserId)}`);
+  const delUserRes = await request('DELETE', `/api/admin/users?userId=${encodeURIComponent(tempUserId)}`, null, adminAuth);
   assert.strictEqual(delUserRes.status, 200);
-  const adminUsersAfterDel = await request('GET', '/api/admin/users');
+  const adminUsersAfterDel = await request('GET', '/api/admin/users', null, adminAuth);
   assert.ok(!adminUsersAfterDel.data.users.some((u) => u.id === tempUserId), 'Deleted user must be removed');
 
   const tempCreatorRes = await request('POST', '/api/auth/register', {
@@ -482,7 +534,7 @@ async function runTests() {
 
   const adminAccount = adminUsersAfterDel.data.users.find((u) => u.role === 'ADMIN');
   assert.ok(adminAccount, 'Seeded Admin account must exist');
-  const protectedAdminDel = await request('DELETE', `/api/admin/users?userId=${encodeURIComponent(adminAccount.id)}`);
+  const protectedAdminDel = await request('DELETE', `/api/admin/users?userId=${encodeURIComponent(adminAccount.id)}`, null, adminAuth);
   assert.strictEqual(protectedAdminDel.status, 400, 'Admin accounts must be protected from deletion');
 
   const editCreatorRes = await request('PATCH', '/api/admin/creators', {
@@ -491,13 +543,13 @@ async function runTests() {
     category: 'Fetish',
     monthlyPrice: 24.99,
     isVerified: true,
-  });
+  }, adminAuth);
   assert.strictEqual(editCreatorRes.status, 200);
   assert.strictEqual(editCreatorRes.data.creator.category, 'Fetish');
   assert.strictEqual(editCreatorRes.data.creator.monthlyPrice, 24.99);
   assert.strictEqual(editCreatorRes.data.creator.isVerified, true);
 
-  const delCreatorRes = await request('DELETE', `/api/admin/creators?creatorId=${encodeURIComponent(tempCreatorId)}`);
+  const delCreatorRes = await request('DELETE', `/api/admin/creators?creatorId=${encodeURIComponent(tempCreatorId)}`, null, adminAuth);
   assert.strictEqual(delCreatorRes.status, 200);
 
   // Studio Post Edit + Delete
@@ -511,7 +563,7 @@ async function runTests() {
     mediaUrl: '/api/uploads/sample-test.jpg',
     visibility: 'PURCHASE_ONLY',
     price: 19.0,
-  });
+  }, lunaAuth);
   assert.strictEqual(studioPostRes.status, 200);
   const tempPostId = studioPostRes.data.post.id;
 
@@ -519,7 +571,7 @@ async function runTests() {
     postId: tempPostId,
     creatorId: 'c1',
     updates: { title: 'Edited Studio Post', price: 29.5, status: 'DRAFT' },
-  });
+  }, lunaAuth);
   assert.strictEqual(studioEditRes.status, 200);
   assert.strictEqual(studioEditRes.data.post.title, 'Edited Studio Post');
   assert.strictEqual(studioEditRes.data.post.price, 29.5);
@@ -527,21 +579,20 @@ async function runTests() {
   const adminCatalogEditRes = await request('PATCH', '/api/admin/catalog', {
     postId: tempPostId,
     updates: { title: 'Admin Moderated Title', status: 'PUBLISHED', price: 33.0 },
-  });
+  }, adminAuth);
   assert.strictEqual(adminCatalogEditRes.status, 200);
   assert.strictEqual(adminCatalogEditRes.data.post.title, 'Admin Moderated Title');
 
-  const delPostRes = await request('DELETE', `/api/content/posts?postId=${encodeURIComponent(tempPostId)}&creatorId=c1`);
+  const delPostRes = await request('DELETE', `/api/content/posts?postId=${encodeURIComponent(tempPostId)}`, null, lunaAuth);
   assert.strictEqual(delPostRes.status, 200);
 
   // Custom Order Edit & Delete
   const crudOrderRes = await request('POST', '/api/custom-requests', {
-    customerId: 'usr-1',
     creatorHandle: 'ellie',
     title: 'Temp Custom Order',
     price: 35.0,
     paid: false,
-  });
+  }, alexAuth);
   assert.strictEqual(crudOrderRes.status, 200);
   const crudOrderId = crudOrderRes.data.request.id;
 
@@ -550,11 +601,11 @@ async function runTests() {
     action: 'UPDATE',
     title: 'Updated Custom Order',
     price: 55.0,
-  });
+  }, ellieAuth);
   assert.strictEqual(updateOrderRes.status, 200);
   assert.strictEqual(updateOrderRes.data.request.price, 55.0);
 
-  const delOrderRes = await request('DELETE', `/api/custom-requests?requestId=${encodeURIComponent(crudOrderId)}`);
+  const delOrderRes = await request('DELETE', `/api/custom-requests?requestId=${encodeURIComponent(crudOrderId)}`, null, ellieAuth);
   assert.strictEqual(delOrderRes.status, 200);
 
   console.log('✓ Test 21: Full Panel CRUD (Edit & Delete across Users, Creators, Catalog, Posts, Custom Orders) verified');
@@ -562,19 +613,20 @@ async function runTests() {
 
   // 22. Two-Way 1-on-1 Chat (Subscriber <-> Creator) & Dynamic User/Creator Profile + Avatar Updates
   const subChatSend = await request('POST', '/api/chat', {
-    userId: newSubId,
     creator: 'ellie',
     sender: 'user',
     text: 'Hey Ellie, testing 1-on-1 live chat!',
     mediaUrl: '/api/uploads/chat-photo.jpg',
     mediaType: 'IMAGE',
-  });
+  }, newSubAuth);
   assert.strictEqual(subChatSend.status, 200);
   assert.strictEqual(subChatSend.data.message.sender, 'user');
 
   const creatorInboxRes = await request(
     'GET',
-    '/api/chat?mode=threads&role=CREATOR&userId=c9&creatorHandle=ellie'
+    '/api/chat?mode=threads&role=CREATOR',
+    null,
+    ellieAuth
   );
   assert.strictEqual(creatorInboxRes.status, 200);
   assert.strictEqual(creatorInboxRes.data.mode, 'creator');
@@ -590,36 +642,34 @@ async function runTests() {
     creator: 'ellie',
     sender: 'creator',
     text: 'Hey! Received your message in Creator Inbox!',
-  });
+  }, ellieAuth);
   assert.strictEqual(creatorReplyRes.status, 200);
 
-  const threadVerifyRes = await request('GET', `/api/chat?userId=${encodeURIComponent(newSubId)}&creator=ellie`);
+  const threadVerifyRes = await request('GET', '/api/chat?creator=ellie', null, newSubAuth);
   assert.strictEqual(threadVerifyRes.status, 200);
   assert.strictEqual(threadVerifyRes.data.messages.length, 2, 'Both Subscriber and Creator messages must sync');
   assert.strictEqual(threadVerifyRes.data.messages[1].sender, 'creator');
 
   const subProfileUpdate = await request('PATCH', '/api/user/profile', {
-    userId: newSubId,
     name: 'Updated Dynamic Fan',
     bio: 'Dynamic member bio',
     avatar: '/api/uploads/fan-avatar-test.jpg',
-  });
+  }, newSubAuth);
   assert.strictEqual(subProfileUpdate.status, 200);
   assert.strictEqual(subProfileUpdate.data.user.avatar, '/api/uploads/fan-avatar-test.jpg');
 
-  const getSubProfile = await request('GET', `/api/user/profile?userId=${encodeURIComponent(newSubId)}`);
+  const getSubProfile = await request('GET', '/api/user/profile', null, newSubAuth);
   assert.strictEqual(getSubProfile.status, 200);
   assert.strictEqual(getSubProfile.data.user.name, 'Updated Dynamic Fan');
   assert.strictEqual(getSubProfile.data.user.avatar, '/api/uploads/fan-avatar-test.jpg');
 
   const creatorAvatarPatch = await request('PATCH', '/api/creators', {
-    handle: 'ellie',
     avatar: '/api/uploads/ellie-avatar-updated.jpg',
-  });
+  }, ellieAuth);
   assert.strictEqual(creatorAvatarPatch.status, 200);
   assert.strictEqual(creatorAvatarPatch.data.creator.avatar, '/api/uploads/ellie-avatar-updated.jpg');
 
-  const ellieUserSyncRes = await request('GET', '/api/user/profile?userId=c9');
+  const ellieUserSyncRes = await request('GET', '/api/user/profile', null, ellieAuth);
   assert.strictEqual(ellieUserSyncRes.status, 200);
   assert.strictEqual(ellieUserSyncRes.data.user.avatar, '/api/uploads/ellie-avatar-updated.jpg');
 
@@ -637,6 +687,66 @@ async function runTests() {
   assert.ok(likePostRes.data.post.likeCount > 0);
 
   console.log('✓ Test 22: Two-Way 1-on-1 Chat & Dynamic User/Creator Profile Avatar Sync verified');
+  passed++;
+
+  // 23. Strict Auth Isolation & Zero Profile-Switching Enforcement
+  const unauthChecks = await Promise.all([
+    request('GET', '/api/auth/me'),
+    request('GET', '/api/admin/overview'),
+    request('GET', '/api/admin/users'),
+    request('GET', '/api/creator/earnings?creatorId=c1'),
+    request('GET', '/api/chat?mode=threads'),
+    request('GET', '/api/user/purchases'),
+    request('GET', '/api/user/profile'),
+    request('GET', '/api/content/posts?studio=true&handle=luna-rae'),
+  ]);
+  for (const res of unauthChecks) {
+    assert.strictEqual(res.status, 401, 'Protected endpoint without session must return 401');
+  }
+
+  // Subscriber cannot open Admin, Creator Earnings, Creator Studio feed, Creator Inbox, or update Creators
+  assert.strictEqual((await request('GET', '/api/admin/overview', null, newSubAuth)).status, 403);
+  assert.strictEqual((await request('GET', '/api/creator/earnings?creatorId=c1', null, newSubAuth)).status, 403);
+  assert.strictEqual((await request('GET', '/api/content/posts?studio=true&handle=luna-rae', null, newSubAuth)).status, 403);
+  assert.strictEqual((await request('GET', '/api/chat?mode=threads&role=CREATOR', null, newSubAuth)).status, 403);
+  assert.strictEqual((await request('PATCH', '/api/creators', { handle: 'ellie', monthlyPrice: 55 }, newSubAuth)).status, 403);
+
+  // Subscriber cannot read another subscriber's private chat thread or profile
+  assert.strictEqual((await request('GET', '/api/chat?userId=usr-1&creator=luna-rae', null, newSubAuth)).status, 403);
+  const subSpoofProf = await request('GET', '/api/user/profile?userId=usr-1', null, newSubAuth);
+  assert.strictEqual(subSpoofProf.status, 200);
+  assert.strictEqual(subSpoofProf.data.user.id, newSubId, 'Profile GET must strictly return own profile only');
+
+  // Creator Luna cannot switch into Ellie's chat inbox, reply as Ellie, or modify Ellie's creator pricing
+  assert.strictEqual((await request('GET', `/api/chat?userId=${encodeURIComponent(newSubId)}&creator=ellie`, null, lunaAuth)).status, 403);
+  assert.strictEqual(
+    (
+      await request(
+        'POST',
+        '/api/chat',
+        { userId: newSubId, creator: 'ellie', sender: 'creator', text: 'Impersonate check' },
+        lunaAuth
+      )
+    ).status,
+    403
+  );
+  const lunaSpoofPatch = await request('PATCH', '/api/creators', { handle: 'ellie', bio: 'Spoof attempt' }, lunaAuth);
+  assert.strictEqual(lunaSpoofPatch.status, 200);
+  assert.strictEqual(lunaSpoofPatch.data.creator.handle, 'luna-rae', 'Creator PATCH must lock strictly to own creator profile');
+  const ellieVerifyAfter = await request('GET', '/api/creators?handle=ellie');
+  assert.ok(!ellieVerifyAfter.data.creators[0].bio.includes('Spoof attempt'), 'Ellie profile must remain untouched');
+
+  // Cookie session verification & Logout clearing
+  const meCookieRes = await request('GET', '/api/auth/me', null, { Cookie: `mirage_token=${lunaToken}` });
+  assert.strictEqual(meCookieRes.status, 200);
+  assert.strictEqual(meCookieRes.data.user.creatorHandle, 'luna-rae');
+
+  const logoutRes = await request('POST', '/api/auth/logout');
+  assert.strictEqual(logoutRes.status, 200);
+  const logoutCookie = [].concat(logoutRes.headers['set-cookie'] || []).join(';');
+  assert.ok(logoutCookie.includes('mirage_token=;'), 'Logout must clear mirage_token session cookie');
+
+  console.log('✓ Test 23: Strict Auth Isolation & Zero Profile-Switching Enforcement verified');
   passed++;
 
   console.log('\n================================================================');

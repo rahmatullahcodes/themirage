@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireSession } from '@/lib/auth';
 import { getAdminReports, updateReportStatusAdmin, deleteReportAdmin, PostStatus } from '@/lib/contentStore';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const auth = requireSession(req, ['ADMIN']);
+    if (!auth.ok) return auth.response;
+
     const reports = getAdminReports();
     return NextResponse.json({
       success: true,
@@ -21,6 +25,9 @@ export async function GET() {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const auth = requireSession(req, ['ADMIN']);
+    if (!auth.ok) return auth.response;
+
     const body = await req.json();
     const { reportId, status, postAction } = body || {};
 
@@ -50,6 +57,9 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const auth = requireSession(req, ['ADMIN']);
+    if (!auth.ok) return auth.response;
+
     const searchParams = req.nextUrl?.searchParams || new URL(req.url, 'http://localhost:3000').searchParams;
     const reportId = searchParams.get('reportId');
     if (!reportId) {

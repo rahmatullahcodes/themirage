@@ -16,6 +16,7 @@ import {
   LogIn,
 } from 'lucide-react';
 import { MediaThumb } from './PanelUi';
+import { getAuthHeaders } from '@/lib/clientAuth';
 
 interface PurchaseContentModalProps {
   content: {
@@ -62,39 +63,25 @@ export default function PurchaseContentModal({
     setIsAuthError(false);
 
     try {
-      const token = localStorage.getItem('mirage_token');
-      if (!token) {
-        setIsAuthError(true);
-        setError('Please log in or create an account to unlock this content.');
-        setLoading(false);
-        return;
-      }
-
-      let currentUserId = 'usr-1';
-      let currentUserName = 'Member';
-      try {
-        const storedUser = localStorage.getItem('mirage_user');
-        if (storedUser) {
-          const u = JSON.parse(storedUser);
-          if (u.id) currentUserId = u.id;
-          if (u.name) currentUserName = u.name;
-        }
-      } catch (e) {}
+      const authHeaders = getAuthHeaders();
 
       const res = await fetch('/api/content/purchase', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          ...authHeaders,
         },
         body: JSON.stringify({
           postId: content.id,
-          userId: currentUserId,
-          userName: currentUserName,
         }),
       });
 
       const data = await res.json();
+
+      if (res.status === 401) {
+        setIsAuthError(true);
+        throw new Error(data.error || data.message || 'Please log in or create an account to unlock this content.');
+      }
 
       if (!res.ok) {
         throw new Error(data.error || data.message || 'Failed to complete content purchase');

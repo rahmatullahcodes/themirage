@@ -17,6 +17,12 @@ import {
   X,
   CreditCard,
 } from 'lucide-react';
+import {
+  clearClientSession,
+  fetchCurrentSessionUser,
+  getAuthHeaders,
+  performLogout,
+} from '@/lib/clientAuth';
 
 export default function Navbar() {
   const router = useRouter();
@@ -56,65 +62,70 @@ export default function Navbar() {
   }, [showNotifications, mobileMenuOpen]);
 
   useEffect(() => {
-    const syncUser = () => {
-      const storedUser = localStorage.getItem('mirage_user');
-      if (storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser);
-          setUser(parsed);
-          if (parsed?.id) {
-            fetch(`/api/user/profile?userId=${encodeURIComponent(parsed.id)}`, { cache: 'no-store' })
-              .then((r) => r.json())
-              .then((d) => {
-                if (d?.success && d?.user) {
-                  setUser((prev) => (prev ? { ...prev, ...d.user } : d.user));
-                }
-              })
-              .catch(() => {});
-
-            fetch(`/api/user/transactions?userId=${encodeURIComponent(parsed.id)}`, { cache: 'no-store' })
-              .then((r) => r.json())
-              .then((t) => {
-                if (t?.success && Array.isArray(t.transactions)) {
-                  setNotifications(
-                    t.transactions.slice(0, 5).map((tx: any) => ({
-                      id: tx.id,
-                      title: tx.type === 'SUBSCRIPTION' ? 'Subscription Active' : tx.type === 'CUSTOM_CONTENT' ? 'Custom Order' : 'Content Unlocked',
-                      desc: `${tx.creatorName || 'Creator'}${tx.postTitle ? ` — ${tx.postTitle}` : ''} ($${Number(tx.grossAmount || 0).toFixed(2)})`,
-                      time: tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Recent',
-                      type: tx.type === 'CUSTOM_CONTENT' ? 'chat' : 'tx',
-                    }))
-                  );
-                }
-              })
-              .catch(() => {});
-          }
-        } catch {
+    let active = true;
+    const syncUser = async () => {
+      const hasLocalAuth = Boolean(localStorage.getItem('mirage_token') || localStorage.getItem('mirage_user'));
+      if (!hasLocalAuth) {
+        if (active) {
           setUser(null);
           setNotifications([]);
         }
-      } else {
+        return;
+      }
+
+      const verifiedUser = await fetchCurrentSessionUser();
+      if (!active) return;
+
+      if (!verifiedUser) {
+        clearClientSession();
         setUser(null);
         setNotifications([]);
+        return;
       }
+
+      setUser(verifiedUser);
+
+      fetch('/api/user/transactions', { headers: getAuthHeaders(), cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((t) => {
+          if (!active) return;
+          if (t?.success && Array.isArray(t.transactions)) {
+            setNotifications(
+              t.transactions.slice(0, 5).map((tx: any) => ({
+                id: tx.id,
+                title:
+                  tx.type === 'SUBSCRIPTION'
+                    ? 'Subscription Active'
+                    : tx.type === 'CUSTOM_CONTENT'
+                    ? 'Custom Order'
+                    : 'Content Unlocked',
+                desc: `${tx.creatorName || 'Creator'}${tx.postTitle ? ` — ${tx.postTitle}` : ''} ($${Number(tx.grossAmount || 0).toFixed(2)})`,
+                time: tx.createdAt
+                  ? new Date(tx.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  : 'Recent',
+                type: tx.type === 'CUSTOM_CONTENT' ? 'chat' : 'tx',
+              }))
+            );
+          }
+        })
+        .catch(() => {});
     };
 
     syncUser();
     window.addEventListener('mirage_auth_changed', syncUser);
     window.addEventListener('storage', syncUser);
     return () => {
+      active = false;
       window.removeEventListener('mirage_auth_changed', syncUser);
       window.removeEventListener('storage', syncUser);
     };
   }, [pathname]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('mirage_token');
-    localStorage.removeItem('mirage_user');
-    window.dispatchEvent(new Event('mirage_auth_changed'));
+  const handleLogout = async () => {
     setUser(null);
+    setNotifications([]);
     setMobileMenuOpen(false);
-    router.push('/');
+    await performLogout(router.push, '/');
   };
 
   const handleSearch = (e: React.FormEvent) => {

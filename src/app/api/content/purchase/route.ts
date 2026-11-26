@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { purchaseIndividualContent } from '@/lib/contentStore';
-import { getUserFromAuthHeader } from '@/lib/auth';
+import { requireSession } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = requireSession(req);
+    if (!auth.ok) return auth.response;
+
     let body: any;
     try {
       body = await req.json();
@@ -14,11 +17,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const tokenUser = getUserFromAuthHeader(req.headers.get('Authorization'));
-    const { postId, userId: bodyUserId, userName: bodyUserName } = body || {};
-    const userId = tokenUser?.userId || bodyUserId || 'usr-1';
-    const userName = tokenUser?.username || bodyUserName || 'Alex Mercer';
-
+    const { postId } = body || {};
     if (!postId) {
       return NextResponse.json(
         { success: false, message: 'Post ID is required' },
@@ -27,8 +26,8 @@ export async function POST(req: NextRequest) {
     }
 
     const result = purchaseIndividualContent({
-      userId,
-      userName,
+      userId: auth.user.userId,
+      userName: auth.user.username,
       postId,
     });
 
@@ -53,4 +52,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

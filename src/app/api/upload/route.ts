@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { requireSession } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,9 @@ function getUploadDir(): string {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = requireSession(req);
+    if (!auth.ok) return auth.response;
+
     const formData = await req.formData();
     const file = formData.get('file');
 

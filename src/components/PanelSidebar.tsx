@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { performLogout } from '@/lib/clientAuth';
 import {
   Crown,
   LayoutDashboard,
@@ -241,12 +242,7 @@ export default function PanelSidebar({
 
           <button
             type="button"
-            onClick={() => {
-              localStorage.removeItem('mirage_token');
-              localStorage.removeItem('mirage_user');
-              window.dispatchEvent(new Event('mirage_auth_changed'));
-              router.push('/login');
-            }}
+            onClick={() => performLogout(router.push, '/login')}
             className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-red-400 hover:bg-red-950/30 transition-colors"
             title="Sign Out"
           >

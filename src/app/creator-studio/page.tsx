@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Crown,
   Sparkles,
@@ -37,20 +38,26 @@ import { calculateCommission } from '@/lib/commission';
 import PanelSidebar from '@/components/PanelSidebar';
 import PanelHeader from '@/components/PanelHeader';
 import { ActionIconBtn, PanelModal, ConfirmActionModal, MediaThumb } from '@/components/PanelUi';
+import { fetchCurrentSessionUser, getAuthHeaders, ClientSessionUser } from '@/lib/clientAuth';
 
 const CREATOR_CATEGORIES = ['Popular', 'New', 'Nearby', 'Fitness', 'Lifestyle', 'Fetish', 'Cosplay', 'Mature'];
 
 export default function CreatorStudioPage() {
+  const router = useRouter();
+  const [sessionUser, setSessionUser] = useState<ClientSessionUser | null>(null);
+  const [authState, setAuthState] = useState<'loading' | 'authorized' | 'forbidden'>('loading');
   const [activeTab, setActiveTab] = useState('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [creatorsList, setCreatorsList] = useState<any[]>([]);
   const [creatorUser, setCreatorUser] = useState({
-    id: 'c1',
-    name: 'Luna Rae',
-    username: 'luna-rae',
+    id: '',
+    name: '',
+    username: '',
   });
   const [studioNotice, setStudioNotice] = useState<string | null>(null);
+
+  const authHeaders = () => getAuthHeaders();
+  const authJsonHeaders = () => ({ 'Content-Type': 'application/json', ...getAuthHeaders() });
 
   const showToast = (msg: string) => {
     setStudioNotice(msg);
@@ -58,53 +65,50 @@ export default function CreatorStudioPage() {
   };
 
   useEffect(() => {
-    let preferredHandle = '';
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const qCreator = params.get('creator');
-      if (qCreator) preferredHandle = qCreator.toLowerCase();
-
-      if (!preferredHandle) {
-        const stored = localStorage.getItem('mirage_user');
-        if (stored) {
-          const u = JSON.parse(stored);
-          if (u.name && u.role === 'CREATOR') {
-            setCreatorUser({
-              id: u.id || 'c1',
-              name: u.name,
-              username: u.username || u.name.toLowerCase().replace(/\s+/g, '-'),
-            });
-          }
-        }
+    let active = true;
+    (async () => {
+      const me = await fetchCurrentSessionUser();
+      if (!active) return;
+      if (!me) {
+        router.replace('/login?redirect=/creator-studio');
+        return;
       }
-    } catch (e) {}
+      setSessionUser(me);
+      if (me.role !== 'CREATOR') {
+        setAuthState('forbidden');
+        return;
+      }
 
-    fetch('/api/creators', { cache: 'no-store' })
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data?.creators)) {
-          setCreatorsList(data.creators);
-          if (preferredHandle) {
-            const matched = data.creators.find(
-              (c: any) => c.handle?.toLowerCase() === preferredHandle || c.id?.toLowerCase() === preferredHandle
-            );
-            if (matched) {
-              setCreatorUser({ id: matched.id, name: matched.name, username: matched.handle });
-            }
-          } else {
-            const stored = localStorage.getItem('mirage_user');
-            const parsed = stored ? JSON.parse(stored) : null;
-            if (!parsed || parsed.role !== 'CREATOR') {
-              const first = data.creators[0];
-              if (first) {
-                setCreatorUser({ id: first.id, name: first.name, username: first.handle });
-              }
-            }
-          }
+      const ownHandle = me.creatorHandle || me.username;
+      const ownId = me.creatorId || me.id;
+      setCreatorUser({ id: ownId, name: me.name, username: ownHandle });
+      setAuthState('authorized');
+
+      try {
+        const res = await fetch(`/api/creators?handle=${encodeURIComponent(ownHandle)}`, { cache: 'no-store' });
+        const data = await res.json();
+        const own = Array.isArray(data?.creators) ? data.creators[0] : null;
+        if (active && own) {
+          setProfileName(own.name || me.name);
+          setProfileCategory(own.category === 'Travel' ? 'Fetish' : own.category || 'Popular');
+          setProfileBio(own.bio || '');
+          setProfileAvatar(own.avatar || me.avatar || '');
+          setProfileBanner(own.banner || '');
+          if (own.monthlyPrice) setMonthlyPrice(String(own.monthlyPrice));
         }
-      })
-      .catch((err) => console.error('Failed to load creators:', err));
-  }, []);
+      } catch (err) {
+        console.error('Failed to load creator profile:', err);
+      }
+
+      if (active) {
+        loadAllStudioData(ownHandle);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   // Upload Form State (Section 2 & 3 Requirements)
   const [mediaType, setMediaType] = useState<'IMAGE' | 'VIDEO'>('IMAGE');
@@ -149,7 +153,7 @@ export default function CreatorStudioPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const res = await fetch('/api/upload', { method: 'POST', headers: authHeaders(), body: formData });
       const data = await res.json();
       if (!res.ok || !data?.success || !data?.url) {
         const msg = data?.message || 'File upload failed. Supported: JPG, PNG, WEBP, GIF, MP4, MOV, WEBM.';
@@ -234,10 +238,11 @@ export default function CreatorStudioPage() {
 
   const loadAllStudioData = async (targetHandle: string) => {
     try {
+      const headers = authHeaders();
       const [postsRes, earningsRes, ordersRes] = await Promise.all([
-        fetch(`/api/content/posts?handle=${encodeURIComponent(targetHandle)}&studio=true`, { cache: 'no-store' }),
-        fetch(`/api/creator/earnings?creatorId=${encodeURIComponent(targetHandle)}`, { cache: 'no-store' }),
-        fetch(`/api/custom-requests?creatorId=${encodeURIComponent(targetHandle)}`, { cache: 'no-store' }),
+        fetch(`/api/content/posts?handle=${encodeURIComponent(targetHandle)}&studio=true`, { headers, cache: 'no-store' }),
+        fetch(`/api/creator/earnings?creatorId=${encodeURIComponent(targetHandle)}`, { headers, cache: 'no-store' }),
+        fetch(`/api/custom-requests?creatorId=${encodeURIComponent(targetHandle)}`, { headers, cache: 'no-store' }),
       ]);
 
       if (postsRes.ok) {
@@ -298,24 +303,6 @@ export default function CreatorStudioPage() {
     }
   };
 
-  useEffect(() => {
-    loadAllStudioData(creatorUser.username);
-  }, [creatorUser.username]);
-
-  useEffect(() => {
-    const activeCreator = creatorsList.find(
-      (c) => c.handle?.toLowerCase() === creatorUser.username?.toLowerCase() || c.id === creatorUser.id
-    );
-    if (activeCreator) {
-      setProfileName(activeCreator.name || creatorUser.name);
-      setProfileCategory(activeCreator.category === 'Travel' ? 'Fetish' : activeCreator.category || 'Popular');
-      setProfileBio(activeCreator.bio || '');
-      setProfileAvatar(activeCreator.avatar || '');
-      setProfileBanner(activeCreator.banner || '');
-      if (activeCreator.monthlyPrice) setMonthlyPrice(String(activeCreator.monthlyPrice));
-    }
-  }, [creatorsList, creatorUser.username, creatorUser.id, creatorUser.name]);
-
   const subscriptionGross = earningsSummary.subscriptions.grossAmount;
   const individualContentGross = earningsSummary.individualContent.grossAmount;
   const customOrdersGross = earningsSummary.customRequests.grossAmount;
@@ -351,7 +338,7 @@ export default function CreatorStudioPage() {
     try {
       const res = await fetch('/api/custom-requests', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({
           requestId: orderId,
           action: 'DELIVER',
@@ -415,7 +402,7 @@ export default function CreatorStudioPage() {
     try {
       const res = await fetch('/api/content/posts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({
           creatorId: creatorUser.id,
           creatorHandle: creatorUser.username,
@@ -482,7 +469,7 @@ export default function CreatorStudioPage() {
       );
       fetch('/api/content/posts', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({
           postId,
           creatorId: creatorUser.id,
@@ -506,7 +493,7 @@ export default function CreatorStudioPage() {
       );
       fetch('/api/content/posts', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({
           postId,
           creatorId: creatorUser.id,
@@ -529,7 +516,7 @@ export default function CreatorStudioPage() {
     );
     fetch('/api/content/posts', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authJsonHeaders(),
       body: JSON.stringify({
         postId,
         creatorId: creatorUser.id,
@@ -557,7 +544,7 @@ export default function CreatorStudioPage() {
 
     fetch('/api/content/posts', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authJsonHeaders(),
       body: JSON.stringify({
         postId,
         creatorId: creatorUser.id,
@@ -572,7 +559,7 @@ export default function CreatorStudioPage() {
     try {
       const res = await fetch('/api/content/posts', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({
           postId: editPostForm.id,
           creatorId: creatorUser.id,
@@ -619,8 +606,8 @@ export default function CreatorStudioPage() {
   const handleDeletePost = async (postId: string) => {
     try {
       const res = await fetch(
-        `/api/content/posts?postId=${encodeURIComponent(postId)}&creatorId=${encodeURIComponent(creatorUser.id)}`,
-        { method: 'DELETE' }
+        `/api/content/posts?postId=${encodeURIComponent(postId)}`,
+        { method: 'DELETE', headers: authHeaders() }
       );
       const data = await res.json();
       if (data.success) {
@@ -640,7 +627,7 @@ export default function CreatorStudioPage() {
     try {
       const res = await fetch('/api/custom-requests', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({
           requestId: editOrderForm.id,
           action: 'UPDATE',
@@ -664,7 +651,10 @@ export default function CreatorStudioPage() {
 
   const handleDeleteOrder = async (orderId: string) => {
     try {
-      const res = await fetch(`/api/custom-requests?requestId=${encodeURIComponent(orderId)}`, { method: 'DELETE' });
+      const res = await fetch(`/api/custom-requests?requestId=${encodeURIComponent(orderId)}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
       const data = await res.json();
       if (data.success) {
         setOrders(prev => prev.filter(o => o.id !== orderId));
@@ -697,6 +687,42 @@ export default function CreatorStudioPage() {
         return 'Creator Studio';
     }
   };
+
+  if (authState === 'loading') {
+    return (
+      <div className="min-h-screen bg-[#08080a] flex items-center justify-center text-[#d4af37] text-sm">
+        Verifying your Creator Studio session...
+      </div>
+    );
+  }
+
+  if (authState === 'forbidden') {
+    return (
+      <div className="min-h-screen bg-[#08080a] flex items-center justify-center p-4">
+        <div className="max-w-md w-full p-6 rounded-2xl bg-[#111117] border border-[#d4af37]/40 text-center space-y-4">
+          <Crown className="w-10 h-10 text-[#f5d77f] mx-auto" />
+          <h2 className="text-lg font-serif font-bold text-white">Creator Account Required</h2>
+          <p className="text-xs text-[#94a3b8]">
+            You are signed in as <span className="text-white font-semibold">{sessionUser?.name}</span> ({sessionUser?.role}). Only authenticated creators can access their own Creator Studio.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
+            <Link
+              href={sessionUser?.role === 'ADMIN' ? '/admin' : '/dashboard'}
+              className="flex-1 py-2.5 rounded-xl gold-button text-xs font-bold text-center"
+            >
+              Go to My Portal
+            </Link>
+            <Link
+              href="/"
+              className="flex-1 py-2.5 rounded-xl bg-[#181824] border border-[#2c2c3c] text-xs font-semibold text-white text-center"
+            >
+              Homepage
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#08080a] text-white flex selection:bg-[#d4af37]/30 selection:text-white">
@@ -742,7 +768,7 @@ export default function CreatorStudioPage() {
             </div>
           )}
 
-          {/* Active Creator Profile Switcher Bar */}
+          {/* Verified Creator Account Identity Bar (locked strictly to logged-in creator) */}
           <div className="p-4 rounded-2xl bg-[#111118] border border-[#262638] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               {profileAvatar ? (
@@ -759,7 +785,7 @@ export default function CreatorStudioPage() {
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-[#f5d77f] font-bold">
                   <UserCheck className="w-3.5 h-3.5" />
-                  <span>Managing Creator Studio</span>
+                  <span>Verified Creator Studio</span>
                 </div>
                 <p className="text-sm font-serif font-bold text-white truncate">
                   {creatorUser.name} <span className="text-xs font-sans font-normal text-[#8d8ea0]">(@{creatorUser.username})</span>
@@ -768,27 +794,6 @@ export default function CreatorStudioPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">
-              {creatorsList.length > 0 && (
-                <select
-                  aria-label="Switch Creator Profile"
-                  value={creatorUser.username}
-                  onChange={(e) => {
-                    const selected = creatorsList.find((c) => c.handle === e.target.value);
-                    if (selected) {
-                      setCreatorUser({ id: selected.id, name: selected.name, username: selected.handle });
-                      showToast(`Switched Creator Studio to ${selected.name} (@${selected.handle})`);
-                    }
-                  }}
-                  className="px-3 py-2 rounded-xl bg-[#161622] border border-[#2d2d40] text-xs font-semibold text-white focus:outline-none focus:border-[#d4af37]"
-                >
-                  {creatorsList.map((c) => (
-                    <option key={c.id} value={c.handle}>
-                      {c.name} (@{c.handle}) — {c.category}
-                    </option>
-                  ))}
-                </select>
-              )}
-
               <button
                 type="button"
                 onClick={() => setActiveTab('upload')}
@@ -1808,7 +1813,7 @@ export default function CreatorStudioPage() {
                   try {
                     const res = await fetch('/api/creators', {
                       method: 'PATCH',
-                      headers: { 'Content-Type': 'application/json' },
+                      headers: authJsonHeaders(),
                       body: JSON.stringify({
                         handle: creatorUser.username,
                         name: profileName.trim(),
@@ -1822,9 +1827,6 @@ export default function CreatorStudioPage() {
                     const data = await res.json();
                     if (res.ok && data?.creator) {
                       setCreatorUser((prev) => ({ ...prev, name: data.creator.name }));
-                      setCreatorsList((prev) =>
-                        prev.map((c) => (c.handle === data.creator.handle ? { ...c, ...data.creator } : c))
-                      );
                       try {
                         const raw = localStorage.getItem('mirage_user');
                         if (raw) {
@@ -1917,14 +1919,11 @@ export default function CreatorStudioPage() {
                               try {
                                 const res = await fetch('/api/creators', {
                                   method: 'PATCH',
-                                  headers: { 'Content-Type': 'application/json' },
+                                  headers: authJsonHeaders(),
                                   body: JSON.stringify({ handle: creatorUser.username, avatar: uploaded.url }),
                                 });
                                 const d = await res.json();
                                 if (res.ok && d?.creator) {
-                                  setCreatorsList((prev) =>
-                                    prev.map((c) => (c.handle === d.creator.handle ? { ...c, ...d.creator } : c))
-                                  );
                                   const raw = localStorage.getItem('mirage_user');
                                   if (raw) {
                                     const parsed = JSON.parse(raw);
@@ -1976,15 +1975,10 @@ export default function CreatorStudioPage() {
                               try {
                                 const res = await fetch('/api/creators', {
                                   method: 'PATCH',
-                                  headers: { 'Content-Type': 'application/json' },
+                                  headers: authJsonHeaders(),
                                   body: JSON.stringify({ handle: creatorUser.username, banner: uploaded.url }),
                                 });
-                                const d = await res.json();
-                                if (res.ok && d?.creator) {
-                                  setCreatorsList((prev) =>
-                                    prev.map((c) => (c.handle === d.creator.handle ? { ...c, ...d.creator } : c))
-                                  );
-                                }
+                                await res.json().catch(() => {});
                               } catch {}
                             }
                           }}
