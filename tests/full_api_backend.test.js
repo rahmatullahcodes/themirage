@@ -960,6 +960,21 @@ async function runTests() {
     assert.strictEqual(testConnRes.status, 200);
     assert.strictEqual(testConnRes.data.connectionTest.reachable, true);
 
+    const testPostConnRes = await request('POST', '/api/admin/settings', {
+      payramBaseUrl: `http://127.0.0.1:${MOCK_PAYRAM_PORT}`,
+      payramApiKey: MOCK_API_KEY,
+    }, adminAuth);
+    assert.strictEqual(testPostConnRes.status, 200);
+    assert.strictEqual(testPostConnRes.data.connectionTest.reachable, true);
+
+    const testBadConnRes = await request('POST', '/api/admin/settings', {
+      payramBaseUrl: `http://127.0.0.1:${MOCK_PAYRAM_PORT}`,
+      payramApiKey: 'wrong_key_test',
+    }, adminAuth);
+    assert.strictEqual(testBadConnRes.status, 200);
+    assert.strictEqual(testBadConnRes.data.connectionTest.reachable, false);
+    assert.strictEqual(testBadConnRes.data.connectionTest.httpStatus, 401);
+
     // Checkout PPV via PayRam returns redirect checkoutUrl & referenceId
     const ppvPayramPost = await request('POST', '/api/content/posts', {
       creatorId: 'c1',

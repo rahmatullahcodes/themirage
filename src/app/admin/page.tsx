@@ -799,6 +799,7 @@ export default function AdminPanelPage() {
   const handleSaveGateway = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingGateway(true);
+    setPayramTestResult(null);
     try {
       const res = await fetch('/api/admin/settings', {
         method: 'PATCH',
@@ -814,6 +815,9 @@ export default function AdminPanelPage() {
       if (res.ok && data?.success) {
         setPayramActive(Boolean(data?.payram?.active));
         showToast(data?.payram?.active ? 'PayRam Crypto Gateway LIVE!' : 'Gateway settings saved (Sandbox fallback active until API Key set)');
+        if (payramApiKey.trim() && paymentGatewayMode !== 'SANDBOX') {
+          await handleTestPayram();
+        }
       } else {
         showToast(data?.message || 'Failed to save PayRam config');
       }
@@ -828,8 +832,13 @@ export default function AdminPanelPage() {
     setTestingGateway(true);
     setPayramTestResult(null);
     try {
-      const res = await fetch('/api/admin/settings?testPayram=true', {
-        headers: authHeaders(),
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: authJsonHeaders(),
+        body: JSON.stringify({
+          payramBaseUrl,
+          payramApiKey,
+        }),
         cache: 'no-store',
       });
       const data = await res.json();
@@ -2338,7 +2347,11 @@ export default function AdminPanelPage() {
                           : 'bg-yellow-950/50 border-yellow-500/40 text-yellow-300'
                       }`}
                     >
-                      <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                      {payramTestResult.reachable ? (
+                        <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                      )}
                       <span>{payramTestResult.message}</span>
                     </div>
                   )}

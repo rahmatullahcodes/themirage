@@ -43,6 +43,61 @@ export function isPayramActive(): boolean {
   return resolvePayramConfig().active;
 }
 
+export interface PayramConnectionTestResult {
+  reachable: boolean;
+  httpStatus?: number;
+  message: string;
+}
+
+/**
+ * Probes PayRam authentication via POST /api/v1/payment with an empty body.
+ * PayRam validates API-Key before payload fields (401 = bad/inactive key, 400/2xx = authenticated without creating an invoice).
+ */
+export async function testPayramServerConnection(
+  baseUrl: string,
+  apiKey: string
+): Promise<PayramConnectionTestResult> {
+  const cleanBase = (baseUrl || '').trim().replace(/\/+$/, '');
+  const cleanKey = (apiKey || '').trim();
+
+  if (!cleanBase || !cleanKey) {
+    return {
+      reachable: false,
+      message: 'PayRam Base URL and API Key are required to test connection.',
+    };
+  }
+
+  try {
+    const probeRes = await fetch(`${cleanBase}/api/v1/payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'API-Key': cleanKey,
+      },
+      body: '{}',
+      cache: 'no-store',
+      signal: AbortSignal.timeout(8000),
+    });
+
+    const reachable = probeRes.status !== 401 && probeRes.status !== 403 && probeRes.status < 500;
+    return {
+      reachable,
+      httpStatus: probeRes.status,
+      message:
+        probeRes.status === 401 || probeRes.status === 403
+          ? `PayRam server responded (HTTP ${probeRes.status}) — verify API Key is valid.`
+          : probeRes.status < 500
+          ? `Connected to ${cleanBase} cleanly — API-Key authenticated!`
+          : `PayRam server returned HTTP ${probeRes.status}.`,
+    };
+  } catch (err: any) {
+    return {
+      reachable: false,
+      message: err?.message || `Could not reach ${cleanBase}`,
+    };
+  }
+}
+
 export interface CreatePayramPaymentResult {
   referenceId: string;
   checkoutUrl: string;
@@ -64,10 +119,10 @@ export async function createPayramCheckoutSession(params: {
   }
 
   const endpoint = `${cfg.baseUrl}/api/v1/payment`;
-  const payload: Record<string, string> = {
+  const payload: Record<string, string | number> = {
     customerEmail: params.customerEmail,
     customerID: params.customerId,
-    amountInUSD: Number(params.amountInUSD).toFixed(2),
+    amountInUSD: Number(Number(params.amountInUSD).toFixed(2)),
     invoiceID: params.invoiceId,
   };
   if (params.currency) payload.currency = params.currency;

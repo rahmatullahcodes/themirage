@@ -9,7 +9,12 @@ import { getAuthHeaders } from '@/lib/clientAuth';
 function CheckoutStatusContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const referenceId = (searchParams?.get('ref') || searchParams?.get('referenceId') || '').trim();
+  const referenceId = (
+    searchParams?.get('ref') ||
+    searchParams?.get('referenceId') ||
+    searchParams?.get('reference_id') ||
+    ''
+  ).trim();
   const redirectTarget = searchParams?.get('redirect') || '/dashboard';
 
   const [status, setStatus] = useState<'LOADING' | 'OPEN' | 'PARTIALLY_FILLED' | 'FILLED' | 'OVER_FILLED' | 'CANCELLED' | 'EXPIRED' | 'ERROR'>('LOADING');

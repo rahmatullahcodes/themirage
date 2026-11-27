@@ -5,9 +5,20 @@ import {
   updatePlatformSettings,
   PaymentGatewayMode,
 } from '@/lib/contentStore';
-import { resolvePayramConfig } from '@/lib/payram';
+import { resolvePayramConfig, testPayramServerConnection } from '@/lib/payram';
 
 export const dynamic = 'force-dynamic';
+
+function buildPayramSummary(cfg: ReturnType<typeof resolvePayramConfig>, appBaseUrl: string) {
+  return {
+    active: cfg.active,
+    mode: cfg.mode,
+    baseUrl: cfg.baseUrl,
+    webhookUrl: `${appBaseUrl}/api/webhooks/payram`,
+    hasApiKey: Boolean(cfg.apiKey),
+    hasWebhookSecret: Boolean(cfg.webhookSecret),
+  };
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -20,89 +31,53 @@ export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl?.searchParams || new URL(req.url, 'http://localhost:3000').searchParams;
 
     if (searchParams.get('testPayram') === 'true') {
-      if (!cfg.baseUrl || !cfg.apiKey) {
-        return NextResponse.json({
-          success: true,
-          settings,
-          payram: {
-            active: cfg.active,
-            mode: cfg.mode,
-            baseUrl: cfg.baseUrl,
-            webhookUrl: `${appBaseUrl}/api/webhooks/payram`,
-            hasApiKey: Boolean(cfg.apiKey),
-            hasWebhookSecret: Boolean(cfg.webhookSecret),
-          },
-          connectionTest: {
-            reachable: false,
-            message: 'PayRam Base URL and API Key are required to test connection.',
-          },
-        });
-      }
-
-      try {
-        const probeRes = await fetch(`${cfg.baseUrl}/api/v1/payment/reference/mirage_connection_test`, {
-          headers: { 'API-Key': cfg.apiKey },
-          cache: 'no-store',
-          signal: AbortSignal.timeout(8000),
-        });
-        const reachable = probeRes.status !== 401 && probeRes.status !== 403 && probeRes.status < 500;
-        return NextResponse.json({
-          success: true,
-          settings,
-          payram: {
-            active: cfg.active,
-            mode: cfg.mode,
-            baseUrl: cfg.baseUrl,
-            webhookUrl: `${appBaseUrl}/api/webhooks/payram`,
-            hasApiKey: Boolean(cfg.apiKey),
-            hasWebhookSecret: Boolean(cfg.webhookSecret),
-          },
-          connectionTest: {
-            reachable,
-            httpStatus: probeRes.status,
-            message:
-              probeRes.status === 401 || probeRes.status === 403
-                ? `PayRam server responded (HTTP ${probeRes.status}) — verify API Key is valid.`
-                : probeRes.status < 500
-                ? `Connected to ${cfg.baseUrl} cleanly (HTTP ${probeRes.status}).`
-                : `PayRam server returned HTTP ${probeRes.status}.`,
-          },
-        });
-      } catch (err: any) {
-        return NextResponse.json({
-          success: true,
-          settings,
-          payram: {
-            active: cfg.active,
-            mode: cfg.mode,
-            baseUrl: cfg.baseUrl,
-            webhookUrl: `${appBaseUrl}/api/webhooks/payram`,
-            hasApiKey: Boolean(cfg.apiKey),
-            hasWebhookSecret: Boolean(cfg.webhookSecret),
-          },
-          connectionTest: {
-            reachable: false,
-            message: err?.message || `Could not reach ${cfg.baseUrl}`,
-          },
-        });
-      }
+      const connectionTest = await testPayramServerConnection(cfg.baseUrl, cfg.apiKey);
+      return NextResponse.json({
+        success: true,
+        settings,
+        payram: buildPayramSummary(cfg, appBaseUrl),
+        connectionTest,
+      });
     }
 
     return NextResponse.json({
       success: true,
       settings,
-      payram: {
-        active: cfg.active,
-        mode: cfg.mode,
-        baseUrl: cfg.baseUrl,
-        webhookUrl: `${appBaseUrl}/api/webhooks/payram`,
-        hasApiKey: Boolean(cfg.apiKey),
-        hasWebhookSecret: Boolean(cfg.webhookSecret),
-      },
+      payram: buildPayramSummary(cfg, appBaseUrl),
     });
   } catch (error: any) {
     return NextResponse.json(
       { success: false, message: error?.message || 'Failed to load settings' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const auth = requireSession(req, ['ADMIN']);
+    if (!auth.ok) return auth.response;
+
+    const body = await req.json().catch(() => ({}));
+    const cfg = resolvePayramConfig();
+    const baseUrl = typeof body?.payramBaseUrl === 'string' && body.payramBaseUrl.trim()
+      ? body.payramBaseUrl
+      : cfg.baseUrl;
+    const apiKey = typeof body?.payramApiKey === 'string' && body.payramApiKey.trim()
+      ? body.payramApiKey
+      : cfg.apiKey;
+
+    const connectionTest = await testPayramServerConnection(baseUrl, apiKey);
+    const appBaseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://themirage.world').replace(/\/+$/, '');
+
+    return NextResponse.json({
+      success: true,
+      payram: buildPayramSummary(cfg, appBaseUrl),
+      connectionTest,
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, message: error?.message || 'Failed to test PayRam connection' },
       { status: 500 }
     );
   }
