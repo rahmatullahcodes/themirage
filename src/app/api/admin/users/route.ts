@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     if (!auth.ok) return auth.response;
 
     const body = await req.json();
-    const { name, username, email, password, role = 'SUBSCRIBER', bio, status } = body || {};
+    const { name, username, email, password, role = 'SUBSCRIBER', bio, avatar, banner, status } = body || {};
 
     if (!name || !email || !password) {
       return NextResponse.json(
@@ -72,6 +72,8 @@ export async function POST(req: NextRequest) {
       role: assignedRole,
       allowAdminRole: true,
       bio,
+      avatar,
+      banner,
       status: status === 'SUSPENDED' ? 'SUSPENDED' : 'ACTIVE',
     });
 
@@ -101,7 +103,7 @@ export async function PATCH(req: NextRequest) {
     if (!auth.ok) return auth.response;
 
     const body = await req.json();
-    const { userId, status, name, username, email, role, bio } = body || {};
+    const { userId, status, name, username, email, role, bio, avatar, banner } = body || {};
 
     if (!userId) {
       return NextResponse.json({ success: false, message: 'userId is required' }, { status: 400 });
@@ -112,7 +114,9 @@ export async function PATCH(req: NextRequest) {
       username !== undefined ||
       email !== undefined ||
       role !== undefined ||
-      bio !== undefined;
+      bio !== undefined ||
+      avatar !== undefined ||
+      banner !== undefined;
 
     if (hasProfileUpdates) {
       const result = updateUserAdmin(userId, {
@@ -122,6 +126,8 @@ export async function PATCH(req: NextRequest) {
         role: role as UserRole,
         status: status as AccountStatus,
         bio,
+        avatar,
+        banner,
       });
       if (!result.success) {
         return NextResponse.json(

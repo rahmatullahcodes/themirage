@@ -28,6 +28,13 @@ export default function SubscribeModal({
   const [isAuthError, setIsAuthError] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  // Reset modal feedback when switching creators or reopening
+  useEffect(() => {
+    setSuccess(false);
+    setError('');
+    setIsAuthError(false);
+  }, [isOpen, creator?.id]);
+
   // Close when pressing Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

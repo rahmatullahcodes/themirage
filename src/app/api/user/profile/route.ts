@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
         email: user.email,
         role: user.role,
         avatar: user.avatar || creatorProfile?.avatar || '',
+        banner: user.banner || creatorProfile?.banner || '',
         bio: user.bio || '',
         ageVerified: user.ageVerified,
         creatorId: creatorProfile?.id,
@@ -53,11 +54,14 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, username, bio, avatar } = body || {};
+    const { name, username, bio, avatar, banner } = body || {};
 
-    const result = updateUserProfile(session.userId, { name, username, bio, avatar });
+    const result = updateUserProfile(session.userId, { name, username, bio, avatar, banner });
     if (!result.success || !result.user) {
-      return NextResponse.json({ success: false, message: result.error || 'User not found' }, { status: 404 });
+      return NextResponse.json(
+        { success: false, message: result.error || 'User not found' },
+        { status: result.error === 'User not found' ? 404 : 400 }
+      );
     }
 
     const creatorProfile = result.user.role === 'CREATOR' ? findCreatorByUserId(result.user.id) : undefined;
@@ -71,6 +75,7 @@ export async function PATCH(req: NextRequest) {
         email: result.user.email,
         role: result.user.role,
         avatar: result.user.avatar || creatorProfile?.avatar || '',
+        banner: result.user.banner || creatorProfile?.banner || '',
         bio: result.user.bio || '',
         ageVerified: result.user.ageVerified,
         creatorId: creatorProfile?.id,

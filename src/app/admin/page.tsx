@@ -40,10 +40,12 @@ import {
   Plus,
   Upload,
   Loader2,
+  Camera,
+  User,
 } from 'lucide-react';
 import PanelSidebar from '@/components/PanelSidebar';
 import PanelHeader from '@/components/PanelHeader';
-import { ActionIconBtn, PanelModal, ConfirmActionModal, MediaThumb } from '@/components/PanelUi';
+import { ActionIconBtn, PanelModal, ConfirmActionModal, MediaThumb, ImageAssetInput } from '@/components/PanelUi';
 import { fetchCurrentSessionUser, getAuthHeaders, ClientSessionUser } from '@/lib/clientAuth';
 
 const CREATOR_CATEGORIES = ['Popular', 'New', 'Nearby', 'Fitness', 'Lifestyle', 'Fetish', 'Cosplay', 'Mature'];
@@ -85,7 +87,11 @@ export default function AdminPanelPage() {
   const [adminUser, setAdminUser] = useState({
     name: 'Administrator',
     handle: 'admin',
+    avatar: '',
+    banner: '',
+    bio: '',
   });
+  const [adminProfileSaving, setAdminProfileSaving] = useState(false);
 
   // Live Commission Config
   const [creatorCommission, setCreatorCommission] = useState(85);
@@ -150,6 +156,9 @@ export default function AdminPanelPage() {
       setAdminUser({
         name: me.name,
         handle: me.email || `@${me.username || 'admin'}`,
+        avatar: me.avatar || '',
+        banner: me.banner || '',
+        bio: me.bio || '',
       });
       setAuthState('authorized');
       loadAdminOverview();
@@ -720,6 +729,52 @@ export default function AdminPanelPage() {
     }
   };
 
+  const syncAdminLocalStorage = (patch: Partial<{ name: string; avatar: string; banner: string; bio: string }>) => {
+    setAdminUser((prev) => ({ ...prev, ...patch }));
+    try {
+      const raw = localStorage.getItem('mirage_user');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        localStorage.setItem('mirage_user', JSON.stringify({ ...parsed, ...patch }));
+        window.dispatchEvent(new Event('mirage_auth_changed'));
+      }
+    } catch {}
+  };
+
+  const handleSaveAdminProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminProfileSaving(true);
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: authJsonHeaders(),
+        body: JSON.stringify({
+          name: adminUser.name,
+          bio: adminUser.bio,
+          avatar: adminUser.avatar,
+          banner: adminUser.banner,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data?.success && data?.user) {
+        syncAdminLocalStorage({
+          name: data.user.name,
+          avatar: data.user.avatar ?? adminUser.avatar,
+          banner: data.user.banner ?? adminUser.banner,
+          bio: data.user.bio ?? adminUser.bio,
+        });
+        showToast('Administrator profile & cover saved!');
+        loadAdminOverview();
+      } else {
+        showToast(data?.message || 'Failed to save administrator profile');
+      }
+    } catch {
+      showToast('Network error saving administrator profile');
+    } finally {
+      setAdminProfileSaving(false);
+    }
+  };
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -786,7 +841,7 @@ export default function AdminPanelPage() {
       case 'moderation':
         return 'Content Moderation & Review Queue';
       case 'settings':
-        return 'Platform Commission Configuration';
+        return 'Admin Profile, Cover & Commission Rules';
       default:
         return 'Administration Panel';
     }
@@ -841,6 +896,7 @@ export default function AdminPanelPage() {
         onCloseMobile={() => setMobileSidebarOpen(false)}
         userName={adminUser.name}
         userHandle={adminUser.handle}
+        userAvatar={adminUser.avatar}
         badges={{
           creators: String(creators.length),
           users: String(users.length),
@@ -873,6 +929,53 @@ export default function AdminPanelPage() {
               </span>
             </div>
           )}
+
+          {/* Admin Profile & Cover Banner Bar */}
+          <div className="rounded-3xl bg-[#101016] border border-[#22222e] overflow-hidden">
+            <div className="relative h-20 sm:h-28 w-full bg-gradient-to-r from-[#1a1316] via-[#211910] to-[#11111a]">
+              {adminUser.banner && (
+                <img src={adminUser.banner} alt="Admin cover banner" className="w-full h-full object-cover" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#101016] via-[#101016]/35 to-transparent" />
+              <button
+                type="button"
+                onClick={() => setActiveTab('settings')}
+                className="absolute top-3 right-3 px-3 py-1.5 rounded-full bg-black/70 hover:bg-black/90 border border-[#d4af37]/40 text-[11px] font-semibold text-[#f5d77f] flex items-center gap-1.5 backdrop-blur-sm transition-colors"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                Change Photo / Cover
+              </button>
+            </div>
+            <div className="px-4 pb-4 sm:px-6 sm:pb-5 -mt-7 relative flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+              <div className="flex items-end gap-3.5 min-w-0">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#d4af37] to-[#aa820a] p-0.5 flex-shrink-0 overflow-hidden shadow-gold-sm">
+                  {adminUser.avatar ? (
+                    <img src={adminUser.avatar} alt={adminUser.name} className="w-full h-full object-cover rounded-[14px]" />
+                  ) : (
+                    <div className="w-full h-full bg-[#0e0e14] rounded-[14px] flex items-center justify-center">
+                      <Shield className="w-6 h-6 text-[#f5d77f]" />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 pb-0.5">
+                  <div className="text-[10px] uppercase tracking-wider font-bold text-red-400">
+                    Platform Administration
+                  </div>
+                  <div className="text-sm sm:text-base font-serif font-bold text-white truncate">
+                    {adminUser.name} <span className="text-xs font-sans font-normal text-[#8d8ea0]">({adminUser.handle})</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('settings')}
+                className="px-3.5 py-2 rounded-xl bg-[#181826] hover:bg-[#222234] border border-[#d4af37]/40 text-xs font-semibold text-[#f5d77f] flex items-center gap-1.5 self-start sm:self-auto"
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                Profile & Commission Settings
+              </button>
+            </div>
+          </div>
 
           {/* Segregated Live Financial & Platform KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1315,6 +1418,8 @@ export default function AdminPanelPage() {
                         password: '',
                         role: 'SUBSCRIBER',
                         bio: '',
+                        avatar: '',
+                        banner: '',
                         status: 'ACTIVE',
                       })
                     }
@@ -1349,8 +1454,19 @@ export default function AdminPanelPage() {
                     {filteredUsers.map((u) => (
                       <tr key={u.id} className="hover:bg-[#161622]/40">
                         <td className="py-3.5 px-4 font-bold">
-                          <div>{u.name}</div>
-                          <div className="text-[10px] font-mono text-[#717182]">@{u.username}</div>
+                          <div className="flex items-center gap-2.5">
+                            {u.avatar ? (
+                              <img src={u.avatar} alt={u.name} className="w-7 h-7 rounded-full object-cover border border-[#d4af37]/40 flex-shrink-0" />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-[#1a1a26] border border-[#2c2c3d] flex items-center justify-center text-[10px] text-[#f5d77f] flex-shrink-0">
+                                {u.name?.charAt(0).toUpperCase() || 'U'}
+                              </div>
+                            )}
+                            <div>
+                              <div>{u.name}</div>
+                              <div className="text-[10px] font-mono text-[#717182]">@{u.username}</div>
+                            </div>
+                          </div>
                         </td>
                         <td className="py-3.5 px-4 text-[#8a8a9e]">{u.email}</td>
                         <td className="py-3.5 px-4">
@@ -1382,6 +1498,8 @@ export default function AdminPanelPage() {
                                   role: u.role,
                                   status: u.status,
                                   bio: u.bio || '',
+                                  avatar: u.avatar || '',
+                                  banner: u.banner || '',
                                 })
                               }
                             />
@@ -1826,78 +1944,171 @@ export default function AdminPanelPage() {
             </div>
           )}
 
-          {/* Tab 6: Commission Settings */}
+          {/* Tab 6: Admin Profile, Cover & Commission Settings */}
           {activeTab === 'settings' && (
-            <div className="max-w-xl mx-auto p-6 sm:p-8 rounded-3xl bg-[#111118] border border-[#d4af37]/40 space-y-6">
-              <h3 className="text-lg font-serif font-bold text-white flex items-center gap-2">
-                <Sliders className="w-5 h-5 text-[#f5d77f]" />
-                Platform Commission Rules (Requirement 2 & 17)
-              </h3>
-              <p className="text-xs text-[#8c8c9e] leading-relaxed">
-                Configure the live platform revenue distribution dynamically. This persists on the backend and applies to every new subscription, custom order, and PPV sale.
-              </p>
-
-              <form onSubmit={handleSaveSettings} className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+              {/* Left Card: Admin Profile & Cover Pic */}
+              <div className="p-6 sm:p-8 rounded-3xl bg-[#111118] border border-[#2a2a3b] space-y-5">
                 <div>
-                  <label className="text-xs font-semibold text-[#8e8e9e] block mb-1.5">
-                    Creator Commission Percentage (%)
-                  </label>
-                  <input
-                    type="number"
-                    min="50"
-                    max="95"
-                    value={creatorCommission}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      setCreatorCommission(val);
-                      setPlatformCommission(100 - val);
+                  <h3 className="text-lg font-serif font-bold text-white flex items-center gap-2">
+                    <User className="w-5 h-5 text-[#f5d77f]" />
+                    Administrator Profile & Cover Pic
+                  </h3>
+                  <p className="text-xs text-[#8c8c9e] mt-1">
+                    Update your Administrator display name, bio, profile avatar, and cover banner image.
+                  </p>
+                </div>
+
+                <form onSubmit={handleSaveAdminProfile} className="space-y-4 text-xs">
+                  <ImageAssetInput
+                    label="Admin Profile Photo (Avatar)"
+                    variant="avatar"
+                    value={adminUser.avatar}
+                    onChange={(url) => setAdminUser((prev) => ({ ...prev, avatar: url }))}
+                    onUploaded={async (url) => {
+                      const res = await fetch('/api/user/profile', {
+                        method: 'PATCH',
+                        headers: authJsonHeaders(),
+                        body: JSON.stringify({ avatar: url }),
+                      });
+                      const d = await res.json();
+                      if (res.ok && d?.user) {
+                        syncAdminLocalStorage({ avatar: d.user.avatar || url });
+                        showToast('Admin profile avatar uploaded & saved!');
+                      } else {
+                        showToast(d?.message || 'Failed to save admin avatar');
+                      }
                     }}
-                    className="w-full px-4 py-2.5 bg-[#161622] border border-[#29293a] rounded-xl text-white font-bold"
+                    onError={(msg) => showToast(msg)}
                   />
-                </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-[#8e8e9e] block mb-1.5">
-                    Platform Retained Percentage (%)
-                  </label>
-                  <input
-                    type="number"
-                    disabled
-                    value={platformCommission}
-                    className="w-full px-4 py-2.5 bg-[#161622]/50 border border-[#29293a] rounded-xl text-[#777788] font-bold cursor-not-allowed"
+                  <ImageAssetInput
+                    label="Admin Cover Banner Image (Cover Pic)"
+                    variant="banner"
+                    value={adminUser.banner}
+                    onChange={(url) => setAdminUser((prev) => ({ ...prev, banner: url }))}
+                    onUploaded={async (url) => {
+                      const res = await fetch('/api/user/profile', {
+                        method: 'PATCH',
+                        headers: authJsonHeaders(),
+                        body: JSON.stringify({ banner: url }),
+                      });
+                      const d = await res.json();
+                      if (res.ok && d?.user) {
+                        syncAdminLocalStorage({ banner: d.user.banner || url });
+                        showToast('Admin cover banner uploaded & saved!');
+                      } else {
+                        showToast(d?.message || 'Failed to save admin cover banner');
+                      }
+                    }}
+                    onError={(msg) => showToast(msg)}
                   />
-                </div>
 
-                <div className="p-4 rounded-xl bg-[#161622] border border-[#2b2b3a] space-y-1.5 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-[#808092]">Example $100.00 Gross Sale</span>
-                    <span className="text-white font-mono font-bold">$100.00</span>
+                  <div>
+                    <label className="block font-semibold text-[#8e8e9e] mb-1.5">Display Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={adminUser.name}
+                      onChange={(e) => setAdminUser((prev) => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-3.5 py-2.5 bg-[#161622] border border-[#29293a] rounded-xl text-white font-semibold"
+                    />
                   </div>
-                  <div className="flex justify-between text-[#f5d77f]">
-                    <span>Creator Net Payout ({creatorCommission}%)</span>
-                    <span className="font-mono font-bold">${creatorCommission.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-green-400">
-                    <span>Platform Retained ({platformCommission}%)</span>
-                    <span className="font-mono font-bold">${platformCommission.toFixed(2)}</span>
-                  </div>
-                </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-3 rounded-xl gold-button text-xs font-bold shadow-gold-sm flex items-center justify-center gap-2"
-                >
-                  <Check className="w-4 h-4" />
-                  Save Commission Changes
-                </button>
-
-                {savedSuccess && (
-                  <div className="p-3 rounded-xl bg-green-950/60 border border-green-500/40 text-green-400 text-xs text-center flex items-center justify-center gap-2">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Commission configuration successfully saved & persisted to backend!
+                  <div>
+                    <label className="block font-semibold text-[#8e8e9e] mb-1.5">Bio / Role Note</label>
+                    <textarea
+                      rows={2}
+                      value={adminUser.bio}
+                      onChange={(e) => setAdminUser((prev) => ({ ...prev, bio: e.target.value }))}
+                      placeholder="Platform Administrator on The Mirage"
+                      className="w-full px-3.5 py-2.5 bg-[#161622] border border-[#29293a] rounded-xl text-white"
+                    />
                   </div>
-                )}
-              </form>
+
+                  <button
+                    type="submit"
+                    disabled={adminProfileSaving}
+                    className="w-full py-3 rounded-xl gold-button text-xs font-bold shadow-gold-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <Check className="w-4 h-4" />
+                    {adminProfileSaving ? 'Saving Profile...' : 'Save Admin Profile & Cover'}
+                  </button>
+                </form>
+              </div>
+
+              {/* Right Card: Platform Commission Split */}
+              <div className="p-6 sm:p-8 rounded-3xl bg-[#111118] border border-[#d4af37]/40 space-y-6">
+                <h3 className="text-lg font-serif font-bold text-white flex items-center gap-2">
+                  <Sliders className="w-5 h-5 text-[#f5d77f]" />
+                  Platform Commission Rules (Requirement 2 & 17)
+                </h3>
+                <p className="text-xs text-[#8c8c9e] leading-relaxed">
+                  Configure the live platform revenue distribution dynamically. This persists on the backend and applies to every new subscription, custom order, and PPV sale.
+                </p>
+
+                <form onSubmit={handleSaveSettings} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-[#8e8e9e] block mb-1.5">
+                      Creator Commission Percentage (%)
+                    </label>
+                    <input
+                      type="number"
+                      min="50"
+                      max="95"
+                      value={creatorCommission}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setCreatorCommission(val);
+                        setPlatformCommission(100 - val);
+                      }}
+                      className="w-full px-4 py-2.5 bg-[#161622] border border-[#29293a] rounded-xl text-white font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-[#8e8e9e] block mb-1.5">
+                      Platform Retained Percentage (%)
+                    </label>
+                    <input
+                      type="number"
+                      disabled
+                      value={platformCommission}
+                      className="w-full px-4 py-2.5 bg-[#161622]/50 border border-[#29293a] rounded-xl text-[#777788] font-bold cursor-not-allowed"
+                    />
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-[#161622] border border-[#2b2b3a] space-y-1.5 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-[#808092]">Example $100.00 Gross Sale</span>
+                      <span className="text-white font-mono font-bold">$100.00</span>
+                    </div>
+                    <div className="flex justify-between text-[#f5d77f]">
+                      <span>Creator Net Payout ({creatorCommission}%)</span>
+                      <span className="font-mono font-bold">${creatorCommission.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-green-400">
+                      <span>Platform Retained ({platformCommission}%)</span>
+                      <span className="font-mono font-bold">${platformCommission.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3 rounded-xl gold-button text-xs font-bold shadow-gold-sm flex items-center justify-center gap-2"
+                  >
+                    <Check className="w-4 h-4" />
+                    Save Commission Changes
+                  </button>
+
+                  {savedSuccess && (
+                    <div className="p-3 rounded-xl bg-green-950/60 border border-green-500/40 text-green-400 text-xs text-center flex items-center justify-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Commission configuration successfully saved & persisted to backend!
+                    </div>
+                  )}
+                </form>
+              </div>
             </div>
           )}
         </main>
@@ -1912,16 +2123,27 @@ export default function AdminPanelPage() {
       >
         {viewCreator && (
           <div className="space-y-4 text-xs">
-            <div className="flex items-center gap-3">
-              {viewCreator.avatar && (
-                <img src={viewCreator.avatar} alt={viewCreator.name} className="w-16 h-16 rounded-2xl object-cover border border-[#d4af37]/50" />
-              )}
-              <div className="space-y-1">
-                <div className="font-bold text-white text-sm flex items-center gap-1.5">
-                  {viewCreator.name}
-                  {viewCreator.isVerified && <CheckCircle2 className="w-4 h-4 fill-[#d4af37] text-black" />}
+            <div className="rounded-2xl overflow-hidden bg-[#161622] border border-[#2a2a3b]">
+              <div className="relative h-24 w-full bg-gradient-to-r from-[#1a1826] to-[#14141d]">
+                {viewCreator.banner && (
+                  <img src={viewCreator.banner} alt={`${viewCreator.name} banner`} className="w-full h-full object-cover" />
+                )}
+              </div>
+              <div className="p-3 flex items-center gap-3 -mt-6 relative">
+                {viewCreator.avatar ? (
+                  <img src={viewCreator.avatar} alt={viewCreator.name} className="w-16 h-16 rounded-2xl object-cover border-2 border-[#d4af37] bg-[#101018]" />
+                ) : (
+                  <div className="w-16 h-16 rounded-2xl bg-[#12121a] border-2 border-[#d4af37] flex items-center justify-center text-lg font-bold text-[#f5d77f]">
+                    {viewCreator.name?.charAt(0)}
+                  </div>
+                )}
+                <div className="space-y-1 pt-4">
+                  <div className="font-bold text-white text-sm flex items-center gap-1.5">
+                    {viewCreator.name}
+                    {viewCreator.isVerified && <CheckCircle2 className="w-4 h-4 fill-[#d4af37] text-black" />}
+                  </div>
+                  <div className="text-[#8e8e9e]">{viewCreator.bio || 'No bio entered yet.'}</div>
                 </div>
-                <div className="text-[#8e8e9e]">{viewCreator.bio || 'No bio entered yet.'}</div>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -2038,64 +2260,20 @@ export default function AdminPanelPage() {
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[#8e8e9e] mb-1">Avatar URL or Upload</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    placeholder="https://... or /api/uploads/..."
-                    value={editCreatorForm.avatar || ''}
-                    onChange={(e) => setEditCreatorForm({ ...editCreatorForm, avatar: e.target.value })}
-                    className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
-                  />
-                  <label className="cursor-pointer px-2.5 py-2 rounded-xl bg-[#1d1d2b] border border-[#2b2b3c] hover:border-[#d4af37] text-[#f5d77f] flex items-center gap-1 flex-shrink-0">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        e.target.value = '';
-                        if (f) {
-                          handleUploadAsset(f, 'edit-avatar', (url) =>
-                            setEditCreatorForm((prev: any) => (prev ? { ...prev, avatar: url } : prev))
-                          );
-                        }
-                      }}
-                    />
-                    {uploadingField === 'edit-avatar' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                  </label>
-                </div>
-              </div>
-              <div>
-                <label className="block text-[#8e8e9e] mb-1">Banner URL or Upload</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    placeholder="https://... or /api/uploads/..."
-                    value={editCreatorForm.banner || ''}
-                    onChange={(e) => setEditCreatorForm({ ...editCreatorForm, banner: e.target.value })}
-                    className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
-                  />
-                  <label className="cursor-pointer px-2.5 py-2 rounded-xl bg-[#1d1d2b] border border-[#2b2b3c] hover:border-[#d4af37] text-[#f5d77f] flex items-center gap-1 flex-shrink-0">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        e.target.value = '';
-                        if (f) {
-                          handleUploadAsset(f, 'edit-banner', (url) =>
-                            setEditCreatorForm((prev: any) => (prev ? { ...prev, banner: url } : prev))
-                          );
-                        }
-                      }}
-                    />
-                    {uploadingField === 'edit-banner' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                  </label>
-                </div>
-              </div>
+              <ImageAssetInput
+                label="Creator Profile Photo (Avatar)"
+                variant="avatar"
+                value={editCreatorForm.avatar || ''}
+                onChange={(url) => setEditCreatorForm((prev: any) => (prev ? { ...prev, avatar: url } : prev))}
+                onError={showToast}
+              />
+              <ImageAssetInput
+                label="Creator Cover Banner (Cover Pic)"
+                variant="banner"
+                value={editCreatorForm.banner || ''}
+                onChange={(url) => setEditCreatorForm((prev: any) => (prev ? { ...prev, banner: url } : prev))}
+                onError={showToast}
+              />
             </div>
             <div className="flex items-center justify-between pt-1">
               <label className="flex items-center gap-2 text-white cursor-pointer">
@@ -2231,6 +2409,21 @@ export default function AdminPanelPage() {
       >
         {viewUser && (
           <div className="space-y-3 text-xs">
+            {(viewUser.banner || viewUser.avatar) && (
+              <div className="rounded-2xl overflow-hidden bg-[#161622] border border-[#2a2a3b]">
+                <div className="h-20 w-full bg-gradient-to-r from-[#1a1826] to-[#14141d]">
+                  {viewUser.banner && (
+                    <img src={viewUser.banner} alt="Cover banner" className="w-full h-full object-cover" />
+                  )}
+                </div>
+                {viewUser.avatar && (
+                  <div className="px-3.5 pb-3 -mt-6 flex items-center gap-3">
+                    <img src={viewUser.avatar} alt={viewUser.name} className="w-12 h-12 rounded-full object-cover border-2 border-[#d4af37] bg-[#101018]" />
+                    <span className="pt-5 font-bold text-white">{viewUser.name}</span>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3.5 rounded-2xl bg-[#161622]">
               <div><span className="text-[#717182] block">Email</span><span className="text-white font-medium break-all">{viewUser.email}</span></div>
               <div><span className="text-[#717182] block">Account Status</span><span className={viewUser.status === 'ACTIVE' ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>{viewUser.status}</span></div>
@@ -2309,6 +2502,31 @@ export default function AdminPanelPage() {
                   <option value="SUSPENDED">SUSPENDED</option>
                 </select>
               </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <ImageAssetInput
+                label="Profile Photo (Avatar)"
+                variant="avatar"
+                value={editUserForm.avatar || ''}
+                onChange={(url) => setEditUserForm((prev: any) => (prev ? { ...prev, avatar: url } : prev))}
+                onError={showToast}
+              />
+              <ImageAssetInput
+                label="Cover Banner (Cover Pic)"
+                variant="banner"
+                value={editUserForm.banner || ''}
+                onChange={(url) => setEditUserForm((prev: any) => (prev ? { ...prev, banner: url } : prev))}
+                onError={showToast}
+              />
+            </div>
+            <div>
+              <label className="block text-[#8e8e9e] mb-1">Bio</label>
+              <textarea
+                rows={2}
+                value={editUserForm.bio || ''}
+                onChange={(e) => setEditUserForm({ ...editUserForm, bio: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
+              />
             </div>
             <button type="submit" className="w-full py-2.5 rounded-xl gold-button font-bold">
               Save Account Changes
@@ -2469,64 +2687,20 @@ export default function AdminPanelPage() {
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[#8e8e9e] mb-1">Avatar URL or Upload</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    placeholder="https://... or upload"
-                    value={createCreatorForm.avatar}
-                    onChange={(e) => setCreateCreatorForm({ ...createCreatorForm, avatar: e.target.value })}
-                    className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
-                  />
-                  <label className="cursor-pointer px-2.5 py-2 rounded-xl bg-[#1d1d2b] border border-[#2b2b3c] hover:border-[#d4af37] text-[#f5d77f] flex items-center flex-shrink-0">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        e.target.value = '';
-                        if (f) {
-                          handleUploadAsset(f, 'create-avatar', (url) =>
-                            setCreateCreatorForm((prev: any) => (prev ? { ...prev, avatar: url } : prev))
-                          );
-                        }
-                      }}
-                    />
-                    {uploadingField === 'create-avatar' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                  </label>
-                </div>
-              </div>
-              <div>
-                <label className="block text-[#8e8e9e] mb-1">Banner URL or Upload</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    placeholder="https://... or upload"
-                    value={createCreatorForm.banner}
-                    onChange={(e) => setCreateCreatorForm({ ...createCreatorForm, banner: e.target.value })}
-                    className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-white"
-                  />
-                  <label className="cursor-pointer px-2.5 py-2 rounded-xl bg-[#1d1d2b] border border-[#2b2b3c] hover:border-[#d4af37] text-[#f5d77f] flex items-center flex-shrink-0">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        e.target.value = '';
-                        if (f) {
-                          handleUploadAsset(f, 'create-banner', (url) =>
-                            setCreateCreatorForm((prev: any) => (prev ? { ...prev, banner: url } : prev))
-                          );
-                        }
-                      }}
-                    />
-                    {uploadingField === 'create-banner' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                  </label>
-                </div>
-              </div>
+              <ImageAssetInput
+                label="Creator Profile Photo (Avatar)"
+                variant="avatar"
+                value={createCreatorForm.avatar || ''}
+                onChange={(url) => setCreateCreatorForm((prev: any) => (prev ? { ...prev, avatar: url } : prev))}
+                onError={showToast}
+              />
+              <ImageAssetInput
+                label="Creator Cover Banner (Cover Pic)"
+                variant="banner"
+                value={createCreatorForm.banner || ''}
+                onChange={(url) => setCreateCreatorForm((prev: any) => (prev ? { ...prev, banner: url } : prev))}
+                onError={showToast}
+              />
             </div>
             <div>
               <label className="block text-[#8e8e9e] mb-1">Bio</label>
@@ -2633,6 +2807,22 @@ export default function AdminPanelPage() {
                   <option value="SUSPENDED">SUSPENDED</option>
                 </select>
               </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <ImageAssetInput
+                label="Profile Photo (Avatar)"
+                variant="avatar"
+                value={createUserForm.avatar || ''}
+                onChange={(url) => setCreateUserForm((prev: any) => (prev ? { ...prev, avatar: url } : prev))}
+                onError={showToast}
+              />
+              <ImageAssetInput
+                label="Cover Banner (Cover Pic)"
+                variant="banner"
+                value={createUserForm.banner || ''}
+                onChange={(url) => setCreateUserForm((prev: any) => (prev ? { ...prev, banner: url } : prev))}
+                onError={showToast}
+              />
             </div>
             <button type="submit" className="w-full py-2.5 rounded-xl gold-button font-bold">
               Create User Account

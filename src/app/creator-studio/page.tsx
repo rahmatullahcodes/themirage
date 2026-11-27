@@ -37,7 +37,7 @@ import {
 import { calculateCommission } from '@/lib/commission';
 import PanelSidebar from '@/components/PanelSidebar';
 import PanelHeader from '@/components/PanelHeader';
-import { ActionIconBtn, PanelModal, ConfirmActionModal, MediaThumb } from '@/components/PanelUi';
+import { ActionIconBtn, PanelModal, ConfirmActionModal, MediaThumb, ImageAssetInput } from '@/components/PanelUi';
 import { fetchCurrentSessionUser, getAuthHeaders, ClientSessionUser } from '@/lib/clientAuth';
 
 const CREATOR_CATEGORIES = ['Popular', 'New', 'Nearby', 'Fitness', 'Lifestyle', 'Fetish', 'Cosplay', 'Mature'];
@@ -762,7 +762,7 @@ export default function CreatorStudioPage() {
       case 'subscribers':
         return 'Active Subscribers & Fans';
       case 'settings':
-        return 'Subscription Pricing & Settings';
+        return 'Profile, Cover & Subscription Settings';
       default:
         return 'Creator Studio';
     }
@@ -848,48 +848,63 @@ export default function CreatorStudioPage() {
             </div>
           )}
 
-          {/* Verified Creator Account Identity Bar (locked strictly to logged-in creator) */}
-          <div className="p-4 rounded-2xl bg-[#111118] border border-[#262638] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              {profileAvatar ? (
-                <img
-                  src={profileAvatar}
-                  alt={creatorUser.name}
-                  className="w-10 h-10 rounded-full object-cover border border-[#d4af37]/60 flex-shrink-0"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 flex items-center justify-center text-sm font-bold text-[#f5d77f] flex-shrink-0">
-                  {creatorUser.name.charAt(0)}
-                </div>
+          {/* Verified Creator Account Identity Banner (with Cover Pic + Quick Profile Edit) */}
+          <div className="rounded-2xl bg-[#111118] border border-[#262638] overflow-hidden">
+            <div className="relative h-24 sm:h-28 w-full bg-gradient-to-r from-[#191625] via-[#211b10] to-[#12121b]">
+              {profileBanner && (
+                <img src={profileBanner} alt="Creator cover banner" className="w-full h-full object-cover" />
               )}
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-[#f5d77f] font-bold">
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>Verified Creator Studio</span>
-                </div>
-                <p className="text-sm font-serif font-bold text-white truncate">
-                  {creatorUser.name} <span className="text-xs font-sans font-normal text-[#8d8ea0]">(@{creatorUser.username})</span>
-                </p>
-              </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-[#111118] via-[#111118]/35 to-transparent" />
             </div>
+            <div className="px-4 pb-4 sm:px-5 sm:pb-4 -mt-7 relative flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+              <div className="flex items-end gap-3 min-w-0">
+                {profileAvatar ? (
+                  <img
+                    src={profileAvatar}
+                    alt={creatorUser.name}
+                    className="w-14 h-14 rounded-2xl object-cover border-2 border-[#d4af37] bg-[#101018] flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-2xl bg-[#161622] border-2 border-[#d4af37] flex items-center justify-center text-lg font-bold text-[#f5d77f] flex-shrink-0">
+                    {creatorUser.name.charAt(0)}
+                  </div>
+                )}
+                <div className="min-w-0 pb-0.5">
+                  <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-[#f5d77f] font-bold">
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>Verified Creator Studio</span>
+                  </div>
+                  <p className="text-sm sm:text-base font-serif font-bold text-white truncate">
+                    {creatorUser.name} <span className="text-xs font-sans font-normal text-[#8d8ea0]">(@{creatorUser.username})</span>
+                  </p>
+                </div>
+              </div>
 
-            <div className="flex flex-wrap items-center gap-2.5">
-              <button
-                type="button"
-                onClick={() => setActiveTab('upload')}
-                className="px-3.5 py-2 rounded-xl gold-button text-xs font-bold flex items-center gap-1.5"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                Upload Media
-              </button>
-
-              <Link
-                href={`/creator/${creatorUser.username}`}
-                className="px-3 py-2 rounded-xl bg-[#161622] hover:bg-[#1e1e2e] border border-[#2d2d40] text-xs font-semibold text-[#cbd5e1] flex items-center gap-1.5 transition-colors"
-              >
-                <span>View Profile</span>
-                <ExternalLink className="w-3.5 h-3.5 text-[#f5d77f]" />
-              </Link>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('settings')}
+                  className="px-3 py-2 rounded-xl bg-[#181826] hover:bg-[#222234] border border-[#d4af37]/40 text-xs font-semibold text-[#f5d77f] flex items-center gap-1.5 transition-colors"
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  Edit Photo & Cover
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('upload')}
+                  className="px-3.5 py-2 rounded-xl gold-button text-xs font-bold flex items-center gap-1.5"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  Upload Media
+                </button>
+                <Link
+                  href={`/creator/${creatorUser.username}`}
+                  className="px-3 py-2 rounded-xl bg-[#161622] hover:bg-[#1e1e2e] border border-[#2d2d40] text-xs font-semibold text-[#cbd5e1] flex items-center gap-1.5 transition-colors"
+                >
+                  <span>View Profile</span>
+                  <ExternalLink className="w-3.5 h-3.5 text-[#f5d77f]" />
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -1894,6 +1909,11 @@ export default function CreatorStudioPage() {
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
+                  const numericPrice = parseFloat(monthlyPrice);
+                  if (!Number.isFinite(numericPrice) || numericPrice < 1) {
+                    showToast('Monthly subscription price must be at least $1.00');
+                    return;
+                  }
                   try {
                     const res = await fetch('/api/creators', {
                       method: 'PATCH',
@@ -1905,7 +1925,7 @@ export default function CreatorStudioPage() {
                         bio: profileBio.trim(),
                         avatar: profileAvatar.trim(),
                         banner: profileBanner.trim(),
-                        monthlyPrice: parseFloat(monthlyPrice),
+                        monthlyPrice: numericPrice,
                       }),
                     });
                     const data = await res.json();
@@ -1918,7 +1938,12 @@ export default function CreatorStudioPage() {
                           if (parsed.id === data.creator.userId || parsed.username === data.creator.handle) {
                             localStorage.setItem(
                               'mirage_user',
-                              JSON.stringify({ ...parsed, name: data.creator.name, avatar: data.creator.avatar })
+                              JSON.stringify({
+                                ...parsed,
+                                name: data.creator.name,
+                                avatar: data.creator.avatar,
+                                banner: data.creator.banner,
+                              })
                             );
                             window.dispatchEvent(new Event('mirage_auth_changed'));
                           }
@@ -1926,10 +1951,12 @@ export default function CreatorStudioPage() {
                       } catch {}
                       setPriceSaveSuccess(true);
                       setTimeout(() => setPriceSaveSuccess(false), 2500);
-                      showToast(`Profile saved for ${data.creator.name} ($${parseFloat(monthlyPrice).toFixed(2)}/mo)`);
+                      showToast(`Profile & cover saved for ${data.creator.name} ($${numericPrice.toFixed(2)}/mo)`);
+                    } else {
+                      showToast(data?.message || 'Failed to save profile & pricing');
                     }
-                  } catch (err) {
-                    console.error('Failed to update profile settings:', err);
+                  } catch {
+                    showToast('Network error while saving profile settings');
                   }
                 }}
                 className="space-y-4"
@@ -1977,108 +2004,63 @@ export default function CreatorStudioPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="block text-xs font-semibold text-[#9da3af]">
-                      Profile Photo (Avatar)
-                    </label>
-                    {profileAvatar && (
-                      <div className="flex items-center gap-3 p-2 rounded-xl bg-[#161622] border border-[#2b2b3c]">
-                        <img src={profileAvatar} alt="Avatar preview" className="w-12 h-12 rounded-full object-cover border border-[#d4af37]/50" />
-                        <span className="text-[11px] text-[#94a3b8]">Current profile avatar</span>
-                      </div>
-                    )}
-                    <div className="flex gap-2">
-                      <label className="cursor-pointer px-3 py-2 rounded-xl bg-[#181824] hover:bg-[#222232] border border-[#d4af37]/40 text-xs font-bold text-[#f5d77f] flex items-center gap-1.5 flex-shrink-0">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            e.target.value = '';
-                            if (!file) return;
-                            const uploaded = await uploadMediaFile(file, 'avatar');
-                            if (uploaded) {
-                              setProfileAvatar(uploaded.url);
-                              try {
-                                const res = await fetch('/api/creators', {
-                                  method: 'PATCH',
-                                  headers: authJsonHeaders(),
-                                  body: JSON.stringify({ handle: creatorUser.username, avatar: uploaded.url }),
-                                });
-                                const d = await res.json();
-                                if (res.ok && d?.creator) {
-                                  const raw = localStorage.getItem('mirage_user');
-                                  if (raw) {
-                                    const parsed = JSON.parse(raw);
-                                    if (parsed.id === d.creator.userId || parsed.username === d.creator.handle) {
-                                      localStorage.setItem('mirage_user', JSON.stringify({ ...parsed, avatar: uploaded.url }));
-                                      window.dispatchEvent(new Event('mirage_auth_changed'));
-                                    }
-                                  }
-                                }
-                              } catch {}
-                            }
-                          }}
-                        />
-                        {uploadingSlot === 'avatar' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                        Upload
-                      </label>
-                      <input
-                        type="text"
-                        value={profileAvatar}
-                        onChange={(e) => setProfileAvatar(e.target.value)}
-                        placeholder="/api/uploads/..."
-                        className="flex-1 min-w-0 px-3 py-2 bg-[#161622] border border-[#2b2b3c] rounded-xl text-xs text-white focus:outline-none focus:border-[#d4af37]"
-                      />
-                    </div>
-                  </div>
+                  <ImageAssetInput
+                    label="Profile Photo (Avatar)"
+                    variant="avatar"
+                    value={profileAvatar}
+                    onChange={setProfileAvatar}
+                    onUploaded={async (url) => {
+                      const res = await fetch('/api/creators', {
+                        method: 'PATCH',
+                        headers: authJsonHeaders(),
+                        body: JSON.stringify({ handle: creatorUser.username, avatar: url }),
+                      });
+                      const d = await res.json();
+                      if (res.ok && d?.creator) {
+                        try {
+                          const raw = localStorage.getItem('mirage_user');
+                          if (raw) {
+                            const parsed = JSON.parse(raw);
+                            localStorage.setItem('mirage_user', JSON.stringify({ ...parsed, avatar: url }));
+                            window.dispatchEvent(new Event('mirage_auth_changed'));
+                          }
+                        } catch {}
+                        showToast('Profile avatar uploaded & saved!');
+                      } else {
+                        showToast(d?.message || 'Failed to save avatar');
+                      }
+                    }}
+                    onError={(msg) => showToast(msg)}
+                  />
 
-                  <div className="space-y-2">
-                    <label className="block text-xs font-semibold text-[#9da3af]">
-                      Cover Banner Image
-                    </label>
-                    {profileBanner && (
-                      <div className="rounded-xl overflow-hidden bg-[#161622] border border-[#2b2b3c] h-16">
-                        <img src={profileBanner} alt="Banner preview" className="w-full h-full object-cover" />
-                      </div>
-                    )}
-                    <div className="flex gap-2">
-                      <label className="cursor-pointer px-3 py-2 rounded-xl bg-[#181824] hover:bg-[#222232] border border-[#d4af37]/40 text-xs font-bold text-[#f5d77f] flex items-center gap-1.5 flex-shrink-0">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            e.target.value = '';
-                            if (!file) return;
-                            const uploaded = await uploadMediaFile(file, 'banner');
-                            if (uploaded) {
-                              setProfileBanner(uploaded.url);
-                              try {
-                                const res = await fetch('/api/creators', {
-                                  method: 'PATCH',
-                                  headers: authJsonHeaders(),
-                                  body: JSON.stringify({ handle: creatorUser.username, banner: uploaded.url }),
-                                });
-                                await res.json().catch(() => {});
-                              } catch {}
-                            }
-                          }}
-                        />
-                        {uploadingSlot === 'banner' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                        Upload
-                      </label>
-                      <input
-                        type="text"
-                        value={profileBanner}
-                        onChange={(e) => setProfileBanner(e.target.value)}
-                        placeholder="/api/uploads/..."
-                        className="flex-1 min-w-0 px-3 py-2 bg-[#161622] border border-[#2b2b3c] rounded-xl text-xs text-white focus:outline-none focus:border-[#d4af37]"
-                      />
-                    </div>
-                  </div>
+                  <ImageAssetInput
+                    label="Cover Banner Image (Cover Pic)"
+                    variant="banner"
+                    value={profileBanner}
+                    onChange={setProfileBanner}
+                    onUploaded={async (url) => {
+                      const res = await fetch('/api/creators', {
+                        method: 'PATCH',
+                        headers: authJsonHeaders(),
+                        body: JSON.stringify({ handle: creatorUser.username, banner: url }),
+                      });
+                      const d = await res.json();
+                      if (res.ok && d?.creator) {
+                        try {
+                          const raw = localStorage.getItem('mirage_user');
+                          if (raw) {
+                            const parsed = JSON.parse(raw);
+                            localStorage.setItem('mirage_user', JSON.stringify({ ...parsed, banner: url }));
+                            window.dispatchEvent(new Event('mirage_auth_changed'));
+                          }
+                        } catch {}
+                        showToast('Cover banner uploaded & saved!');
+                      } else {
+                        showToast(d?.message || 'Failed to save cover banner');
+                      }
+                    }}
+                    onError={(msg) => showToast(msg)}
+                  />
                 </div>
 
                 <div>
@@ -2090,8 +2072,8 @@ export default function CreatorStudioPage() {
                     <input
                       type="number"
                       step="0.50"
-                      min="4.99"
-                      max="99.99"
+                      min="1"
+                      max="199.99"
                       value={monthlyPrice}
                       onChange={(e) => setMonthlyPrice(e.target.value)}
                       className="w-full pl-8 pr-4 py-2.5 bg-[#161622] border border-[#2b2b3c] rounded-xl text-sm font-bold text-white focus:outline-none focus:border-[#d4af37]"

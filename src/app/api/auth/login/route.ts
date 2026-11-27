@@ -49,6 +49,7 @@ export async function POST(req: Request) {
       email: dbUser.email,
       role: dbUser.role,
       avatar: dbUser.avatar || creatorProfile?.avatar || '',
+      banner: dbUser.banner || creatorProfile?.banner || '',
       creatorId: creatorProfile?.id,
       creatorHandle: creatorProfile?.handle,
     };

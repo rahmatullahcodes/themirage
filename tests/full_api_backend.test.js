@@ -654,24 +654,38 @@ async function runTests() {
     name: 'Updated Dynamic Fan',
     bio: 'Dynamic member bio',
     avatar: '/api/uploads/fan-avatar-test.jpg',
+    banner: '/api/uploads/fan-banner-test.jpg',
   }, newSubAuth);
   assert.strictEqual(subProfileUpdate.status, 200);
   assert.strictEqual(subProfileUpdate.data.user.avatar, '/api/uploads/fan-avatar-test.jpg');
+  assert.strictEqual(subProfileUpdate.data.user.banner, '/api/uploads/fan-banner-test.jpg');
 
   const getSubProfile = await request('GET', '/api/user/profile', null, newSubAuth);
   assert.strictEqual(getSubProfile.status, 200);
   assert.strictEqual(getSubProfile.data.user.name, 'Updated Dynamic Fan');
   assert.strictEqual(getSubProfile.data.user.avatar, '/api/uploads/fan-avatar-test.jpg');
+  assert.strictEqual(getSubProfile.data.user.banner, '/api/uploads/fan-banner-test.jpg');
 
   const creatorAvatarPatch = await request('PATCH', '/api/creators', {
     avatar: '/api/uploads/ellie-avatar-updated.jpg',
+    banner: '/api/uploads/ellie-banner-updated.jpg',
   }, ellieAuth);
   assert.strictEqual(creatorAvatarPatch.status, 200);
   assert.strictEqual(creatorAvatarPatch.data.creator.avatar, '/api/uploads/ellie-avatar-updated.jpg');
+  assert.strictEqual(creatorAvatarPatch.data.creator.banner, '/api/uploads/ellie-banner-updated.jpg');
 
   const ellieUserSyncRes = await request('GET', '/api/user/profile', null, ellieAuth);
   assert.strictEqual(ellieUserSyncRes.status, 200);
   assert.strictEqual(ellieUserSyncRes.data.user.avatar, '/api/uploads/ellie-avatar-updated.jpg');
+  assert.strictEqual(ellieUserSyncRes.data.user.banner, '/api/uploads/ellie-banner-updated.jpg');
+
+  const adminOwnProfilePatch = await request('PATCH', '/api/user/profile', {
+    avatar: '/api/uploads/admin-avatar.jpg',
+    banner: '/api/uploads/admin-banner.jpg',
+  }, adminAuth);
+  assert.strictEqual(adminOwnProfilePatch.status, 200);
+  assert.strictEqual(adminOwnProfilePatch.data.user.avatar, '/api/uploads/admin-avatar.jpg');
+  assert.strictEqual(adminOwnProfilePatch.data.user.banner, '/api/uploads/admin-banner.jpg');
 
   // Public stats + Post Like persistence check
   const creatorsStatsRes = await request('GET', '/api/creators');
@@ -855,6 +869,15 @@ async function runTests() {
   }, adminAuth);
   assert.strictEqual(adminOrderDeliver.status, 200);
   assert.strictEqual(adminOrderDeliver.data.request.status, 'DELIVERED');
+
+  const adminEditUserMedia = await request('PATCH', '/api/admin/users', {
+    userId: createdUserId,
+    avatar: '/api/uploads/edited-user-avatar.jpg',
+    banner: '/api/uploads/edited-user-banner.jpg',
+  }, adminAuth);
+  assert.strictEqual(adminEditUserMedia.status, 200);
+  assert.strictEqual(adminEditUserMedia.data.user.avatar, '/api/uploads/edited-user-avatar.jpg');
+  assert.strictEqual(adminEditUserMedia.data.user.banner, '/api/uploads/edited-user-banner.jpg');
 
   // Cleanup temp records
   await request('DELETE', `/api/custom-requests?requestId=${encodeURIComponent(adminOrderId)}`, null, adminAuth);

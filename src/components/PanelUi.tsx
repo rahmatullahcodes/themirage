@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { X, AlertTriangle, Loader2 } from 'lucide-react';
+import { X, AlertTriangle, Loader2, Upload, User, Image as ImageIcon } from 'lucide-react';
+import { getAuthHeaders } from '@/lib/clientAuth';
 
 export type ActionTone = 'neutral' | 'gold' | 'green' | 'amber' | 'danger';
 
@@ -246,4 +247,120 @@ export function MediaThumb({
   }
 
   return <img src={resolved} alt={alt} className={className} />;
+}
+
+interface ImageAssetInputProps {
+  label: string;
+  variant: 'avatar' | 'banner';
+  value: string;
+  onChange: (nextUrl: string) => void;
+  onUploaded?: (uploadedUrl: string) => Promise<void> | void;
+  onError?: (message: string) => void;
+  placeholder?: string;
+}
+
+/** Shared Profile Photo (Avatar) & Cover Pic (Banner) uploader + URL + live preview widget across all panels. */
+export function ImageAssetInput({
+  label,
+  variant,
+  value,
+  onChange,
+  onUploaded,
+  onError,
+  placeholder = '/api/uploads/... or https://...',
+}: ImageAssetInputProps) {
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success || !data?.url) {
+        onError?.(data?.message || 'Image upload failed (max 100MB, JPG/PNG/WEBP/GIF).');
+        return;
+      }
+      onChange(data.url);
+      if (onUploaded) {
+        await onUploaded(data.url);
+      }
+    } catch {
+      onError?.('Network error while uploading image.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2 text-xs">
+      <div className="flex items-center justify-between">
+        <label className="font-semibold text-[#9da3af]">{label}</label>
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            className="text-[11px] text-[#8e8e9e] hover:text-red-400 transition-colors"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      {variant === 'avatar' ? (
+        <div className="flex items-center gap-3 p-2.5 rounded-xl bg-[#161622] border border-[#2b2b3c]">
+          <div className="w-12 h-12 rounded-full overflow-hidden bg-[#101018] border border-[#d4af37]/50 flex items-center justify-center flex-shrink-0">
+            {value ? (
+              <img src={value} alt={label} className="w-full h-full object-cover" />
+            ) : (
+              <User className="w-5 h-5 text-[#d4af37]" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0 text-[11px] text-[#94a3b8]">
+            {value ? 'Preview ready — upload new photo or edit URL below' : 'No profile photo selected yet'}
+          </div>
+        </div>
+      ) : (
+        <div className="relative h-20 rounded-xl overflow-hidden bg-[#161622] border border-[#2b2b3c] flex items-center justify-center">
+          {value ? (
+            <img src={value} alt={label} className="w-full h-full object-cover" />
+          ) : (
+            <div className="flex items-center gap-1.5 text-[11px] text-[#7c7c90]">
+              <ImageIcon className="w-4 h-4 text-[#d4af37]/60" />
+              <span>No cover banner selected yet</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2">
+        <label className="cursor-pointer px-3 py-2 rounded-xl bg-[#1b1b28] hover:bg-[#242436] border border-[#d4af37]/40 text-xs font-bold text-[#f5d77f] flex items-center gap-1.5 flex-shrink-0 transition-colors">
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = '';
+              if (f) handleFile(f);
+            }}
+          />
+          {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+          <span>{uploading ? 'Uploading...' : 'Upload'}</span>
+        </label>
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#161622] border border-[#2b2b3c] text-xs text-white focus:outline-none focus:border-[#d4af37]"
+        />
+      </div>
+    </div>
+  );
 }

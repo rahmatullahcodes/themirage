@@ -7,6 +7,7 @@ export interface ClientSessionUser {
   email: string;
   role: 'ADMIN' | 'CREATOR' | 'SUBSCRIBER';
   avatar?: string;
+  banner?: string;
   bio?: string;
   ageVerified?: boolean;
   creatorId?: string;

@@ -34,6 +34,7 @@ export async function GET(req: Request) {
         email: dbUser.email,
         role: dbUser.role,
         avatar: dbUser.avatar || creatorProfile?.avatar || '',
+        banner: dbUser.banner || creatorProfile?.banner || '',
         bio: dbUser.bio || creatorProfile?.bio || '',
         ageVerified: dbUser.ageVerified,
         creatorId: creatorProfile?.id,

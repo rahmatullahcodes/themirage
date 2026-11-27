@@ -20,6 +20,7 @@ export interface UserRecord {
   role: UserRole;
   status: AccountStatus;
   avatar?: string;
+  banner?: string;
   bio?: string;
   ageVerified: boolean;
   createdAt: string;
@@ -1930,6 +1931,7 @@ export function registerNewUser(params: {
     role: assignedRole,
     status: assignedStatus,
     avatar: params.avatar?.trim() || (assignedRole === 'CREATOR' ? defaultAvatar : undefined),
+    banner: params.banner?.trim() || (assignedRole === 'CREATOR' ? defaultBanner : undefined),
     bio:
       params.bio !== undefined
         ? params.bio
@@ -1986,7 +1988,16 @@ export function updateUserStatusAdmin(userId: string, status: AccountStatus): { 
 
 export function updateUserAdmin(
   userId: string,
-  updates: { name?: string; username?: string; email?: string; role?: UserRole; status?: AccountStatus; bio?: string }
+  updates: {
+    name?: string;
+    username?: string;
+    email?: string;
+    role?: UserRole;
+    status?: AccountStatus;
+    bio?: string;
+    avatar?: string;
+    banner?: string;
+  }
 ): { success: boolean; user?: UserRecord; error?: string } {
   const db = getDb();
   const user = db.users.find(u => u.id === userId);
@@ -2010,14 +2021,38 @@ export function updateUserAdmin(
     user.status = updates.status;
   }
   if (updates.bio !== undefined) user.bio = updates.bio;
+  if (updates.avatar !== undefined) user.avatar = updates.avatar.trim();
+  if (updates.banner !== undefined) user.banner = updates.banner.trim();
 
-  const creator = db.creators.find(c => c.id === userId || c.userId === userId);
-  if (creator) {
+  let creator = db.creators.find(c => c.id === userId || c.userId === userId);
+  if (!creator && user.role === 'CREATOR') {
+    const existingHandle = db.creators.some(c => c.handle.toLowerCase() === user.username.toLowerCase());
+    creator = {
+      id: user.id,
+      userId: user.id,
+      name: user.name,
+      handle: existingHandle ? `${user.username}-${Date.now().toString().slice(-4)}` : user.username,
+      avatar: user.avatar || 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=600&q=80',
+      banner: user.banner || 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1400&q=80',
+      bio: user.bio || `Official Mirage profile for ${user.name}.`,
+      category: 'New',
+      monthlyPrice: 9.99,
+      isVerified: false,
+      followersCount: 0,
+      likesCount: 0,
+      status: user.status,
+      createdAt: user.createdAt,
+    };
+    db.creators.unshift(creator);
+  } else if (creator) {
     creator.name = user.name;
     creator.status = user.status;
+    if (updates.bio !== undefined) creator.bio = updates.bio;
+    if (updates.avatar !== undefined && updates.avatar.trim()) creator.avatar = updates.avatar.trim();
+    if (updates.banner !== undefined && updates.banner.trim()) creator.banner = updates.banner.trim();
   }
   saveDb(db);
-  return { success: true, user };
+  return { success: true, user: sanitizeUserRecord(user) };
 }
 
 export function deleteUserAdmin(userId: string): { success: boolean; error?: string } {
@@ -2043,7 +2078,7 @@ export function deleteUserAdmin(userId: string): { success: boolean; error?: str
 
 export function updateUserProfile(
   userId: string,
-  updates: { name?: string; username?: string; bio?: string; avatar?: string }
+  updates: { name?: string; username?: string; bio?: string; avatar?: string; banner?: string }
 ): { success: boolean; user?: UserRecord; error?: string } {
   const db = getDb();
   const user = db.users.find(u => u.id === userId);
@@ -2054,17 +2089,19 @@ export function updateUserProfile(
     if (clean) user.username = clean;
   }
   if (updates.bio !== undefined) user.bio = updates.bio;
-  if (updates.avatar !== undefined && updates.avatar.trim()) user.avatar = updates.avatar.trim();
+  if (updates.avatar !== undefined) user.avatar = updates.avatar.trim();
+  if (updates.banner !== undefined) user.banner = updates.banner.trim();
 
   const linkedCreator = db.creators.find(c => c.userId === userId || c.id === userId);
   if (linkedCreator) {
     if (updates.name && updates.name.trim()) linkedCreator.name = user.name;
-    if (updates.avatar && updates.avatar.trim()) linkedCreator.avatar = user.avatar!;
+    if (updates.avatar !== undefined && updates.avatar.trim()) linkedCreator.avatar = updates.avatar.trim();
+    if (updates.banner !== undefined && updates.banner.trim()) linkedCreator.banner = updates.banner.trim();
     if (updates.bio !== undefined) linkedCreator.bio = updates.bio;
   }
 
   saveDb(db);
-  return { success: true, user };
+  return { success: true, user: sanitizeUserRecord(user) };
 }
 
 export function formatFollowerLabel(count: number): string {
@@ -2212,8 +2249,8 @@ export function updateCreatorAdmin(
   }
   if (updates.category !== undefined && updates.category.trim()) creator.category = updates.category.trim();
   if (updates.bio !== undefined) creator.bio = updates.bio;
-  if (updates.avatar !== undefined && updates.avatar.trim()) creator.avatar = updates.avatar.trim();
-  if (updates.banner !== undefined && updates.banner.trim()) creator.banner = updates.banner.trim();
+  if (updates.avatar !== undefined) creator.avatar = updates.avatar.trim();
+  if (updates.banner !== undefined) creator.banner = updates.banner.trim();
   if (updates.isVerified !== undefined) creator.isVerified = Boolean(updates.isVerified);
   if (updates.status === 'ACTIVE' || updates.status === 'SUSPENDED') {
     creator.status = updates.status;
@@ -2225,7 +2262,8 @@ export function updateCreatorAdmin(
     linkedUser.name = creator.name;
     linkedUser.status = creator.status;
     linkedUser.bio = creator.bio;
-    if (creator.avatar) linkedUser.avatar = creator.avatar;
+    if (updates.avatar !== undefined) linkedUser.avatar = creator.avatar;
+    if (updates.banner !== undefined) linkedUser.banner = creator.banner;
   }
   db.posts.forEach(p => {
     if (p.creatorId === creator.id) {

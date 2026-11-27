@@ -44,6 +44,13 @@ export default function PurchaseContentModal({
   const [isAuthError, setIsAuthError] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  // Reset modal feedback when switching posts or reopening
+  useEffect(() => {
+    setIsSuccess(false);
+    setError('');
+    setIsAuthError(false);
+  }, [isOpen, content?.id]);
+
   // Close when pressing Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

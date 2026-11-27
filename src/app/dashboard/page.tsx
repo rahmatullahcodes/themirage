@@ -29,12 +29,11 @@ import {
   UserMinus,
   Trash2,
   Info,
-  Upload,
-  Loader2,
+  Camera,
 } from 'lucide-react';
 import PanelSidebar from '@/components/PanelSidebar';
 import PanelHeader from '@/components/PanelHeader';
-import { ActionIconBtn, PanelModal, ConfirmActionModal, MediaThumb } from '@/components/PanelUi';
+import { ActionIconBtn, PanelModal, ConfirmActionModal, MediaThumb, ImageAssetInput } from '@/components/PanelUi';
 import { fetchCurrentSessionUser, getAuthHeaders } from '@/lib/clientAuth';
 
 interface PurchasedItem {
@@ -56,7 +55,7 @@ export default function UserDashboard() {
   const [activeTab, setActiveTab] = useState('subscriptions');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [user, setUser] = useState<{ id: string; name: string; username: string; email: string; role: string; avatar?: string; ageVerified?: boolean } | null>(null);
+  const [user, setUser] = useState<{ id: string; name: string; username: string; email: string; role: string; avatar?: string; banner?: string; ageVerified?: boolean } | null>(null);
 
   // Vault / My Purchases state
   const [vaultItems, setVaultItems] = useState<PurchasedItem[]>([]);
@@ -72,7 +71,7 @@ export default function UserDashboard() {
   const [profileName, setProfileName] = useState('');
   const [profileBio, setProfileBio] = useState('');
   const [profileAvatar, setProfileAvatar] = useState('');
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [profileBanner, setProfileBanner] = useState('');
   const [profileAgeVerified, setProfileAgeVerified] = useState(true);
   const [profileSaved, setProfileSaved] = useState(false);
 
@@ -115,6 +114,7 @@ export default function UserDashboard() {
       setProfileName(sessionUser.name || '');
       setProfileBio(sessionUser.bio || '');
       setProfileAvatar(sessionUser.avatar || '');
+      setProfileBanner(sessionUser.banner || '');
       setProfileAgeVerified(Boolean(sessionUser.ageVerified));
       setAuthChecked(true);
       loadAllDashboardData();
@@ -221,11 +221,13 @@ export default function UserDashboard() {
             email: pData.user.email,
             role: pData.user.role || prev?.role || 'SUBSCRIBER',
             avatar: pData.user.avatar || '',
+            banner: pData.user.banner || '',
             ageVerified: Boolean(pData.user.ageVerified),
           }));
           setProfileName(pData.user.name || '');
           setProfileBio(pData.user.bio || '');
           setProfileAvatar(pData.user.avatar || '');
+          setProfileBanner(pData.user.banner || '');
           setProfileAgeVerified(Boolean(pData.user.ageVerified));
         }
       }
@@ -262,6 +264,16 @@ export default function UserDashboard() {
     } catch (e) {}
   };
 
+  const syncLocalProfilePatch = (patch: Partial<{ name: string; avatar: string; banner: string }>) => {
+    if (!user) return;
+    const updatedUser = { ...user, ...patch };
+    setUser(updatedUser);
+    try {
+      localStorage.setItem('mirage_user', JSON.stringify(updatedUser));
+      window.dispatchEvent(new Event('mirage_auth_changed'));
+    } catch {}
+  };
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -273,19 +285,25 @@ export default function UserDashboard() {
           name: profileName,
           bio: profileBio,
           avatar: profileAvatar,
+          banner: profileBanner,
         }),
       });
       const data = await res.json();
-      if (data.success && data.user) {
-        const updatedUser = { ...user, name: data.user.name, avatar: data.user.avatar || profileAvatar };
-        setUser(updatedUser);
-        localStorage.setItem('mirage_user', JSON.stringify(updatedUser));
-        window.dispatchEvent(new Event('mirage_auth_changed'));
+      if (res.ok && data.success && data.user) {
+        syncLocalProfilePatch({
+          name: data.user.name,
+          avatar: data.user.avatar ?? profileAvatar,
+          banner: data.user.banner ?? profileBanner,
+        });
         setProfileSaved(true);
-        showToast('Profile details updated & synced!');
+        showToast('Profile photo, cover & details synced!');
         setTimeout(() => setProfileSaved(false), 2500);
+      } else {
+        showToast(data?.message || 'Failed to save profile changes');
       }
-    } catch (err) {}
+    } catch {
+      showToast('Network error saving profile changes');
+    }
   };
 
   const filteredVault = vaultItems.filter(item => {
@@ -364,47 +382,67 @@ export default function UserDashboard() {
             </div>
           )}
 
-          {/* Welcome User Banner */}
-          <div className="p-6 sm:p-8 rounded-3xl bg-[#101016] border border-[#22222e] flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4 text-center sm:text-left">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#d4af37] via-[#f5d77f] to-[#aa820a] p-0.5 shadow-gold-sm flex-shrink-0 overflow-hidden">
-                {(profileAvatar || user?.avatar) ? (
-                  <img
-                    src={profileAvatar || user?.avatar}
-                    alt={user?.name || 'Member'}
-                    className="w-full h-full object-cover rounded-[14px]"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-[#0a0a0e] rounded-[14px] flex items-center justify-center">
-                    <Crown className="w-8 h-8 text-[#f5d77f]" />
-                  </div>
-                )}
-              </div>
-              <div>
-                <h2 className="text-xl sm:text-2xl font-serif font-bold text-white">
-                  Welcome back, {user?.name || 'Member'}
-                </h2>
-                <p className="text-xs text-[#8c8c9e] mt-0.5">
-                  The Mirage Subscriber Vault | Encrypted Access to Private Feeds & Individual Media
-                </p>
-              </div>
+          {/* Welcome User Banner with Profile Photo & Cover Pic */}
+          <div className="rounded-3xl bg-[#101016] border border-[#22222e] overflow-hidden">
+            <div className="relative h-24 sm:h-32 w-full bg-gradient-to-r from-[#171522] via-[#1f1a10] to-[#12121a]">
+              {(profileBanner || user?.banner) && (
+                <img
+                  src={profileBanner || user?.banner}
+                  alt="Cover banner"
+                  className="w-full h-full object-cover"
+                />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#101016] via-[#101016]/30 to-transparent" />
+              <button
+                type="button"
+                onClick={() => setActiveTab('settings')}
+                className="absolute top-3 right-3 px-3 py-1.5 rounded-full bg-black/70 hover:bg-black/90 border border-[#d4af37]/40 text-[11px] font-semibold text-[#f5d77f] flex items-center gap-1.5 backdrop-blur-sm transition-colors"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                Change Photo / Cover
+              </button>
             </div>
+            <div className="px-5 pb-6 sm:px-8 sm:pb-7 -mt-8 relative flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+              <div className="flex items-end gap-4">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-[#d4af37] via-[#f5d77f] to-[#aa820a] p-0.5 shadow-gold-sm flex-shrink-0 overflow-hidden">
+                  {(profileAvatar || user?.avatar) ? (
+                    <img
+                      src={profileAvatar || user?.avatar}
+                      alt={user?.name || 'Member'}
+                      className="w-full h-full object-cover rounded-[14px]"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-[#0a0a0e] rounded-[14px] flex items-center justify-center">
+                      <Crown className="w-8 h-8 text-[#f5d77f]" />
+                    </div>
+                  )}
+                </div>
+                <div className="pb-0.5">
+                  <h2 className="text-lg sm:text-2xl font-serif font-bold text-white">
+                    Welcome back, {user?.name || 'Member'}
+                  </h2>
+                  <p className="text-xs text-[#8c8c9e] mt-0.5">
+                    The Mirage Subscriber Vault | Encrypted Access to Private Feeds & Individual Media
+                  </p>
+                </div>
+              </div>
 
-            <div className="flex items-center gap-3">
-              <Link
-                href="/explore"
-                className="px-5 py-2.5 rounded-full gold-button text-xs font-bold shadow-gold-sm flex items-center gap-1.5"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                Explore Creators
-              </Link>
-              <Link
-                href="/chat"
-                className="px-4 py-2.5 rounded-full bg-[#181824] border border-[#2e2e3e] text-xs font-semibold text-white hover:border-[#d4af37] flex items-center gap-1.5"
-              >
-                <MessageSquare className="w-3.5 h-3.5 text-[#d4af37]" />
-                Messages
-              </Link>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Link
+                  href="/explore"
+                  className="px-4 py-2 rounded-full gold-button text-xs font-bold shadow-gold-sm flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Explore Creators
+                </Link>
+                <Link
+                  href="/chat"
+                  className="px-4 py-2 rounded-full bg-[#181824] border border-[#2e2e3e] text-xs font-semibold text-white hover:border-[#d4af37] flex items-center gap-1.5"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-[#d4af37]" />
+                  Messages
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -840,71 +878,49 @@ export default function UserDashboard() {
                   Profile updated and synced to server!
                 </div>
               )}
-              <div className="space-y-3 text-xs">
-                <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-[#161622] border border-[#282838]">
-                  <div className="w-14 h-14 rounded-full overflow-hidden bg-[#101018] border border-[#d4af37]/50 flex items-center justify-center flex-shrink-0">
-                    {profileAvatar ? (
-                      <img src={profileAvatar} alt={profileName || 'Avatar'} className="w-full h-full object-cover" />
-                    ) : (
-                      <User className="w-6 h-6 text-[#d4af37]" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0 space-y-1.5">
-                    <span className="text-[#9da3af] font-semibold block">Profile Photo</span>
-                    <div className="flex flex-wrap gap-2">
-                      <label className="cursor-pointer px-3 py-1.5 rounded-lg bg-[#1c1c2a] hover:bg-[#252538] border border-[#d4af37]/40 text-[11px] font-bold text-[#f5d77f] inline-flex items-center gap-1.5">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            e.target.value = '';
-                            if (!file || !user) return;
-                            setUploadingAvatar(true);
-                            try {
-                              const fd = new FormData();
-                              fd.append('file', file);
-                              const upRes = await fetch('/api/upload', { method: 'POST', headers: getAuthHeaders(), body: fd });
-                              const upData = await upRes.json();
-                              if (upRes.ok && upData?.url) {
-                                setProfileAvatar(upData.url);
-                                const profPatch = await fetch('/api/user/profile', {
-                                  method: 'PATCH',
-                                  headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                                  body: JSON.stringify({ avatar: upData.url }),
-                                });
-                                const pJson = await profPatch.json();
-                                if (profPatch.ok && pJson?.user) {
-                                  const nextU = { ...user, avatar: upData.url };
-                                  setUser(nextU);
-                                  localStorage.setItem('mirage_user', JSON.stringify(nextU));
-                                  window.dispatchEvent(new Event('mirage_auth_changed'));
-                                  showToast('Profile photo uploaded & saved!');
-                                }
-                              } else {
-                                showToast(upData?.message || 'Upload failed');
-                              }
-                            } catch {
-                              showToast('Photo upload failed');
-                            } finally {
-                              setUploadingAvatar(false);
-                            }
-                          }}
-                        />
-                        {uploadingAvatar ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                        {uploadingAvatar ? 'Uploading...' : 'Upload Photo'}
-                      </label>
-                      <input
-                        type="text"
-                        value={profileAvatar}
-                        onChange={(e) => setProfileAvatar(e.target.value)}
-                        placeholder="Or image URL..."
-                        className="flex-1 min-w-[120px] px-2.5 py-1.5 rounded-lg bg-[#101018] border border-[#282838] text-[11px] text-white"
-                      />
-                    </div>
-                  </div>
-                </div>
+              <div className="space-y-4 text-xs">
+                <ImageAssetInput
+                  label="Profile Photo (Avatar)"
+                  variant="avatar"
+                  value={profileAvatar}
+                  onChange={setProfileAvatar}
+                  onUploaded={async (url) => {
+                    const res = await fetch('/api/user/profile', {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                      body: JSON.stringify({ avatar: url }),
+                    });
+                    const d = await res.json();
+                    if (res.ok && d?.user) {
+                      syncLocalProfilePatch({ avatar: d.user.avatar || url });
+                      showToast('Profile photo uploaded & saved!');
+                    } else {
+                      showToast(d?.message || 'Failed to save profile photo');
+                    }
+                  }}
+                  onError={(msg) => showToast(msg)}
+                />
+                <ImageAssetInput
+                  label="Cover Banner Image (Cover Pic)"
+                  variant="banner"
+                  value={profileBanner}
+                  onChange={setProfileBanner}
+                  onUploaded={async (url) => {
+                    const res = await fetch('/api/user/profile', {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                      body: JSON.stringify({ banner: url }),
+                    });
+                    const d = await res.json();
+                    if (res.ok && d?.user) {
+                      syncLocalProfilePatch({ banner: d.user.banner || url });
+                      showToast('Cover banner uploaded & saved!');
+                    } else {
+                      showToast(d?.message || 'Failed to save cover banner');
+                    }
+                  }}
+                  onError={(msg) => showToast(msg)}
+                />
                 <div>
                   <label className="text-[#717182] block mb-1">Display Name</label>
                   <input

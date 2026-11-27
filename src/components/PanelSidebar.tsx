@@ -76,7 +76,7 @@ export default function PanelSidebar({
     { id: 'orders', label: 'Orders & Subscriptions', icon: Sparkles, badge: badges.orders, badgeColor: 'bg-purple-950/60 text-purple-300' },
     { id: 'transactions', label: 'Transactions & Split', icon: CreditCard, badge: badges.transactions, badgeColor: 'bg-[#181826] text-[#cbd5e1]' },
     { id: 'moderation', label: 'Content Moderation', icon: AlertTriangle, badge: badges.moderation, badgeColor: 'bg-yellow-950/60 text-yellow-400' },
-    { id: 'settings', label: 'Commission Config', icon: Sliders },
+    { id: 'settings', label: 'Profile & Commission', icon: Sliders },
   ];
 
   const creatorNav: NavItem[] = [
@@ -86,7 +86,7 @@ export default function PanelSidebar({
     { id: 'feed', label: 'Content Manager', icon: Grid, badge: badges.feed },
     { id: 'earnings', label: 'Earnings & Reports', icon: DollarSign, badge: badges.earnings, badgeColor: 'bg-green-950/60 text-green-400' },
     { id: 'subscribers', label: 'Subscribers & Fans', icon: Users, badge: badges.subscribers, badgeColor: 'bg-[#181826] text-white' },
-    { id: 'settings', label: 'Subscription Price', icon: Settings },
+    { id: 'settings', label: 'Profile & Cover Settings', icon: Settings },
   ];
 
   const subscriberNav: NavItem[] = [
@@ -94,7 +94,7 @@ export default function PanelSidebar({
     { id: 'purchases', label: 'Private Content Vault', icon: Lock, badge: badges.purchases || 'Vault', badgeColor: 'bg-[#d4af37]/20 text-[#f5d77f]' },
     { id: 'followed', label: 'Followed Creators', icon: Heart, badge: badges.followed },
     { id: 'transactions', label: 'Billing & Invoices', icon: CreditCard },
-    { id: 'settings', label: 'Account Settings', icon: Settings },
+    { id: 'settings', label: 'Profile & Cover Settings', icon: Settings },
   ];
 
   const currentNav = role === 'ADMIN' ? adminNav : role === 'CREATOR' ? creatorNav : subscriberNav;
