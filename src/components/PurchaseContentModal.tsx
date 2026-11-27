@@ -14,6 +14,9 @@ import {
   Video,
   ShieldCheck,
   LogIn,
+  ExternalLink,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import { MediaThumb } from './PanelUi';
 import { getAuthHeaders } from '@/lib/clientAuth';
@@ -43,13 +46,61 @@ export default function PurchaseContentModal({
   const [error, setError] = useState('');
   const [isAuthError, setIsAuthError] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [pendingPayram, setPendingPayram] = useState<{
+    referenceId: string;
+    checkoutUrl: string;
+    status: string;
+  } | null>(null);
+  const [checkingStatus, setCheckingStatus] = useState(false);
 
   // Reset modal feedback when switching posts or reopening
   useEffect(() => {
     setIsSuccess(false);
     setError('');
     setIsAuthError(false);
+    setPendingPayram(null);
+    setCheckingStatus(false);
   }, [isOpen, content?.id]);
+
+  const verifyPayramPurchase = async (refId: string, quiet = false) => {
+    if (!quiet) setCheckingStatus(true);
+    try {
+      const res = await fetch(`/api/payments/payram/status?referenceId=${encodeURIComponent(refId)}`, {
+        headers: getAuthHeaders(),
+        cache: 'no-store',
+      });
+      const data = await res.json();
+      if (res.ok && data?.payment) {
+        setPendingPayram((prev) => (prev ? { ...prev, status: data.payment.status } : prev));
+        if (data.settled) {
+          setPendingPayram(null);
+          setIsSuccess(true);
+          setTimeout(() => {
+            onSuccess({ postId: content?.id });
+            onClose();
+          }, 1500);
+          return true;
+        }
+        if (data.payment.status === 'CANCELLED' || data.payment.status === 'EXPIRED') {
+          setPendingPayram(null);
+          setError('Crypto invoice expired or was cancelled. Please initiate a new unlock.');
+        }
+      }
+    } catch {
+    } finally {
+      if (!quiet) setCheckingStatus(false);
+    }
+    return false;
+  };
+
+  useEffect(() => {
+    if (!isOpen || !pendingPayram?.referenceId) return;
+    const timer = setInterval(() => {
+      verifyPayramPurchase(pendingPayram.referenceId, true);
+    }, 3000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, pendingPayram?.referenceId]);
 
   // Close when pressing Escape key
   useEffect(() => {
@@ -92,6 +143,16 @@ export default function PurchaseContentModal({
 
       if (!res.ok) {
         throw new Error(data.error || data.message || 'Failed to complete content purchase');
+      }
+
+      if (data.requiresRedirect && data.checkoutUrl && data.referenceId) {
+        setPendingPayram({
+          referenceId: data.referenceId,
+          checkoutUrl: data.checkoutUrl,
+          status: data.status || 'OPEN',
+        });
+        window.open(data.checkoutUrl, '_blank', 'noopener,noreferrer');
+        return;
       }
 
       setIsSuccess(true);
@@ -146,6 +207,52 @@ export default function PurchaseContentModal({
             <p className="text-xs text-[#94a3b8] leading-relaxed">
               You have permanently unlocked <span className="text-[#f5d77f] font-semibold">{content.title}</span>. It is now saved in your <strong>My Purchases</strong> library.
             </p>
+          </div>
+        ) : pendingPayram ? (
+          <div className="py-2 space-y-4">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#f5d77f] uppercase tracking-wider">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Awaiting PayRam Crypto Payment
+            </div>
+            <h3 className="text-lg font-serif font-bold text-white">
+              Unlock &quot;{content.title}&quot; (${content.price.toFixed(2)})
+            </h3>
+            <p className="text-xs text-[#94a3b8] leading-relaxed">
+              Complete your crypto payment in PayRam (<span className="font-mono text-white">{pendingPayram.referenceId}</span>). Access unlocks automatically here once confirmed.
+            </p>
+            <div className="p-3 rounded-xl bg-[#151520] border border-[#28283a] flex items-center justify-between text-xs">
+              <span className="text-[#8c8c9e]">Invoice Status</span>
+              <span className="px-2.5 py-0.5 rounded-full bg-[#d4af37]/15 text-[#f5d77f] border border-[#d4af37]/30 font-bold">
+                {pendingPayram.status}
+              </span>
+            </div>
+            <div className="space-y-2.5 pt-1">
+              <a
+                href={pendingPayram.checkoutUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-3 rounded-xl gold-button text-xs font-bold shadow-gold-sm flex items-center justify-center gap-2"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Open PayRam Payment Page
+              </a>
+              <button
+                type="button"
+                disabled={checkingStatus}
+                onClick={() => verifyPayramPurchase(pendingPayram.referenceId)}
+                className="w-full py-2.5 rounded-xl bg-[#181824] hover:bg-[#222234] border border-[#2f2f40] text-xs font-semibold text-white flex items-center justify-center gap-1.5"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${checkingStatus ? 'animate-spin' : ''}`} />
+                {checkingStatus ? 'Checking Status...' : 'I Have Paid — Verify Now'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingPayram(null)}
+                className="w-full py-2 text-xs text-[#808090] hover:text-white"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-6">

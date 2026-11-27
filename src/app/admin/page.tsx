@@ -72,7 +72,8 @@ export default function AdminPanelPage() {
   const [editOrderForm, setEditOrderForm] = useState<any | null>(null);
   const [deliverOrderModal, setDeliverOrderModal] = useState<any | null>(null);
   const [uploadingField, setUploadingField] = useState<string | null>(null);
-  const [ordersSubTab, setOrdersSubTab] = useState<'orders' | 'subscriptions'>('orders');
+  const [ordersSubTab, setOrdersSubTab] = useState<'orders' | 'subscriptions' | 'invoices'>('orders');
+  const [pendingInvoices, setPendingInvoices] = useState<any[]>([]);
   const [viewTx, setViewTx] = useState<any | null>(null);
   const [viewReport, setViewReport] = useState<any | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
@@ -93,10 +94,18 @@ export default function AdminPanelPage() {
   });
   const [adminProfileSaving, setAdminProfileSaving] = useState(false);
 
-  // Live Commission Config
+  // Live Commission & PayRam Gateway Config
   const [creatorCommission, setCreatorCommission] = useState(85);
   const [platformCommission, setPlatformCommission] = useState(15);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [paymentGatewayMode, setPaymentGatewayMode] = useState<'AUTO' | 'PAYRAM' | 'SANDBOX'>('AUTO');
+  const [payramBaseUrl, setPayramBaseUrl] = useState('https://pay.themirage.world');
+  const [payramApiKey, setPayramApiKey] = useState('');
+  const [payramWebhookSecret, setPayramWebhookSecret] = useState('');
+  const [payramActive, setPayramActive] = useState(false);
+  const [savingGateway, setSavingGateway] = useState(false);
+  const [testingGateway, setTestingGateway] = useState(false);
+  const [payramTestResult, setPayramTestResult] = useState<{ reachable: boolean; message: string } | null>(null);
 
   // Live Platform Metrics
   const [metrics, setMetrics] = useState({
@@ -192,10 +201,22 @@ export default function AdminPanelPage() {
         if (Array.isArray(data.reports)) setReports(data.reports);
         if (Array.isArray(data.customRequests)) setCustomOrders(data.customRequests);
         if (Array.isArray(data.subscriptions)) setSubscriptionsList(data.subscriptions);
+        if (Array.isArray(data.pendingPayments)) setPendingInvoices(data.pendingPayments);
         if (data.settings) {
           setCreatorCommission(data.settings.creatorCommissionPercent);
           setPlatformCommission(data.settings.platformCommissionPercent);
+          if (data.settings.paymentGatewayMode) setPaymentGatewayMode(data.settings.paymentGatewayMode);
+          if (data.settings.payramBaseUrl !== undefined) setPayramBaseUrl(data.settings.payramBaseUrl || 'https://pay.themirage.world');
+          if (data.settings.payramApiKey !== undefined) setPayramApiKey(data.settings.payramApiKey || '');
+          if (data.settings.payramWebhookSecret !== undefined) setPayramWebhookSecret(data.settings.payramWebhookSecret || '');
         }
+        try {
+          const sRes = await fetch('/api/admin/settings', { headers: authHeaders(), cache: 'no-store' });
+          const sJson = await sRes.json();
+          if (sJson?.payram) {
+            setPayramActive(Boolean(sJson.payram.active));
+          }
+        } catch {}
       }
     } catch (e) {
       console.error('Failed to load admin overview:', e);
@@ -772,6 +793,55 @@ export default function AdminPanelPage() {
       showToast('Network error saving administrator profile');
     } finally {
       setAdminProfileSaving(false);
+    }
+  };
+
+  const handleSaveGateway = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingGateway(true);
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: authJsonHeaders(),
+        body: JSON.stringify({
+          paymentGatewayMode,
+          payramBaseUrl,
+          payramApiKey,
+          payramWebhookSecret,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data?.success) {
+        setPayramActive(Boolean(data?.payram?.active));
+        showToast(data?.payram?.active ? 'PayRam Crypto Gateway LIVE!' : 'Gateway settings saved (Sandbox fallback active until API Key set)');
+      } else {
+        showToast(data?.message || 'Failed to save PayRam config');
+      }
+    } catch {
+      showToast('Failed to save PayRam config');
+    } finally {
+      setSavingGateway(false);
+    }
+  };
+
+  const handleTestPayram = async () => {
+    setTestingGateway(true);
+    setPayramTestResult(null);
+    try {
+      const res = await fetch('/api/admin/settings?testPayram=true', {
+        headers: authHeaders(),
+        cache: 'no-store',
+      });
+      const data = await res.json();
+      if (data?.connectionTest) {
+        setPayramTestResult(data.connectionTest);
+      } else {
+        setPayramTestResult({ reachable: false, message: 'Could not run connectivity test' });
+      }
+    } catch {
+      setPayramTestResult({ reachable: false, message: 'Network error testing PayRam endpoint' });
+    } finally {
+      setTestingGateway(false);
     }
   };
 
@@ -1552,7 +1622,7 @@ export default function AdminPanelPage() {
                     Manage all custom content commissions, deliver vault media, or pause and clean up user subscriptions.
                   </p>
                 </div>
-                <div className="flex items-center gap-1.5 bg-[#12121a] p-1 rounded-xl border border-[#222230] text-xs">
+                <div className="flex flex-wrap items-center gap-1.5 bg-[#12121a] p-1 rounded-xl border border-[#222230] text-xs">
                   <button
                     type="button"
                     onClick={() => setOrdersSubTab('orders')}
@@ -1570,6 +1640,15 @@ export default function AdminPanelPage() {
                     }`}
                   >
                     Subscriptions ({subscriptionsList.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOrdersSubTab('invoices')}
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+                      ordersSubTab === 'invoices' ? 'gold-button' : 'text-[#8c8c9e] hover:text-white'
+                    }`}
+                  >
+                    Crypto Invoices ({pendingInvoices.length})
                   </button>
                 </div>
               </div>
@@ -1676,7 +1755,7 @@ export default function AdminPanelPage() {
                     </tbody>
                   </table>
                 </div>
-              ) : (
+              ) : ordersSubTab === 'subscriptions' ? (
                 <div className="bg-[#111117] border border-[#232330] rounded-2xl overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-[#161622] text-[#8e8e9e] border-b border-[#232330]">
@@ -1745,6 +1824,69 @@ export default function AdminPanelPage() {
                         <tr>
                           <td colSpan={6} className="py-10 text-center text-[#717182]">
                             No subscriptions found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="bg-[#111117] border border-[#232330] rounded-2xl overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#161622] text-[#8e8e9e] border-b border-[#232330]">
+                      <tr>
+                        <th className="py-3 px-4">Invoice / Ref</th>
+                        <th className="py-3 px-4">Subscriber</th>
+                        <th className="py-3 px-4">Type</th>
+                        <th className="py-3 px-4">Amount (USD)</th>
+                        <th className="py-3 px-4">Crypto / TX</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4 whitespace-nowrap">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#1e1e28] text-white">
+                      {pendingInvoices.map((inv) => (
+                        <tr key={inv.id} className="hover:bg-[#161622]/40">
+                          <td className="py-3.5 px-4 font-mono">
+                            <div className="text-[#f5d77f] font-bold">{inv.payramReferenceId || inv.invoiceId}</div>
+                            <div className="text-[10px] text-[#717182]">{inv.invoiceId}</div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-bold">{inv.userName}</div>
+                            <div className="text-[10px] text-[#717182]">{inv.userEmail}</div>
+                          </td>
+                          <td className="py-3.5 px-4 text-[#cbd5e1]">{inv.type}</td>
+                          <td className="py-3.5 px-4 font-bold">${Number(inv.amountInUSD || 0).toFixed(2)}</td>
+                          <td className="py-3.5 px-4 text-[#94a3b8]">
+                            {inv.currency ? `${inv.currency}${inv.network ? ` (${inv.network})` : ''}` : 'Multi-Crypto'}
+                            {inv.txHash && <div className="font-mono text-[10px] truncate max-w-[140px]">{inv.txHash}</div>}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                inv.status === 'FILLED' || inv.status === 'OVER_FILLED'
+                                  ? 'bg-green-950/60 text-green-400 border-green-500/30'
+                                  : inv.status === 'CANCELLED' || inv.status === 'EXPIRED'
+                                  ? 'bg-red-950/60 text-red-400 border-red-500/30'
+                                  : 'bg-yellow-950/60 text-yellow-300 border-yellow-500/30'
+                              }`}
+                            >
+                              {inv.status}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 whitespace-nowrap">
+                            {inv.checkoutUrl ? (
+                              <ActionIconBtn icon={ExternalLink} label="Open PayRam Checkout" tone="gold" href={inv.checkoutUrl} external />
+                            ) : (
+                              <span className="text-[10px] text-[#666678]">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {pendingInvoices.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="py-10 text-center text-[#717182]">
+                            No PayRam crypto invoices generated yet.
                           </td>
                         </tr>
                       )}
@@ -2107,6 +2249,119 @@ export default function AdminPanelPage() {
                       Commission configuration successfully saved & persisted to backend!
                     </div>
                   )}
+                </form>
+              </div>
+
+              {/* Full-width Card: PayRam Crypto Payment Gateway (themirage.world) */}
+              <div className="lg:col-span-2 p-6 sm:p-8 rounded-3xl bg-[#111118] border border-[#d4af37]/35 space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-serif font-bold text-white flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-[#f5d77f]" />
+                      PayRam Self-Hosted Crypto Gateway (`themirage.world`)
+                    </h3>
+                    <p className="text-xs text-[#8c8c9e] mt-1">
+                      Connect your self-hosted PayRam instance (`https://pay.themirage.world`) to accept USDT, USDC, BTC & ETH directly for subscriptions, PPV unlocks, and custom orders.
+                    </p>
+                  </div>
+                  <span
+                    className={`px-3 py-1 rounded-full text-[11px] font-bold border self-start sm:self-auto ${
+                      payramActive
+                        ? 'bg-green-950/60 text-green-400 border-green-500/40'
+                        : 'bg-yellow-950/50 text-yellow-300 border-yellow-500/40'
+                    }`}
+                  >
+                    {payramActive ? 'PAYRAM LIVE ACTIVE' : 'SANDBOX FALLBACK'}
+                  </span>
+                </div>
+
+                <form onSubmit={handleSaveGateway} className="space-y-4 text-xs">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-semibold text-[#8e8e9e] mb-1.5">Gateway Mode</label>
+                      <select
+                        value={paymentGatewayMode}
+                        onChange={(e) => setPaymentGatewayMode(e.target.value as 'AUTO' | 'PAYRAM' | 'SANDBOX')}
+                        className="w-full px-3.5 py-2.5 bg-[#161622] border border-[#29293a] rounded-xl text-white font-semibold"
+                      >
+                        <option value="AUTO">AUTO (Use PayRam when API-Key is set, else Sandbox)</option>
+                        <option value="PAYRAM">PAYRAM LIVE (Self-Hosted Crypto Gateway)</option>
+                        <option value="SANDBOX">SANDBOX ONLY (Instant Simulated Test Payments)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-[#8e8e9e] mb-1.5">PayRam Server URL</label>
+                      <input
+                        type="url"
+                        value={payramBaseUrl}
+                        onChange={(e) => setPayramBaseUrl(e.target.value)}
+                        placeholder="https://pay.themirage.world"
+                        className="w-full px-3.5 py-2.5 bg-[#161622] border border-[#29293a] rounded-xl text-white font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-[#8e8e9e] mb-1.5">PayRam Project API-Key</label>
+                      <input
+                        type="password"
+                        value={payramApiKey}
+                        onChange={(e) => setPayramApiKey(e.target.value)}
+                        placeholder="Paste API-Key from PayRam dashboard"
+                        className="w-full px-3.5 py-2.5 bg-[#161622] border border-[#29293a] rounded-xl text-white font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-[#8e8e9e] mb-1.5">Webhook Signing Secret (Optional Extra Security)</label>
+                      <input
+                        type="password"
+                        value={payramWebhookSecret}
+                        onChange={(e) => setPayramWebhookSecret(e.target.value)}
+                        placeholder="HMAC webhook secret (if different from API-Key)"
+                        className="w-full px-3.5 py-2.5 bg-[#161622] border border-[#29293a] rounded-xl text-white font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-[#161622] border border-[#29293a] space-y-1">
+                    <span className="text-[11px] font-semibold text-[#8e8e9e] block">
+                      Configure this Webhook URL inside PayRam Dashboard (`pay.themirage.world`):
+                    </span>
+                    <code className="block text-xs text-[#f5d77f] font-mono break-all select-all">
+                      https://themirage.world/api/webhooks/payram
+                    </code>
+                  </div>
+
+                  {payramTestResult && (
+                    <div
+                      className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
+                        payramTestResult.reachable
+                          ? 'bg-green-950/50 border-green-500/40 text-green-300'
+                          : 'bg-yellow-950/50 border-yellow-500/40 text-yellow-300'
+                      }`}
+                    >
+                      <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                      <span>{payramTestResult.message}</span>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      type="submit"
+                      disabled={savingGateway}
+                      className="flex-1 py-3 rounded-xl gold-button text-xs font-bold shadow-gold-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <Check className="w-4 h-4" />
+                      {savingGateway ? 'Saving Gateway Config...' : 'Save PayRam Gateway Settings'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleTestPayram}
+                      disabled={testingGateway}
+                      className="px-5 py-3 rounded-xl bg-[#181824] hover:bg-[#222234] border border-[#2f2f40] text-xs font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${testingGateway ? 'animate-spin' : ''}`} />
+                      {testingGateway ? 'Testing...' : 'Test PayRam Server'}
+                    </button>
+                  </div>
                 </form>
               </div>
             </div>

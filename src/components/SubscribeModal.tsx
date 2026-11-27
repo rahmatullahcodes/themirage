@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { X, CheckCircle, Shield, CreditCard, Sparkles, AlertCircle, LogIn } from 'lucide-react';
+import { X, CheckCircle, Shield, CreditCard, AlertCircle, LogIn, ExternalLink, Loader2, RefreshCw } from 'lucide-react';
 import { getAuthHeaders } from '@/lib/clientAuth';
 
 interface SubscribeModalProps {
@@ -27,13 +27,61 @@ export default function SubscribeModal({
   const [error, setError] = useState('');
   const [isAuthError, setIsAuthError] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [pendingPayram, setPendingPayram] = useState<{
+    referenceId: string;
+    checkoutUrl: string;
+    status: string;
+  } | null>(null);
+  const [checkingStatus, setCheckingStatus] = useState(false);
 
   // Reset modal feedback when switching creators or reopening
   useEffect(() => {
     setSuccess(false);
     setError('');
     setIsAuthError(false);
+    setPendingPayram(null);
+    setCheckingStatus(false);
   }, [isOpen, creator?.id]);
+
+  const verifyPayramPayment = async (refId: string, quiet = false) => {
+    if (!quiet) setCheckingStatus(true);
+    try {
+      const res = await fetch(`/api/payments/payram/status?referenceId=${encodeURIComponent(refId)}`, {
+        headers: getAuthHeaders(),
+        cache: 'no-store',
+      });
+      const data = await res.json();
+      if (res.ok && data?.payment) {
+        setPendingPayram((prev) => (prev ? { ...prev, status: data.payment.status } : prev));
+        if (data.settled) {
+          setPendingPayram(null);
+          setSuccess(true);
+          setTimeout(() => {
+            if (onSuccess) onSuccess();
+            onClose();
+          }, 1600);
+          return true;
+        }
+        if (data.payment.status === 'CANCELLED' || data.payment.status === 'EXPIRED') {
+          setPendingPayram(null);
+          setError('Payment invoice expired or was cancelled. Please try again.');
+        }
+      }
+    } catch {
+    } finally {
+      if (!quiet) setCheckingStatus(false);
+    }
+    return false;
+  };
+
+  useEffect(() => {
+    if (!isOpen || !pendingPayram?.referenceId) return;
+    const timer = setInterval(() => {
+      verifyPayramPayment(pendingPayram.referenceId, true);
+    }, 3000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, pendingPayram?.referenceId]);
 
   // Close when pressing Escape key
   useEffect(() => {
@@ -75,6 +123,16 @@ export default function SubscribeModal({
       }
       if (!res.ok) {
         throw new Error(data.error || data.message || 'Failed to complete checkout');
+      }
+
+      if (data.requiresRedirect && data.checkoutUrl && data.referenceId) {
+        setPendingPayram({
+          referenceId: data.referenceId,
+          checkoutUrl: data.checkoutUrl,
+          status: data.status || 'OPEN',
+        });
+        window.open(data.checkoutUrl, '_blank', 'noopener,noreferrer');
+        return;
       }
 
       setSuccess(true);
@@ -134,6 +192,52 @@ export default function SubscribeModal({
               You now have full access to <span className="text-[#f5d77f] font-semibold">{creator.name}</span>&apos;s exclusive subscriber-only feed and direct messaging.
             </p>
           </div>
+        ) : pendingPayram ? (
+          <div className="py-4 space-y-4">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#f5d77f] uppercase tracking-wider">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Awaiting PayRam Crypto Confirmation
+            </div>
+            <h3 className="text-lg font-serif font-bold text-white">
+              Complete ${creator.price.toFixed(2)} Payment for {creator.name}
+            </h3>
+            <p className="text-xs text-[#94a3b8] leading-relaxed">
+              Your encrypted PayRam crypto invoice (<span className="font-mono text-white">{pendingPayram.referenceId}</span>) is open. Status updates automatically once confirmed on-chain.
+            </p>
+            <div className="p-3 rounded-xl bg-[#151520] border border-[#28283a] flex items-center justify-between text-xs">
+              <span className="text-[#8c8c9e]">Invoice Status</span>
+              <span className="px-2.5 py-0.5 rounded-full bg-[#d4af37]/15 text-[#f5d77f] border border-[#d4af37]/30 font-bold">
+                {pendingPayram.status}
+              </span>
+            </div>
+            <div className="space-y-2.5 pt-1">
+              <a
+                href={pendingPayram.checkoutUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-3 rounded-xl gold-button text-xs font-bold shadow-gold-sm flex items-center justify-center gap-2"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Open PayRam Payment Page
+              </a>
+              <button
+                type="button"
+                disabled={checkingStatus}
+                onClick={() => verifyPayramPayment(pendingPayram.referenceId)}
+                className="w-full py-2.5 rounded-xl bg-[#181824] hover:bg-[#222234] border border-[#2f2f40] text-xs font-semibold text-white flex items-center justify-center gap-1.5"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${checkingStatus ? 'animate-spin' : ''}`} />
+                {checkingStatus ? 'Checking Blockchain...' : 'I Have Paid — Verify Now'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingPayram(null)}
+                className="w-full py-2 text-xs text-[#808090] hover:text-white"
+              >
+                Cancel / Choose Again
+              </button>
+            </div>
+          </div>
         ) : (
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -191,7 +295,7 @@ export default function SubscribeModal({
             {/* Secure Payment Guarantee */}
             <div className="flex items-center gap-2 text-xs text-[#88889a] mb-6">
               <Shield className="w-4 h-4 text-[#d4af37]" />
-              <span>256-bit encrypted simulated sandbox payment. Cancel anytime.</span>
+              <span>256-bit encrypted checkout • Instant unlock on confirmation.</span>
             </div>
 
             {/* Action Buttons */}

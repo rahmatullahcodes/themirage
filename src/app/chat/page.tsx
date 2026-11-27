@@ -18,6 +18,7 @@ import {
   Loader2,
   Users,
   Crown,
+  ExternalLink,
 } from 'lucide-react';
 
 interface ChatMessage {
@@ -90,6 +91,11 @@ function ChatContent() {
   const [inputText, setInputText] = useState('');
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
+  const [pendingPayramOffer, setPendingPayramOffer] = useState<{
+    referenceId: string;
+    checkoutUrl: string;
+    requestId: string;
+  } | null>(null);
 
   const [showCustomModal, setShowCustomModal] = useState(autoOpenCustom);
   const [customTitle, setCustomTitle] = useState('');
@@ -449,13 +455,58 @@ function ChatContent() {
     }
   };
 
+  const checkPendingChatOfferPayment = useCallback(async (refId: string) => {
+    try {
+      const res = await fetch(`/api/payments/payram/status?referenceId=${encodeURIComponent(refId)}`, {
+        headers: getAuthHeaders(),
+        cache: 'no-store',
+      });
+      const data = await res.json();
+      if (res.ok && data?.settled) {
+        setPendingPayramOffer(null);
+        socketRef.current?.emit('custom_content_update', {
+          conversationId: `${selectedThread.userId}:${selectedThread.creatorHandle}`,
+        });
+        fetchActiveThread(false);
+        setPaymentNotice('PayRam crypto payment confirmed! Custom order unlocked for creator delivery.');
+        setTimeout(() => setPaymentNotice(null), 5000);
+      } else if (res.ok && (data?.payment?.status === 'CANCELLED' || data?.payment?.status === 'EXPIRED')) {
+        setPendingPayramOffer(null);
+        setPaymentNotice('Crypto payment expired or was cancelled.');
+      }
+    } catch {}
+  }, [selectedThread.userId, selectedThread.creatorHandle, fetchActiveThread]);
+
+  useEffect(() => {
+    if (!pendingPayramOffer?.referenceId) return;
+    const t = setInterval(() => {
+      checkPendingChatOfferPayment(pendingPayramOffer.referenceId);
+    }, 3000);
+    return () => clearInterval(t);
+  }, [pendingPayramOffer?.referenceId, checkPendingChatOfferPayment]);
+
   const handlePayOffer = async (offerId: string) => {
     try {
-      await fetch('/api/custom-requests', {
+      const res = await fetch('/api/custom-requests', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ requestId: offerId, action: 'PAY' }),
       });
+      const data = await res.json();
+      if (!res.ok) {
+        setPaymentNotice(data?.message || 'Payment initiation failed');
+        return;
+      }
+      if (data.requiresRedirect && data.checkoutUrl && data.referenceId) {
+        setPendingPayramOffer({
+          referenceId: data.referenceId,
+          checkoutUrl: data.checkoutUrl,
+          requestId: offerId,
+        });
+        window.open(data.checkoutUrl, '_blank', 'noopener,noreferrer');
+        setPaymentNotice('PayRam checkout opened. Complete crypto payment — chat updates automatically once confirmed.');
+        return;
+      }
       socketRef.current?.emit('custom_content_update', {
         conversationId: `${selectedThread.userId}:${selectedThread.creatorHandle}`,
       });
@@ -823,6 +874,32 @@ function ChatContent() {
           })}
           <div ref={messagesEndRef} />
         </div>
+
+        {pendingPayramOffer && (
+          <div className="mx-4 sm:mx-6 mt-2 p-3 rounded-xl bg-[#161520] border border-[#d4af37]/40 text-xs text-[#f5d77f] flex flex-wrap items-center justify-between gap-2 shadow-lg">
+            <span className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+              Awaiting PayRam confirmation ({pendingPayramOffer.referenceId})
+            </span>
+            <div className="flex items-center gap-2">
+              <a
+                href={pendingPayramOffer.checkoutUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1 rounded-lg gold-button text-[11px] font-bold flex items-center gap-1"
+              >
+                <ExternalLink className="w-3 h-3" /> Open PayRam
+              </a>
+              <button
+                type="button"
+                onClick={() => checkPendingChatOfferPayment(pendingPayramOffer.referenceId)}
+                className="px-2.5 py-1 rounded-lg bg-[#1e1e2c] border border-[#303044] text-white text-[11px]"
+              >
+                Verify
+              </button>
+            </div>
+          </div>
+        )}
 
         {paymentNotice && (
           <div className="mx-4 sm:mx-6 mt-2 p-3 rounded-xl bg-green-950/60 border border-green-500/40 text-xs text-green-300 flex items-center justify-between shadow-lg">

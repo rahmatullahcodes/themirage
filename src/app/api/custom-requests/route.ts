@@ -10,7 +10,11 @@ import {
   updateCustomRequest,
   deleteCustomRequest,
   isCreatorSuspended,
+  createPendingPayment,
+  attachPayramReferenceToPendingPayment,
+  updatePendingPaymentStatus,
 } from '@/lib/contentStore';
+import { isPayramActive, createPayramCheckoutSession } from '@/lib/payram';
 
 export const dynamic = 'force-dynamic';
 
@@ -144,6 +148,51 @@ export async function PATCH(req: NextRequest) {
       if (!isCustomerOwner && !isAdmin) {
         return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
       }
+      if (reqItem.status !== 'PENDING_PAYMENT') {
+        return NextResponse.json({ success: true, request: reqItem });
+      }
+
+      if (isPayramActive()) {
+        const payerId = isAdmin ? reqItem.customerId : session.userId;
+        const dbUser = findUserById(payerId);
+        const pending = createPendingPayment({
+          type: 'CUSTOM_CONTENT',
+          userId: payerId,
+          userName: dbUser?.name || reqItem.customerName || 'Subscriber',
+          userEmail: dbUser?.email || session.email,
+          creatorId: reqItem.creatorId,
+          creatorHandle: reqItem.creatorHandle,
+          customRequestId: reqItem.id,
+          amountInUSD: reqItem.price,
+        });
+
+        try {
+          const checkout = await createPayramCheckoutSession({
+            customerEmail: pending.userEmail,
+            customerId: pending.userId,
+            amountInUSD: pending.amountInUSD,
+            invoiceId: pending.invoiceId,
+          });
+          attachPayramReferenceToPendingPayment(pending.id, checkout.referenceId, checkout.checkoutUrl);
+          return NextResponse.json({
+            success: true,
+            gateway: 'PAYRAM',
+            requiresRedirect: true,
+            checkoutUrl: checkout.checkoutUrl,
+            referenceId: checkout.referenceId,
+            invoiceId: pending.invoiceId,
+            status: 'OPEN',
+            request: reqItem,
+          });
+        } catch (err: any) {
+          updatePendingPaymentStatus(pending.id, 'CANCELLED');
+          return NextResponse.json(
+            { success: false, message: err?.message || 'Failed to create PayRam custom checkout' },
+            { status: 502 }
+          );
+        }
+      }
+
       const result = payCustomRequest(requestId, isAdmin ? reqItem.customerId : session.userId);
       if (!result.success) {
         return NextResponse.json({ success: false, message: result.error }, { status: 404 });

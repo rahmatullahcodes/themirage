@@ -111,9 +111,44 @@ export interface ContentReportRecord {
   createdAt: string;
 }
 
+export type PaymentGatewayMode = 'AUTO' | 'PAYRAM' | 'SANDBOX';
+export type PendingPaymentStatus =
+  | 'OPEN'
+  | 'FILLED'
+  | 'PARTIALLY_FILLED'
+  | 'OVER_FILLED'
+  | 'CANCELLED'
+  | 'EXPIRED';
+
+export interface PendingPaymentRecord {
+  id: string;
+  invoiceId: string;
+  payramReferenceId?: string;
+  checkoutUrl?: string;
+  type: 'SUBSCRIPTION' | 'INDIVIDUAL_CONTENT' | 'CUSTOM_CONTENT';
+  userId: string;
+  userName: string;
+  userEmail: string;
+  creatorId: string;
+  creatorHandle: string;
+  postId?: string;
+  customRequestId?: string;
+  amountInUSD: number;
+  status: PendingPaymentStatus;
+  currency?: string;
+  network?: string;
+  txHash?: string;
+  createdAt: string;
+  settledAt?: string;
+}
+
 export interface PlatformSettingsRecord {
   creatorCommissionPercent: number;
   platformCommissionPercent: number;
+  paymentGatewayMode?: PaymentGatewayMode;
+  payramBaseUrl?: string;
+  payramApiKey?: string;
+  payramWebhookSecret?: string;
   updatedAt: string;
 }
 
@@ -1099,6 +1134,7 @@ export interface MirageDbState {
   chatMessages: ChatMessageRecord[];
   transactions: TransactionRecord[];
   reports: ContentReportRecord[];
+  pendingPayments: PendingPaymentRecord[];
   settings: PlatformSettingsRecord;
 }
 
@@ -1647,6 +1683,10 @@ const SEED_REPORTS: ContentReportRecord[] = [
 const DEFAULT_SETTINGS: PlatformSettingsRecord = {
   creatorCommissionPercent: 85,
   platformCommissionPercent: 15,
+  paymentGatewayMode: 'AUTO',
+  payramBaseUrl: 'https://pay.themirage.world',
+  payramApiKey: '',
+  payramWebhookSecret: '',
   updatedAt: '2026-10-01T00:00:00Z',
 };
 
@@ -1711,6 +1751,7 @@ function createInitialDb(): MirageDbState {
     ],
     transactions: JSON.parse(JSON.stringify(SEED_TRANSACTIONS)),
     reports: JSON.parse(JSON.stringify(SEED_REPORTS)),
+    pendingPayments: [],
     settings: { ...DEFAULT_SETTINGS },
   };
 }
@@ -1751,7 +1792,8 @@ function getDb(): MirageDbState {
         chatMessages: Array.isArray(parsed.chatMessages) ? parsed.chatMessages : base.chatMessages,
         transactions: Array.isArray(parsed.transactions) ? parsed.transactions : base.transactions,
         reports: Array.isArray(parsed.reports) ? parsed.reports : base.reports,
-        settings: parsed.settings || base.settings,
+        pendingPayments: Array.isArray(parsed.pendingPayments) ? parsed.pendingPayments : [],
+        settings: { ...DEFAULT_SETTINGS, ...(parsed.settings || {}) },
       };
 
       // Auto-migrate existing persisted DB: ensure Travel -> Fetish, Ellie ('c9'), and seeded password hashes
@@ -1841,19 +1883,213 @@ export function getCreatorNameById(creatorIdOrHandle: string): string {
 }
 
 export function getPlatformSettings(): PlatformSettingsRecord {
-  return { ...getDb().settings };
+  return { ...DEFAULT_SETTINGS, ...getDb().settings };
 }
 
-export function updatePlatformSettings(creatorCommissionPercent: number): PlatformSettingsRecord {
-  const clamped = Math.min(95, Math.max(50, Math.round(Number(creatorCommissionPercent) || 85)));
+export function updatePlatformSettings(
+  input:
+    | number
+    | {
+        creatorCommissionPercent?: number;
+        paymentGatewayMode?: PaymentGatewayMode;
+        payramBaseUrl?: string;
+        payramApiKey?: string;
+        payramWebhookSecret?: string;
+      }
+): PlatformSettingsRecord {
   const db = getDb();
+  const payload = typeof input === 'number' ? { creatorCommissionPercent: input } : input || {};
+  const nextCommission =
+    payload.creatorCommissionPercent !== undefined
+      ? Math.min(95, Math.max(50, Math.round(Number(payload.creatorCommissionPercent) || 85)))
+      : db.settings.creatorCommissionPercent;
+
+  const nextMode: PaymentGatewayMode =
+    payload.paymentGatewayMode === 'PAYRAM' ||
+    payload.paymentGatewayMode === 'SANDBOX' ||
+    payload.paymentGatewayMode === 'AUTO'
+      ? payload.paymentGatewayMode
+      : db.settings.paymentGatewayMode || 'AUTO';
+
   db.settings = {
-    creatorCommissionPercent: clamped,
-    platformCommissionPercent: 100 - clamped,
+    ...DEFAULT_SETTINGS,
+    ...db.settings,
+    creatorCommissionPercent: nextCommission,
+    platformCommissionPercent: 100 - nextCommission,
+    paymentGatewayMode: nextMode,
+    payramBaseUrl:
+      payload.payramBaseUrl !== undefined
+        ? payload.payramBaseUrl.trim().replace(/\/+$/, '')
+        : db.settings.payramBaseUrl,
+    payramApiKey:
+      payload.payramApiKey !== undefined ? payload.payramApiKey.trim() : db.settings.payramApiKey,
+    payramWebhookSecret:
+      payload.payramWebhookSecret !== undefined
+        ? payload.payramWebhookSecret.trim()
+        : db.settings.payramWebhookSecret,
     updatedAt: new Date().toISOString(),
   };
   saveDb(db);
   return { ...db.settings };
+}
+
+export function findPostById(postId: string): PostItem | undefined {
+  if (!postId) return undefined;
+  return getDb().posts.find(p => p.id === postId);
+}
+
+export function createPendingPayment(params: {
+  type: PendingPaymentRecord['type'];
+  userId: string;
+  userName: string;
+  userEmail: string;
+  creatorId: string;
+  creatorHandle: string;
+  postId?: string;
+  customRequestId?: string;
+  amountInUSD: number;
+  invoiceId?: string;
+}): PendingPaymentRecord {
+  const db = getDb();
+  const suffix = `${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+  const prefix = params.type === 'SUBSCRIPTION' ? 'SUB' : params.type === 'CUSTOM_CONTENT' ? 'CUST' : 'PPV';
+  const record: PendingPaymentRecord = {
+    id: `pay_${suffix}`,
+    invoiceId: params.invoiceId || `INV-${prefix}-${suffix}`,
+    type: params.type,
+    userId: params.userId,
+    userName: params.userName,
+    userEmail: params.userEmail,
+    creatorId: params.creatorId,
+    creatorHandle: params.creatorHandle,
+    postId: params.postId,
+    customRequestId: params.customRequestId,
+    amountInUSD: Number(Number(params.amountInUSD).toFixed(2)),
+    status: 'OPEN',
+    createdAt: new Date().toISOString(),
+  };
+  db.pendingPayments.unshift(record);
+  saveDb(db);
+  return record;
+}
+
+export function attachPayramReferenceToPendingPayment(
+  pendingId: string,
+  payramReferenceId: string,
+  checkoutUrl: string
+): PendingPaymentRecord | null {
+  const db = getDb();
+  const item = db.pendingPayments.find(p => p.id === pendingId || p.invoiceId === pendingId);
+  if (!item) return null;
+  item.payramReferenceId = payramReferenceId;
+  item.checkoutUrl = checkoutUrl;
+  saveDb(db);
+  return item;
+}
+
+export function findPendingPayment(referenceOrInvoiceOrId: string): PendingPaymentRecord | undefined {
+  if (!referenceOrInvoiceOrId) return undefined;
+  const target = referenceOrInvoiceOrId.trim();
+  return getDb().pendingPayments.find(
+    p => p.payramReferenceId === target || p.invoiceId === target || p.id === target
+  );
+}
+
+export function updatePendingPaymentStatus(
+  referenceOrInvoiceOrId: string,
+  status: PendingPaymentStatus,
+  meta?: { currency?: string; network?: string; txHash?: string }
+): PendingPaymentRecord | undefined {
+  const db = getDb();
+  const target = referenceOrInvoiceOrId.trim();
+  const item = db.pendingPayments.find(
+    p => p.payramReferenceId === target || p.invoiceId === target || p.id === target
+  );
+  if (!item) return undefined;
+  item.status = status;
+  if (meta?.currency) item.currency = meta.currency;
+  if (meta?.network) item.network = meta.network;
+  if (meta?.txHash) item.txHash = meta.txHash;
+  saveDb(db);
+  return item;
+}
+
+export function listPendingPaymentsAdmin(): PendingPaymentRecord[] {
+  return [...getDb().pendingPayments];
+}
+
+export function settlePendingPayment(
+  referenceOrInvoiceOrId: string,
+  meta?: {
+    paymentGateway?: string;
+    currency?: string;
+    network?: string;
+    txHash?: string;
+    status?: PendingPaymentStatus;
+  }
+): { success: boolean; alreadySettled?: boolean; pending?: PendingPaymentRecord; error?: string } {
+  const db = getDb();
+  const target = referenceOrInvoiceOrId.trim();
+  const item = db.pendingPayments.find(
+    p => p.payramReferenceId === target || p.invoiceId === target || p.id === target
+  );
+  if (!item) {
+    return { success: false, error: 'Payment invoice not found' };
+  }
+
+  if (item.status === 'FILLED' || item.status === 'OVER_FILLED') {
+    return { success: true, alreadySettled: true, pending: item };
+  }
+
+  const now = new Date().toISOString();
+  item.status = meta?.status === 'OVER_FILLED' ? 'OVER_FILLED' : 'FILLED';
+  item.settledAt = now;
+  if (meta?.currency) item.currency = meta.currency;
+  if (meta?.network) item.network = meta.network;
+  if (meta?.txHash) item.txHash = meta.txHash;
+
+  const gatewayName = meta?.paymentGateway || 'PAYRAM';
+  const gatewayRef = item.payramReferenceId || item.invoiceId;
+
+  if (item.type === 'INDIVIDUAL_CONTENT' && item.postId) {
+    purchaseIndividualContent({
+      userId: item.userId,
+      userName: item.userName,
+      postId: item.postId,
+      paymentGateway: gatewayName,
+      gatewayReference: gatewayRef,
+    });
+  } else if (item.type === 'SUBSCRIPTION') {
+    const resolvedCreatorId = resolveCreatorId(item.creatorId);
+    subscribeUserToCreator(item.userId, resolvedCreatorId, item.amountInUSD);
+    const commission = calculateCommission(item.amountInUSD, db.settings.creatorCommissionPercent);
+    db.transactions.unshift({
+      id: `tx_sub_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      transactionReference: `MIRAGE_SUB_${gatewayRef}`,
+      userId: item.userId,
+      userName: item.userName,
+      creatorId: resolvedCreatorId,
+      creatorName: getCreatorNameById(resolvedCreatorId),
+      type: 'SUBSCRIPTION',
+      grossAmount: commission.grossAmount,
+      creatorShare: commission.creatorShare,
+      platformShare: commission.platformShare,
+      feeAmount: 0,
+      currency: item.currency || 'USD',
+      status: 'SUCCESS',
+      paymentGateway: gatewayName,
+      gatewayReference: gatewayRef,
+      createdAt: now,
+    });
+  } else if (item.type === 'CUSTOM_CONTENT' && item.customRequestId) {
+    payCustomRequest(item.customRequestId, item.userId, {
+      paymentGateway: gatewayName,
+      gatewayReference: gatewayRef,
+    });
+  }
+
+  saveDb(db);
+  return { success: true, alreadySettled: false, pending: item };
 }
 
 // ======================= USER & CREATOR REGISTRY =======================
@@ -2674,7 +2910,11 @@ export function createCustomRequest(params: {
   return reqItem;
 }
 
-export function payCustomRequest(requestId: string, userId: string): { success: boolean; request?: CustomRequestRecord; error?: string } {
+export function payCustomRequest(
+  requestId: string,
+  userId: string,
+  gatewayMeta?: { paymentGateway?: string; gatewayReference?: string }
+): { success: boolean; request?: CustomRequestRecord; error?: string } {
   const db = getDb();
   const reqItem = db.customRequests.find(r => r.id === requestId);
   if (!reqItem) return { success: false, error: 'Custom request not found' };
@@ -2701,8 +2941,8 @@ export function payCustomRequest(requestId: string, userId: string): { success: 
     feeAmount: 0,
     currency: 'USD',
     status: 'SUCCESS',
-    paymentGateway: 'MIRAGE_PAY',
-    gatewayReference: `gw_cust_${Date.now()}`,
+    paymentGateway: gatewayMeta?.paymentGateway || 'MIRAGE_PAY',
+    gatewayReference: gatewayMeta?.gatewayReference || `gw_cust_${Date.now()}`,
     createdAt: now,
   });
 
@@ -2875,8 +3115,10 @@ export function purchaseIndividualContent(params: {
   userId: string;
   userName?: string;
   postId: string;
+  paymentGateway?: string;
+  gatewayReference?: string;
 }): { success: boolean; purchase?: PurchaseRecord; transaction?: TransactionRecord; error?: string } {
-  const { userId, userName = 'Subscriber', postId } = params;
+  const { userId, userName = 'Subscriber', postId, paymentGateway = 'MIRAGE_PAY', gatewayReference } = params;
   const db = getDb();
 
   const post = db.posts.find(p => p.id === postId);
@@ -2949,8 +3191,8 @@ export function purchaseIndividualContent(params: {
     feeAmount: 0.0,
     currency: 'USD',
     status: 'SUCCESS',
-    paymentGateway: 'MIRAGE_PAY',
-    gatewayReference: `gw_${Date.now()}`,
+    paymentGateway,
+    gatewayReference: gatewayReference || `gw_${Date.now()}`,
     createdAt: now,
   };
 
@@ -3424,7 +3666,8 @@ export function getAdminOverviewData() {
     reports: [...db.reports],
     customRequests: [...db.customRequests],
     subscriptions: [...db.subscriptions],
-    settings: { ...db.settings },
+    pendingPayments: [...db.pendingPayments],
+    settings: getPlatformSettings(),
   };
 }
 

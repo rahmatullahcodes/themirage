@@ -888,6 +888,165 @@ async function runTests() {
   console.log('✓ Test 24: Admin Full Dynamic Management, Suspension Filtering, Orders & Subscriptions verified');
   passed++;
 
+  // 25. PayRam Crypto Payment Gateway Integration, Signed Webhooks & Live Polling
+  const crypto = require('crypto');
+  const mockInvoices = new Map();
+  let mockRefCounter = 1;
+  const MOCK_PAYRAM_PORT = 13099;
+  const MOCK_API_KEY = 'payram_live_test_key_2026';
+  const MOCK_WEBHOOK_SECRET = 'payram_hmac_secret_2026';
+
+  const mockPayramServer = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      if (req.headers['api-key'] !== MOCK_API_KEY) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid API-Key' }));
+        return;
+      }
+      if (req.method === 'POST' && req.url === '/api/v1/payment') {
+        const parsed = JSON.parse(body || '{}');
+        const refId = `pr_ref_${mockRefCounter++}`;
+        mockInvoices.set(refId, { status: 'OPEN', ...parsed });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            reference_id: refId,
+            url: `http://127.0.0.1:${MOCK_PAYRAM_PORT}/checkout/${refId}`,
+          })
+        );
+        return;
+      }
+      if (req.method === 'GET' && req.url.startsWith('/api/v1/payment/reference/')) {
+        const refId = decodeURIComponent(req.url.replace('/api/v1/payment/reference/', ''));
+        const inv = mockInvoices.get(refId);
+        if (!inv) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Reference not found' }));
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            reference_id: refId,
+            status: inv.status,
+            currency: 'USDC',
+            blockchain: 'BASE',
+            txid: inv.txid || '0xpayramtesttx123',
+          })
+        );
+        return;
+      }
+      res.writeHead(404);
+      res.end();
+    });
+  });
+
+  await new Promise((resolve) => mockPayramServer.listen(MOCK_PAYRAM_PORT, '127.0.0.1', resolve));
+
+  try {
+    // Enable PayRam via Admin settings
+    const enablePayramRes = await request('PATCH', '/api/admin/settings', {
+      paymentGatewayMode: 'PAYRAM',
+      payramBaseUrl: `http://127.0.0.1:${MOCK_PAYRAM_PORT}`,
+      payramApiKey: MOCK_API_KEY,
+      payramWebhookSecret: MOCK_WEBHOOK_SECRET,
+    }, adminAuth);
+    assert.strictEqual(enablePayramRes.status, 200);
+    assert.strictEqual(enablePayramRes.data.payram.active, true);
+
+    const testConnRes = await request('GET', '/api/admin/settings?testPayram=true', null, adminAuth);
+    assert.strictEqual(testConnRes.status, 200);
+    assert.strictEqual(testConnRes.data.connectionTest.reachable, true);
+
+    // Checkout PPV via PayRam returns redirect checkoutUrl & referenceId
+    const ppvPayramPost = await request('POST', '/api/content/posts', {
+      creatorId: 'c1',
+      creatorHandle: 'luna-rae',
+      title: 'PayRam Exclusive Clip',
+      mediaType: 'VIDEO',
+      mediaUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=1200',
+      visibility: 'PURCHASE_ONLY',
+      price: 33.0,
+      status: 'PUBLISHED',
+    }, lunaAuth);
+    assert.strictEqual(ppvPayramPost.status, 200);
+    const payramPostId = ppvPayramPost.data.post.id;
+
+    const payramPpvInit = await request('POST', '/api/content/purchase', { postId: payramPostId }, newSubAuth);
+    assert.strictEqual(payramPpvInit.status, 200);
+    assert.strictEqual(payramPpvInit.data.requiresRedirect, true);
+    const ppvRefId = payramPpvInit.data.referenceId;
+    assert.ok(payramPpvInit.data.checkoutUrl.includes(ppvRefId));
+
+    // Spoofed PayRam webhook must fail 401
+    const spoofWebhook = await request('POST', '/api/webhooks/payram', {
+      reference_id: ppvRefId,
+      status: 'FILLED',
+    });
+    assert.strictEqual(spoofWebhook.status, 401, 'Unauthenticated PayRam webhook must return 401');
+
+    // Valid HMAC-SHA256 signed PayRam webhook must settle & unlock PPV post idempotently
+    const webhookBodyObj = {
+      event: 'payment.confirmed',
+      reference_id: ppvRefId,
+      status: 'FILLED',
+      amount: 33.0,
+      currency: 'USDC',
+      blockchain: 'BASE',
+      txid: '0xbase_confirmed_hash_99',
+    };
+    const rawWebhookStr = JSON.stringify(webhookBodyObj);
+    const sigHex = crypto.createHmac('sha256', MOCK_WEBHOOK_SECRET).update(rawWebhookStr, 'utf8').digest('hex');
+
+    const signedWebhookRes = await request('POST', '/api/webhooks/payram', webhookBodyObj, {
+      'X-Payram-Signature': sigHex,
+    });
+    assert.strictEqual(signedWebhookRes.status, 200);
+    assert.strictEqual(signedWebhookRes.data.settled, true);
+    assert.strictEqual(signedWebhookRes.data.alreadySettled, false);
+
+    // Replay webhook -> idempotent alreadySettled: true
+    const replayWebhookRes = await request('POST', '/api/webhooks/payram', webhookBodyObj, {
+      'X-Payram-Signature': sigHex,
+    });
+    assert.strictEqual(replayWebhookRes.status, 200);
+    assert.strictEqual(replayWebhookRes.data.alreadySettled, true);
+
+    // Media must now be authorized for newSubAuth
+    const unlockedMediaRes = await request('GET', `/api/media/${payramPostId}`, null, newSubAuth);
+    assert.strictEqual(unlockedMediaRes.status, 200);
+    assert.strictEqual(unlockedMediaRes.data.authorized, true);
+
+    // Subscription checkout + polling auto-settlement check
+    const subInitRes = await request('POST', '/api/subscriptions/checkout', {
+      creatorId: 'c3',
+      amount: 7.99,
+    }, newSubAuth);
+    assert.strictEqual(subInitRes.status, 200);
+    assert.strictEqual(subInitRes.data.requiresRedirect, true);
+    const subRefId = subInitRes.data.referenceId;
+
+    // Simulate blockchain fill on PayRam server & verify status polling settles automatically
+    mockInvoices.get(subRefId).status = 'FILLED';
+    const pollSubRes = await request('GET', `/api/payments/payram/status?referenceId=${encodeURIComponent(subRefId)}`, null, newSubAuth);
+    assert.strictEqual(pollSubRes.status, 200);
+    assert.strictEqual(pollSubRes.data.settled, true);
+    assert.strictEqual(pollSubRes.data.payment.status, 'FILLED');
+  } finally {
+    // Restore sandbox mode & close mock server
+    await request('PATCH', '/api/admin/settings', {
+      paymentGatewayMode: 'SANDBOX',
+      payramApiKey: '',
+      payramWebhookSecret: '',
+    }, adminAuth);
+    mockPayramServer.close();
+  }
+
+  console.log('✓ Test 25: PayRam Crypto Gateway Checkout, HMAC Webhook Settlement & Polling verified');
+  passed++;
+
   console.log('\n================================================================');
   console.log(` ALL ${passed}/${passed} FULL-STACK E2E API & BACKEND TESTS PASSED! ✓`);
   console.log('================================================================');

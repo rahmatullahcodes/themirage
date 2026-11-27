@@ -8,7 +8,13 @@ import {
   recordTransaction,
   getPlatformSettings,
   isCreatorSuspended,
+  findUserById,
+  listAllCreators,
+  createPendingPayment,
+  attachPayramReferenceToPendingPayment,
+  updatePendingPaymentStatus,
 } from '@/lib/contentStore';
+import { isPayramActive, createPayramCheckoutSession } from '@/lib/payram';
 
 export async function POST(req: Request) {
   try {
@@ -23,7 +29,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid JSON request body' }, { status: 400 });
     }
 
-    const { creatorId, amount } = body || {};
+    const { creatorId, amount, currency, network } = body || {};
     const numericAmount = parseFloat(amount);
 
     if (!creatorId || !Number.isFinite(numericAmount) || numericAmount <= 0) {
@@ -35,6 +41,47 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'This creator account is currently suspended.' }, { status: 400 });
     }
     const creatorName = getCreatorNameById(resolvedCreatorId);
+
+    if (isPayramActive()) {
+      const dbUser = findUserById(user.userId);
+      const targetCreator = listAllCreators({ handle: resolvedCreatorId })[0];
+      const pending = createPendingPayment({
+        type: 'SUBSCRIPTION',
+        userId: user.userId,
+        userName: dbUser?.name || user.username || 'Subscriber',
+        userEmail: dbUser?.email || user.email,
+        creatorId: resolvedCreatorId,
+        creatorHandle: targetCreator?.handle || resolvedCreatorId,
+        amountInUSD: numericAmount,
+      });
+
+      try {
+        const session = await createPayramCheckoutSession({
+          customerEmail: pending.userEmail,
+          customerId: pending.userId,
+          amountInUSD: pending.amountInUSD,
+          invoiceId: pending.invoiceId,
+          currency: typeof currency === 'string' && currency.trim() ? currency.trim() : undefined,
+          network: typeof network === 'string' && network.trim() ? network.trim() : undefined,
+        });
+        attachPayramReferenceToPendingPayment(pending.id, session.referenceId, session.checkoutUrl);
+        return NextResponse.json({
+          success: true,
+          gateway: 'PAYRAM',
+          requiresRedirect: true,
+          checkoutUrl: session.checkoutUrl,
+          referenceId: session.referenceId,
+          invoiceId: pending.invoiceId,
+          status: 'OPEN',
+        });
+      } catch (err: any) {
+        updatePendingPaymentStatus(pending.id, 'CANCELLED');
+        return NextResponse.json(
+          { error: err?.message || 'Failed to create PayRam crypto payment session' },
+          { status: 502 }
+        );
+      }
+    }
 
     // Record active subscription entitlement in contentStore so subscriber-only media unlocks on backend
     const recordedSub = subscribeUserToCreator(user.userId, resolvedCreatorId);
